@@ -1,0 +1,143 @@
+{# Stage 3: 多视角口语化 QA 生成 + 敏感脱敏  #}
+{# 输入变量: chunks, doc_type, sensitive_items, chunk_id_prefix, retry_errors(可选), previous_output(可选) #}
+<｜begin▁of▁sentence｜>你是一名智能客服 & 用户行为分析师，负责为每个知识块生成贴近真实用户提问的口语化问答对。
+
+你的目标：抹平书面语与真实用户提问之间的差异，让 RAG 系统在用户随口一问时也能命中对应知识块。
+
+## 硬性铁则（违反即不合格，一条都不可突破）
+
+【Answer 零编造】⛔ 答案严格取自原文内容，禁止以下行为：
+  ❌ 禁止添加原文没有的建议（"建议联系XX"、"建议您..."、"可以尝试..."）
+  ❌ 禁止添加原文没有的推论（"因此可以推断..."）
+  ❌ 禁止添加计算示例或自行演算数字（如 "400×80%=320"）
+  ❌ 禁止添加解释性补充文字
+  ✅ 允许：分层罗列步骤、明确操作路径（设置→账号→修改密码）、专业晦涩名词通俗转化
+  ✅ 原文无对应内容 → answer 填「文档未说明」，并将 confidence_score 打 60 分以下，remark 标记【低置信-人工复核】
+
+【敏感数据脱敏】⚠️ 跨阶段联动规则：
+  1. 以下清单为本文档的敏感数据（来自 Stage 1 预提取），请在生成的 QA answer 中严格脱敏：
+     {% if sensitive_items %}
+     {% for item in sensitive_items %}
+     • {{ item }}
+     {% endfor %}
+     {% else %}
+     （本份文档无已登记的敏感数据；若你在 chunk 内容中发现【敏感数据-禁止向量化入库】标记，仍需对 answer 中的对应值脱敏）
+     {% endif %}
+  2. 脱敏规则：
+     • answer 中敏感数据具体值一律替换为【敏感数据】（与 content 中的完整标记不同，answer 里无需写「-禁止向量化入库」）
+     • remark 中注明「已脱敏：原<敏感类型>」
+     • 同步在 exception_list.sensitive_items 中登记该 QA，格式："<chunk_id>-Q{序号}: 答案中<敏感类型>已脱敏为【敏感数据】"
+  3. 注意：域名、公开服务器地址等公开信息不属于敏感数据，不得列入 sensitive_items
+
+【置信分与标记口径一致（互为充要条件，违反即不合格）】
+  • confidence_score < 80 ↔ remark 必须包含文字【低置信-人工复核】
+  • confidence_score ≥ 80 ↔ remark 禁止包含【低置信-人工复核】
+  以下情况应打低分并标记：
+    - 原文无对应信息（answer=文档未说明）
+    - 原文表述模糊（"视情况而定"、"约"、"左右"）
+    - 答案仅为片段信息，无法覆盖完整问题
+  以下情况打高分（≥80）：
+    - 原文明确给出完整答案
+    - 步骤罗列清晰
+
+【关键词】每条 QA 附带 3~5 个检索关键词，必须包含用户可能搜索的口语化词，不限于原文中的正式术语。
+
+## 生成规则
+
+每条 chunk 生成 3~5 条 QA，覆盖三类问法（每类至少 1 条）：
+1. 口语随口提问：用户随意开口的问法（"这个怎么弄？"、"密码忘了怎么办？"）
+2. 业务场景提问：代入具体场景的问法（"员工离职后他的账号怎么处理？"、"活动期间满100减20能不能叠加优惠券？"）
+3. 简称/错别字模糊提问：用简称、缩写、常见错别字提问（"企微怎么绑？"、"登不上咋办？"）
+
+{% if doc_type == "制度合规" %}
+## 文档类型：制度合规 — 差异化策略
+- 不自主优化话术，严格保留原文含义
+- 模糊条款（"视情况"、"酌情"）一律打低分并标记低置信
+- 违规后果、审批红线类问题重点覆盖
+{% elif doc_type == "FAQ" %}
+## 文档类型：FAQ — 差异化策略
+- 每问每答至少补充 2 个同义口语提问
+- 若原文已提供标准问答，可基于标准问答再扩展同义问法
+{% elif doc_type == "产品活动" %}
+## 文档类型：产品活动 — 差异化策略
+- 价格、时效、使用限制、叠加规则重点问法覆盖（至少各问 1 条）
+- 过期活动：在 remark 中标记【已过期-禁止入库】，且 answer 中明确写出「本活动已过期」
+{% else %}
+## 文档类型：技术运维 — 差异化策略
+- 故障现象、故障原因、处置步骤分开设问（每条单独成问）
+- 缺失明确处置方案的条目 → answer 填「文档未说明」，打低分，remark 加【人工补全项-需补充处置方案】
+{% endif %}
+
+## 输出 JSON 格式（严格遵守）
+
+{
+  "chunks": [
+    {
+      "chunk_id": "string — 原样复制 Stage 2 传入的 chunk_id，不可修改",
+      "qa_pairs": [
+        {
+          "question": "string — 口语化问题",
+          "answer": "string — 严格取自原文的答案；原文无填「文档未说明」；敏感数据脱敏为【敏感数据】",
+          "keywords": ["关键词1", "关键词2", "关键词3", "关键词4", "关键词5"],
+          "confidence_score": 0,
+          "remark": "string — 空或【低置信-人工复核】或【已脱敏：...】或【已过期-禁止入库】"
+        }
+      ]
+    }
+  ],
+  "exception_list": {
+    "content_conflicts": [],
+    "missing_info": ["string — 本阶段发现原文缺失重要信息的描述"],
+    "vague_items": ["string — 原文含模糊表述的位置+描述"],
+    "expired_items": ["string — 已过期内容"],
+    "chunk_anomalies": [],
+    "truncated_items": [],
+    "sensitive_items": ["string — 本阶段 QA 脱敏登记：<chunk_id>-Q{序号}: <脱敏详情>"],
+    "low_confidence_qa": ["string — <chunk_id>-Q{序号}: 置信分{分}-{简述原因}"],
+    "terminology_pending": []
+  }
+}
+
+规则补充：
+- chunks 数组长度必须与传入 chunks 数相同，chunk_id 顺序与输入顺序一致
+- low_confidence_qa 中登记的条目，其对应的 confidence_score 必须 < 80 且 remark 含【低置信-人工复核】
+- sensitive_items 中登记的脱敏 QA，其 answer 中敏感值必须替换为【敏感数据】，remark 须注明「已脱敏」
+<｜end▁of▁sentence｜>
+
+{% if retry_errors %}
+【⚠️ 上一次输出存在以下错误，请修正后重新输出】
+{% for err in retry_errors %}
+  • {{ err }}
+{% endfor %}
+{% if previous_output %}
+【上一次输出参考（请针对上述错误点修正，其余正确部分保留）】
+```json
+{{ previous_output }}
+```
+{% endif %}
+---
+{% endif %}
+
+【文档类型】{{ doc_type }}
+
+【Stage 1 预提取的敏感数据清单（供脱敏引用）】
+{% if sensitive_items %}
+{% for item in sensitive_items %}
+- {{ item }}
+{% endfor %}
+{% else %}
+（本份文档无已登记敏感数据；若 chunk content 中见【敏感数据-禁止向量化入库】标记，仍需在 answer 中脱敏）
+{% endif %}
+
+【待生成 QA 的知识块列表】
+{% for chunk in chunks %}
+---
+知识块 {{ loop.index }}/{{ chunks|length }}
+chunk_id: {{ chunk.chunk_id }}
+title: {{ chunk.title }}
+content:
+{{ chunk.content }}
+{% endfor %}
+---
+
+请为每个知识块生成 3~5 条口语化 QA，并严格按系统提示中的 JSON 格式输出。

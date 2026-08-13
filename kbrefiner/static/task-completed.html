@@ -1,0 +1,1163 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>任务已完成</title>
+    <style id="theme-vars">
+/* 知序 KBRefiner — 产品前端设计系统 */
+
+:root {
+  /* ===== 品牌主色阶（单一主色） ===== */
+  --kb-primary-50: #eff6ff;
+  --kb-primary-100: #dbeafe;
+  --kb-primary-200: #bfdbfe;
+  --kb-primary-300: #93c5fd;
+  --kb-primary-400: #60a5fa;
+  --kb-primary-500: #3b82f6;
+  --kb-primary-600: #2563eb;
+  --kb-primary-700: #1d4ed8;
+  --kb-primary-800: #1e40af;
+  --kb-primary-900: #1e3a8a;
+
+  /* ===== 中性色阶 ===== */
+  --kb-neutral-0: #ffffff;
+  --kb-neutral-50: #f8fafc;
+  --kb-neutral-100: #f1f5f9;
+  --kb-neutral-200: #e2e8f0;
+  --kb-neutral-300: #cbd5e1;
+  --kb-neutral-400: #94a3b8;
+  --kb-neutral-500: #64748b;
+  --kb-neutral-600: #475569;
+  --kb-neutral-700: #334155;
+  --kb-neutral-800: #1e293b;
+  --kb-neutral-900: #0f172a;
+
+  /* ===== 语义色（仅用于状态） ===== */
+  --kb-state-success: #10b981;
+  --kb-state-success-bg: #ecfdf5;
+  --kb-state-success-border: #a7f3d0;
+  --kb-state-warning: #f59e0b;
+  --kb-state-warning-bg: #fffbeb;
+  --kb-state-error: #ef4444;
+  --kb-state-error-bg: #fef2f2;
+  --kb-state-info: #0ea5e9;
+  --kb-state-info-bg: #f0f9ff;
+
+  /* ===== 语义别名（apply-html-head-contract 需要） ===== */
+  --kb-background: var(--kb-neutral-50);
+  --kb-foreground: var(--kb-neutral-900);
+  --kb-card: var(--kb-neutral-0);
+  --kb-card-foreground: var(--kb-neutral-900);
+  --kb-popover: var(--kb-neutral-0);
+  --kb-popover-foreground: var(--kb-neutral-900);
+  --kb-primary: var(--kb-primary-600);
+  --kb-primary-foreground: var(--kb-neutral-0);
+  --kb-muted: var(--kb-neutral-100);
+  --kb-muted-foreground: var(--kb-neutral-500);
+  --kb-border: var(--kb-neutral-200);
+  --kb-input: var(--kb-neutral-200);
+  --kb-ring: var(--kb-primary-300);
+
+  --kb-radius-small: 4px;
+  --kb-radius-medium: 8px;
+  --kb-radius-large: 12px;
+
+  /* ===== 字体系统 ===== */
+  --kb-font-sans: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --kb-font-mono: "GeistMono", "SF Mono", "Fira Code", ui-monospace, monospace;
+
+  /* ===== 阴影（静态表面不超过 0.05） ===== */
+  --kb-shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --kb-shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.05);
+  --kb-shadow-md: 0 4px 12px rgba(15, 23, 42, 0.05);
+  --kb-shadow-lg: 0 8px 24px rgba(15, 23, 42, 0.05);
+  --kb-shadow-float: 0 16px 48px rgba(15, 23, 42, 0.12);
+
+  /* ===== 间距 ===== */
+  --kb-space-1: 4px;
+  --kb-space-2: 8px;
+  --kb-space-3: 12px;
+  --kb-space-4: 16px;
+  --kb-space-5: 20px;
+  --kb-space-6: 24px;
+  --kb-space-8: 32px;
+  --kb-space-10: 40px;
+  --kb-space-12: 48px;
+
+  /* ===== 尺寸 ===== */
+  --kb-sidebar-width: 240px;
+  --kb-header-height: 64px;
+}
+
+/* ===== 全局 reset ===== */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--kb-font-sans);
+  background: var(--kb-background);
+  color: var(--kb-foreground);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ===== 排版 ===== */
+h1, h2, h3, h4, h5, h6 {
+  line-height: 1.3;
+  font-weight: 700;
+  color: var(--kb-foreground);
+}
+
+h1 { font-size: 1.875rem; }
+h2 { font-size: 1.5rem; }
+h3 { font-size: 1.25rem; }
+h4 { font-size: 1.125rem; }
+
+p {
+  color: var(--kb-neutral-600);
+  line-height: 1.7;
+}
+
+/* ===== 链接 ===== */
+a {
+  color: var(--kb-primary);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--kb-primary-700);
+}
+
+/* ===== 按钮 ===== */
+.kb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--kb-space-2);
+  padding: 10px 18px;
+  border: 1px solid transparent;
+  border-radius: var(--kb-radius-medium);
+  font-family: var(--kb-font-sans);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.kb-btn-primary {
+  background: var(--kb-primary);
+  color: var(--kb-primary-foreground);
+}
+
+.kb-btn-primary:hover {
+  background: var(--kb-primary-700);
+}
+
+.kb-btn-secondary {
+  background: var(--kb-neutral-0);
+  color: var(--kb-neutral-700);
+  border-color: var(--kb-border);
+}
+
+.kb-btn-secondary:hover {
+  background: var(--kb-neutral-50);
+  border-color: var(--kb-neutral-300);
+}
+
+.kb-btn-ghost {
+  background: transparent;
+  color: var(--kb-neutral-600);
+}
+
+.kb-btn-ghost:hover {
+  background: var(--kb-neutral-100);
+  color: var(--kb-neutral-900);
+}
+
+.kb-btn-danger {
+  background: var(--kb-state-error);
+  color: #fff;
+}
+
+.kb-btn-danger:hover {
+  background: #dc2626;
+}
+
+.kb-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.kb-btn-sm {
+  padding: 6px 12px;
+  font-size: 0.8125rem;
+}
+
+.kb-btn-lg {
+  padding: 14px 24px;
+  font-size: 1rem;
+}
+
+/* ===== 卡片 ===== */
+.kb-card {
+  background: var(--kb-card);
+  border: 1px solid var(--kb-border);
+  border-radius: var(--kb-radius-large);
+  box-shadow: var(--kb-shadow-xs);
+}
+
+.kb-card-header {
+  padding: var(--kb-space-5) var(--kb-space-6);
+  border-bottom: 1px solid var(--kb-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--kb-space-4);
+}
+
+.kb-card-body {
+  padding: var(--kb-space-6);
+}
+
+.kb-card-footer {
+  padding: var(--kb-space-4) var(--kb-space-6);
+  border-top: 1px solid var(--kb-border);
+  background: var(--kb-neutral-50);
+  border-radius: 0 0 var(--kb-radius-large) var(--kb-radius-large);
+}
+
+/* ===== 表单 ===== */
+.kb-input,
+.kb-textarea,
+.kb-select {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--kb-input);
+  border-radius: var(--kb-radius-medium);
+  background: var(--kb-neutral-0);
+  color: var(--kb-foreground);
+  font-family: var(--kb-font-sans);
+  font-size: 0.875rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.kb-input:focus,
+.kb-textarea:focus,
+.kb-select:focus {
+  outline: none;
+  border-color: var(--kb-primary-400);
+  box-shadow: 0 0 0 3px var(--kb-primary-100);
+}
+
+.kb-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--kb-neutral-700);
+  margin-bottom: var(--kb-space-2);
+}
+
+.kb-hint {
+  font-size: 0.8125rem;
+  color: var(--kb-neutral-500);
+  margin-top: var(--kb-space-1);
+}
+
+/* ===== 标签/徽章 ===== */
+.kb-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.kb-tag-primary {
+  background: var(--kb-primary-100);
+  color: var(--kb-primary-700);
+}
+
+.kb-tag-success {
+  background: var(--kb-state-success-bg);
+  color: #047857;
+}
+
+.kb-tag-warning {
+  background: var(--kb-state-warning-bg);
+  color: #b45309;
+}
+
+.kb-tag-error {
+  background: var(--kb-state-error-bg);
+  color: #b91c1c;
+}
+
+.kb-tag-info {
+  background: var(--kb-state-info-bg);
+  color: #0369a1;
+}
+
+.kb-tag-muted {
+  background: var(--kb-neutral-100);
+  color: var(--kb-neutral-600);
+}
+
+/* ===== 状态徽章 ===== */
+.kb-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.kb-status::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.kb-status-pending::before { background: var(--kb-neutral-400); }
+.kb-status-running::before { background: var(--kb-state-info); }
+.kb-status-success::before { background: var(--kb-state-success); }
+.kb-status-warning::before { background: var(--kb-state-warning); }
+.kb-status-error::before { background: var(--kb-state-error); }
+
+/* ===== 表格 ===== */
+.kb-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.kb-table th,
+.kb-table td {
+  padding: var(--kb-space-3) var(--kb-space-4);
+  text-align: left;
+  border-bottom: 1px solid var(--kb-border);
+}
+
+.kb-table th {
+  font-weight: 600;
+  color: var(--kb-neutral-600);
+  background: var(--kb-neutral-50);
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.kb-table tr:hover td {
+  background: var(--kb-neutral-50);
+}
+
+/* ===== 进度条 ===== */
+.kb-progress {
+  width: 100%;
+  height: 8px;
+  background: var(--kb-neutral-200);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.kb-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--kb-primary-500), var(--kb-primary-600));
+  border-radius: 9999px;
+  transition: width 0.4s ease;
+}
+
+/* ===== 分割线 ===== */
+.kb-divider {
+  height: 1px;
+  background: var(--kb-border);
+  margin: var(--kb-space-4) 0;
+}
+
+/* ===== 空状态 ===== */
+.kb-empty {
+  text-align: center;
+  padding: var(--kb-space-12) var(--kb-space-6);
+  color: var(--kb-neutral-500);
+}
+
+.kb-empty-icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto var(--kb-space-4);
+  background: var(--kb-neutral-100);
+  border-radius: var(--kb-radius-large);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--kb-neutral-400);
+}
+
+/* ===== 工具类 ===== */
+.kb-text-muted { color: var(--kb-neutral-500); }
+.kb-text-secondary { color: var(--kb-neutral-600); }
+.kb-text-primary { color: var(--kb-primary); }
+.kb-text-success { color: var(--kb-state-success); }
+.kb-text-warning { color: var(--kb-state-warning); }
+.kb-text-error { color: var(--kb-state-error); }
+.kb-font-mono { font-family: var(--kb-font-mono); }
+.kb-font-semibold { font-weight: 600; }
+.kb-font-bold { font-weight: 700; }
+.kb-text-sm { font-size: 0.875rem; }
+.kb-text-xs { font-size: 0.75rem; }
+.kb-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.1/dist/index.global.js"></script>
+    <script src="https://unpkg.com/lucide@1.8.0/dist/umd/lucide.min.js"></script>
+    <style type="text/tailwindcss">
+  @theme inline {
+    --color-background: var(--kb-background);
+    --color-foreground: var(--kb-foreground);
+    --color-card: var(--kb-card);
+    --color-card-foreground: var(--kb-card-foreground);
+    --color-popover: var(--kb-popover);
+    --color-popover-foreground: var(--kb-popover-foreground);
+    --color-primary: var(--kb-primary);
+    --color-primary-foreground: var(--kb-primary-foreground);
+    --color-muted: var(--kb-muted);
+    --color-muted-foreground: var(--kb-muted-foreground);
+    --color-border: var(--kb-border);
+    --color-input: var(--kb-input);
+    --color-ring: var(--kb-ring);
+    --radius-sm: var(--kb-radius-small);
+    --radius-md: var(--kb-radius-medium);
+    --radius-lg: var(--kb-radius-large);
+  }
+  @layer base {
+    body { background: var(--kb-background); color: var(--kb-foreground); }
+    td, th { @apply break-words; word-break: break-all; word-break: auto-phrase; }
+    th { @apply whitespace-nowrap; }
+  }
+    </style>
+    <style id="semantic-token-fallback">
+      .bg-background { background-color: var(--kb-background); }
+      .text-background { color: var(--kb-background); }
+      .border-background { border-color: var(--kb-background); }
+      .ring-background { --tw-ring-color: var(--kb-background); }
+      .bg-foreground { background-color: var(--kb-foreground); }
+      .text-foreground { color: var(--kb-foreground); }
+      .border-foreground { border-color: var(--kb-foreground); }
+      .ring-foreground { --tw-ring-color: var(--kb-foreground); }
+      .bg-card { background-color: var(--kb-card); }
+      .text-card { color: var(--kb-card); }
+      .border-card { border-color: var(--kb-card); }
+      .ring-card { --tw-ring-color: var(--kb-card); }
+      .bg-card-foreground { background-color: var(--kb-card-foreground); }
+      .text-card-foreground { color: var(--kb-card-foreground); }
+      .border-card-foreground { border-color: var(--kb-card-foreground); }
+      .ring-card-foreground { --tw-ring-color: var(--kb-card-foreground); }
+      .bg-popover { background-color: var(--kb-popover); }
+      .text-popover { color: var(--kb-popover); }
+      .border-popover { border-color: var(--kb-popover); }
+      .ring-popover { --tw-ring-color: var(--kb-popover); }
+      .bg-popover-foreground { background-color: var(--kb-popover-foreground); }
+      .text-popover-foreground { color: var(--kb-popover-foreground); }
+      .border-popover-foreground { border-color: var(--kb-popover-foreground); }
+      .ring-popover-foreground { --tw-ring-color: var(--kb-popover-foreground); }
+      .bg-primary { background-color: var(--kb-primary); }
+      .text-primary { color: var(--kb-primary); }
+      .border-primary { border-color: var(--kb-primary); }
+      .ring-primary { --tw-ring-color: var(--kb-primary); }
+      .bg-primary-foreground { background-color: var(--kb-primary-foreground); }
+      .text-primary-foreground { color: var(--kb-primary-foreground); }
+      .border-primary-foreground { border-color: var(--kb-primary-foreground); }
+      .ring-primary-foreground { --tw-ring-color: var(--kb-primary-foreground); }
+      .bg-muted { background-color: var(--kb-muted); }
+      .text-muted { color: var(--kb-muted); }
+      .border-muted { border-color: var(--kb-muted); }
+      .ring-muted { --tw-ring-color: var(--kb-muted); }
+      .bg-muted-foreground { background-color: var(--kb-muted-foreground); }
+      .text-muted-foreground { color: var(--kb-muted-foreground); }
+      .border-muted-foreground { border-color: var(--kb-muted-foreground); }
+      .ring-muted-foreground { --tw-ring-color: var(--kb-muted-foreground); }
+      .bg-border { background-color: var(--kb-border); }
+      .text-border { color: var(--kb-border); }
+      .border-border { border-color: var(--kb-border); }
+      .ring-border { --tw-ring-color: var(--kb-border); }
+      .bg-input { background-color: var(--kb-input); }
+      .text-input { color: var(--kb-input); }
+      .border-input { border-color: var(--kb-input); }
+      .ring-input { --tw-ring-color: var(--kb-input); }
+      .bg-ring { background-color: var(--kb-ring); }
+      .text-ring { color: var(--kb-ring); }
+      .border-ring { border-color: var(--kb-ring); }
+      .ring-ring { --tw-ring-color: var(--kb-ring); }
+    </style>
+    <style>
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      [data-icon] {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+        background-color: currentColor;
+      }
+    </style>
+</head>
+<body class="min-h-screen font-sans antialiased">
+    <div class="kb-toast" role="status" aria-live="polite" aria-atomic="true">
+      <div class="kb-toast-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      </div>
+      <div class="kb-toast-body">
+        <div class="kb-toast-title">任务已完成</div>
+        <div class="kb-toast-desc">KBRefiner_产品手册_v3.pdf 已成功处理并导出。</div>
+      </div>
+      <a class="kb-toast-link" href="#">查看报告</a>
+      <button class="kb-toast-close" type="button" aria-label="关闭通知" data-dom-id="toast-close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <div class="kb-app">
+      <header class="kb-top-header">
+        <div class="kb-top-header-left">
+          <a class="kb-top-brand" href="/task-list">
+            <div class="kb-top-brand-icon">知序</div>
+            <div class="kb-top-brand-text">
+              <span class="kb-top-brand-name">KBRefiner</span>
+              <span class="kb-top-brand-tag">RAG 知识库质检车间</span>
+            </div>
+          </a>
+          <a class="kb-top-back" data-dom-id="btn-back-to-list" href="/task-list">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            返回任务列表
+          </a>
+        </div>
+        <div class="kb-top-header-right">
+          <button class="kb-btn kb-btn-secondary kb-btn-sm">帮助文档</button>
+          <div class="kb-top-avatar">管</div>
+        </div>
+      </header>
+      <main class="kb-main">
+        <div class="kb-content">
+          <div class="kb-task-header">
+            <div class="kb-task-title-wrap">
+              <h2 class="kb-task-name">KBRefiner_产品手册_v3.pdf</h2>
+              <div class="kb-task-meta-row">
+                <span class="kb-text-sm kb-text-secondary">创建时间：2026-08-10 12:30</span>
+                <span class="kb-dot-separator"></span>
+                <span class="kb-text-sm kb-text-secondary">共 12 个文档</span>
+              </div>
+            </div>
+            <span class="kb-status kb-status-success">已完成</span>
+          </div>
+
+          <div class="kb-stepper" role="list" aria-label="任务处理阶段">
+            <div class="kb-step completed" data-dom-id="step-upload" role="listitem" aria-current="false">
+              <div class="kb-step-marker">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div class="kb-step-label">上传</div>
+            </div>
+            <div class="kb-step completed" data-dom-id="step-processing" role="listitem" aria-current="false">
+              <div class="kb-step-marker">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div class="kb-step-label">处理中</div>
+            </div>
+            <div class="kb-step completed" data-dom-id="step-review" role="listitem" aria-current="false">
+              <div class="kb-step-marker">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div class="kb-step-label">审阅中</div>
+            </div>
+            <div class="kb-step completed" data-dom-id="step-results" role="listitem" aria-current="false">
+              <div class="kb-step-marker">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div class="kb-step-label">导出完成</div>
+            </div>
+          </div>
+
+          <div class="kb-detail-layout">
+            <div class="kb-detail-main">
+              <div class="kb-card kb-result-card">
+                <div class="kb-card-header kb-result-header">
+                  <div class="kb-result-title-wrap">
+                    <div class="kb-result-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="28" height="28"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                    </div>
+                    <div>
+                      <h3 class="kb-result-title">处理完成</h3>
+                      <p class="kb-result-subtitle">KBRefiner_产品手册_v3.pdf 已成功清洗、分块并生成 QA 对。</p>
+                    </div>
+                  </div>
+                  <span class="kb-tag kb-tag-success">成功</span>
+                </div>
+                <div class="kb-card-body">
+                  <div class="kb-stat-grid">
+                    <div class="kb-stat-item">
+                      <div class="kb-stat-value">12</div>
+                      <div class="kb-stat-label">文档</div>
+                    </div>
+                    <div class="kb-stat-item">
+                      <div class="kb-stat-value">36</div>
+                      <div class="kb-stat-label">分块</div>
+                    </div>
+                    <div class="kb-stat-item">
+                      <div class="kb-stat-value">24</div>
+                      <div class="kb-stat-label">QA 对</div>
+                    </div>
+                    <div class="kb-stat-item">
+                      <div class="kb-stat-value">8</div>
+                      <div class="kb-stat-label">标签</div>
+                    </div>
+                  </div>
+
+                  <div class="kb-result-files">
+                    <div class="kb-result-files-title">导出文件</div>
+                    <div class="kb-file-list">
+                      <div class="kb-file-item">
+                        <div class="kb-file-icon">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                        </div>
+                        <div class="kb-file-body">
+                          <div class="kb-file-name">KBRefiner_产品手册_v3_cleaned.json</div>
+                          <div class="kb-file-meta">清洗结果 · 2.4 MB</div>
+                        </div>
+                      </div>
+                      <div class="kb-file-item">
+                        <div class="kb-file-icon">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                        </div>
+                        <div class="kb-file-body">
+                          <div class="kb-file-name">KBRefiner_产品手册_v3_qa_pairs.json</div>
+                          <div class="kb-file-meta">QA 对 · 856 KB</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="kb-card-footer kb-result-actions">
+                  <button class="kb-btn kb-btn-primary kb-btn-lg" data-dom-id="btn-download-result" type="button">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    下载结果
+                  </button>
+                  <button class="kb-btn kb-btn-secondary kb-btn-lg" data-dom-id="btn-view-report" type="button">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                    查看质检报告
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="kb-detail-side">
+              <div class="kb-card kb-meta-card">
+                <div class="kb-card-header">
+                  <h3>任务信息</h3>
+                </div>
+                <div class="kb-card-body">
+                  <dl class="kb-meta-list">
+                    <div class="kb-meta-item">
+                      <dt>创建时间</dt>
+                      <dd>2026-08-10 12:30</dd>
+                    </div>
+                    <div class="kb-meta-item">
+                      <dt>完成时间</dt>
+                      <dd>2026-08-10 12:38</dd>
+                    </div>
+                    <div class="kb-meta-item">
+                      <dt>文档数量</dt>
+                      <dd>12</dd>
+                    </div>
+                    <div class="kb-meta-item">
+                      <dt>总大小</dt>
+                      <dd>128.5 MB</dd>
+                    </div>
+                    <div class="kb-meta-item">
+                      <dt>知识库名称</dt>
+                      <dd>产品手册知识库</dd>
+                    </div>
+                  </dl>
+                </div>
+              </div>
+
+              <div class="kb-card kb-upcoming-card">
+                <div class="kb-card-header">
+                  <h3>处理摘要</h3>
+                </div>
+                <div class="kb-card-body">
+                  <div class="kb-upcoming-item">
+                    <div class="kb-upcoming-marker completed">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="12" height="12"><polyline points="20 6 9 17 4 12"/></svg>
+                    </div>
+                    <div class="kb-upcoming-body">
+                      <div class="kb-upcoming-title">清洗分块</div>
+                      <div class="kb-upcoming-desc">MinerU 解析 + 语义分块完成</div>
+                    </div>
+                  </div>
+                  <div class="kb-upcoming-item">
+                    <div class="kb-upcoming-marker completed">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="12" height="12"><polyline points="20 6 9 17 4 12"/></svg>
+                    </div>
+                    <div class="kb-upcoming-body">
+                      <div class="kb-upcoming-title">QA 生成</div>
+                      <div class="kb-upcoming-desc">24 对高质量 QA 已生成</div>
+                    </div>
+                  </div>
+                  <div class="kb-upcoming-item">
+                    <div class="kb-upcoming-marker completed">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="12" height="12"><polyline points="20 6 9 17 4 12"/></svg>
+                    </div>
+                    <div class="kb-upcoming-body">
+                      <div class="kb-upcoming-title">质检报告</div>
+                      <div class="kb-upcoming-desc">完整性、一致性校验通过</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+    <script src="/static/js/kbrefiner.js"></script>
+    <script>
+      lucide.createIcons();
+
+      // ===== 从 URL 获取参数 =====
+      const taskId = KBRefiner.getQueryParam('task_id');
+      const taskName = KBRefiner.getQueryParam('name') || '未命名任务';
+
+      // ===== 状态 =====
+      let _lastResult = null;
+
+      // ===== DOM 元素 =====
+      const taskNameEl = document.querySelector('.kb-task-name');
+      const resultTitle = document.querySelector('.kb-result-title');
+      const resultSubtitle = document.querySelector('.kb-result-subtitle');
+      const statGrid = document.querySelector('.kb-stat-grid');
+      const toast = document.querySelector('.kb-toast');
+      const toastClose = document.querySelector('[data-dom-id="toast-close"]');
+      const btnBack = document.querySelector('[data-dom-id="btn-back-to-list"]');
+      const btnDownload = document.querySelector('[data-dom-id="btn-download-result"]');
+      const btnReport = document.querySelector('[data-dom-id="btn-view-report"]');
+
+      // ===== 初始化 =====
+      if (taskId) {
+        taskNameEl.textContent = taskName;
+        loadTaskMeta(taskId);
+        loadResult(taskId);
+      }
+
+      async function loadTaskMeta(id) {
+        try {
+          const status = await KBRefiner.API.getStatus(id);
+          const metaDate = document.querySelector('.kb-meta-item:first-child dd');
+          if (metaDate && status.created_at) {
+            metaDate.textContent = new Date(status.created_at * 1000).toLocaleString('zh-CN');
+          }
+          // 完成时间取当前时间（实际完成时的时间）
+          const completeItem = document.querySelector('.kb-meta-item:nth-child(2) dd');
+          if (completeItem) {
+            completeItem.textContent = new Date().toLocaleString('zh-CN');
+          }
+        } catch (e) {
+          console.error('加载任务元数据失败:', e);
+        }
+      }
+
+      async function loadResult(id) {
+        try {
+          const result = await KBRefiner.API.getResult(id);
+          renderResult(result);
+        } catch (e) {
+          resultTitle.textContent = '加载失败';
+          resultSubtitle.textContent = '无法获取处理结果: ' + e.message;
+        }
+      }
+
+      function renderResult(result) {
+        if (!result) return;
+        _lastResult = result;
+
+        const docInfo = result.document_info || {};
+        const quality = result.quality_summary || {};
+        const atoms = result.knowledge_atoms || [];
+        const docType = docInfo.doc_type || '';
+
+        // 更新统计
+        if (statGrid) {
+          statGrid.innerHTML = `
+            <div class="kb-stat-item">
+              <div class="kb-stat-value">${docInfo.total_chunks || 0}</div>
+              <div class="kb-stat-label">分块</div>
+            </div>
+            <div class="kb-stat-item">
+              <div class="kb-stat-value">${docInfo.total_qa_pairs || 0}</div>
+              <div class="kb-stat-label">QA 对</div>
+            </div>
+            <div class="kb-stat-item">
+              <div class="kb-stat-value" style="color:${quality.needs_review ? 'var(--kb-state-warning)' : 'var(--kb-state-success)'};">${quality.avg_confidence || 0}%</div>
+              <div class="kb-stat-label">置信度</div>
+            </div>
+            <div class="kb-stat-item">
+              <div class="kb-stat-value" style="color:${(quality.exception_count || 0) > 0 ? 'var(--kb-state-error)' : 'var(--kb-state-success)'};">${quality.exception_count || 0}</div>
+              <div class="kb-stat-label">异常项</div>
+            </div>
+          `;
+        }
+
+        // 更新副标题
+        if (resultSubtitle) {
+          resultSubtitle.textContent = `${taskName} 已成功清洗、分块并生成 QA 对。`;
+        }
+
+        // 更新 Toast 描述
+        const toastDesc = document.querySelector('.kb-toast-desc');
+        if (toastDesc) {
+          toastDesc.textContent = `${taskName} 已成功处理并导出，共 ${docInfo.total_chunks || 0} 个分块、${docInfo.total_qa_pairs || 0} 个 QA 对。`;
+        }
+
+        // 更新侧边栏元数据
+        const metaItems = document.querySelectorAll('.kb-meta-item');
+        const docTypeMap = { '制度合规': '制度合规', 'FAQ': 'FAQ', '产品活动': '产品活动', '技术运维': '技术运维' };
+        if (metaItems.length >= 3) {
+          // 文档数量
+          const docCount = metaItems[2]?.querySelector('dd');
+          if (docCount) docCount.textContent = `${docInfo.total_chunks || 0} 个分块`;
+          // 知识库类型
+          if (metaItems.length >= 5) {
+            const typeEl = metaItems[4]?.querySelector('dd');
+            if (typeEl) typeEl.textContent = docTypeMap[docType] || docType || '通用';
+          }
+        }
+
+        // 更新处理摘要
+        const summaryItems = document.querySelectorAll('.kb-upcoming-item');
+        if (summaryItems.length >= 3) {
+          const qaDesc = summaryItems[1]?.querySelector('.kb-upcoming-desc');
+          if (qaDesc) qaDesc.textContent = `${docInfo.total_qa_pairs || 0} 对高质量 QA 已生成`;
+          const qualityDesc = summaryItems[2]?.querySelector('.kb-upcoming-desc');
+          const hasExceptions = (quality.exception_count || 0) > 0;
+          if (qualityDesc) qualityDesc.textContent = hasExceptions ? '存在异常项，建议人工复核' : '完整性、一致性校验通过';
+        }
+      }
+
+      // ===== Toast 关闭 =====
+      toastClose?.addEventListener('click', () => {
+        toast.style.display = 'none';
+      });
+
+      // ===== 返回任务列表 =====
+      btnBack?.addEventListener('click', (e) => {
+        e.preventDefault();
+        window.location.href = '/task-list';
+      });
+
+      // ===== 下载结果 =====
+      btnDownload?.addEventListener('click', async () => {
+        if (!taskId) return;
+        try {
+          const result = await KBRefiner.API.getResult(taskId);
+          const blob = new Blob([JSON.stringify(result, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${taskName}_result.json`;
+          a.click();
+          URL.revokeObjectURL(url);
+        } catch (e) {
+          alert('下载失败: ' + e.message);
+        }
+      });
+
+      // ===== 查看质检报告 =====
+      btnReport?.addEventListener('click', () => {
+        if (!_lastResult) return;
+        // 在当前页展示完整结果
+        const resultContainer = document.querySelector('.kb-detail-main');
+        if (resultContainer) {
+          KBRefiner.renderPipelineResult(_lastResult, resultContainer);
+        }
+      });
+    </script>
+
+    <style id="critical-layout">
+    .kb-app { display: flex; flex-direction: column; min-height: 100vh; }
+    .kb-top-header {
+      height: var(--kb-header-height);
+      background: var(--kb-neutral-0);
+      border-bottom: 1px solid var(--kb-border);
+      display: flex;
+      align-items: center; justify-content: space-between;
+      padding: 0 32px;
+      position: sticky; top: 0; z-index: 40;
+      gap: 16px;
+    }
+    .kb-top-header-left { display: flex; align-items: center; gap: 24px; min-width: 0; }
+    .kb-top-header-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+    .kb-top-brand {
+      display: flex; align-items: center; gap: 12px;
+      text-decoration: none;
+    }
+    .kb-top-brand-icon {
+      width: 32px; height: 32px;
+      background: linear-gradient(135deg, var(--kb-primary-500), var(--kb-primary-700));
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; color: var(--kb-neutral-0); font-size: 14px;
+      flex-shrink: 0;
+    }
+    .kb-top-brand-text { display: flex; flex-direction: column; line-height: 1.2; }
+    .kb-top-brand-name { font-weight: 700; font-size: 1.05rem; color: var(--kb-neutral-900); }
+    .kb-top-brand-tag { font-size: 0.75rem; color: var(--kb-neutral-500); }
+    .kb-top-back {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 0.875rem; font-weight: 600;
+      color: var(--kb-neutral-600);
+      padding-left: 24px;
+      border-left: 1px solid var(--kb-border);
+    }
+    .kb-top-back:hover { color: var(--kb-primary); }
+    .kb-top-avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: var(--kb-primary-100); color: var(--kb-primary-700);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 0.875rem;
+    }
+    .kb-main { flex: 1; min-height: 100vh; }
+    .kb-content { padding: 32px; max-width: 1440px; margin: 0 auto; }
+
+    .kb-task-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 16px; margin-bottom: 28px;
+    }
+    .kb-task-name { font-size: 1.5rem; font-weight: 700; color: var(--kb-neutral-900); }
+    .kb-task-meta-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+    .kb-dot-separator { width: 4px; height: 4px; border-radius: 50%; background: var(--kb-neutral-400); }
+
+    .kb-stepper {
+      display: flex; align-items: flex-start; gap: 0;
+      margin-bottom: 32px;
+    }
+    .kb-step {
+      flex: 1;
+      display: flex; flex-direction: column; align-items: center; text-align: center;
+      position: relative;
+      min-width: 0;
+    }
+    .kb-step:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      top: 16px;
+      left: calc(50% + 20px);
+      width: calc(100% - 40px);
+      height: 3px;
+      background: var(--kb-neutral-200);
+      border-radius: 2px;
+    }
+    .kb-step.completed:not(:last-child)::after,
+    .kb-step.current:not(:last-child)::after { background: var(--kb-primary); }
+    .kb-step-marker {
+      width: 32px; height: 32px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.875rem; font-weight: 700;
+      position: relative; z-index: 1;
+      flex-shrink: 0;
+    }
+    .kb-step.completed .kb-step-marker { background: var(--kb-primary); color: var(--kb-neutral-0); }
+    .kb-step.current .kb-step-marker {
+      background: var(--kb-primary); color: var(--kb-neutral-0);
+      box-shadow: 0 0 0 4px var(--kb-primary-100);
+      animation: kb-pulse 2s infinite;
+    }
+    .kb-step.pending .kb-step-marker { background: var(--kb-neutral-100); color: var(--kb-neutral-400); border: 2px solid var(--kb-neutral-300); }
+    .kb-step-label {
+      margin-top: 8px; font-size: 0.875rem; font-weight: 600; color: var(--kb-neutral-700);
+      white-space: nowrap;
+    }
+    .kb-step.pending .kb-step-label { color: var(--kb-neutral-500); }
+    @keyframes kb-pulse {
+      0%, 100% { box-shadow: 0 0 0 4px var(--kb-primary-100); }
+      50% { box-shadow: 0 0 0 8px var(--kb-primary-50); }
+    }
+
+    .kb-detail-layout { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 24px; align-items: start; }
+    .kb-detail-main { min-width: 0; }
+    .kb-detail-side { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+
+    /* ===== 完成结果卡 ===== */
+    .kb-result-card { border-color: var(--kb-state-success-border); }
+    .kb-result-header { align-items: flex-start; }
+    .kb-result-title-wrap { display: flex; align-items: center; gap: 16px; }
+    .kb-result-icon {
+      width: 52px; height: 52px; border-radius: 50%;
+      background: var(--kb-state-success-bg); color: var(--kb-state-success);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .kb-result-title { font-size: 1.25rem; color: var(--kb-neutral-900); }
+    .kb-result-subtitle { font-size: 0.875rem; color: var(--kb-neutral-500); margin-top: 2px; }
+
+    .kb-stat-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    .kb-stat-item {
+      text-align: center;
+      padding: 18px 12px;
+      background: var(--kb-neutral-50);
+      border: 1px solid var(--kb-border);
+      border-radius: var(--kb-radius-medium);
+    }
+    .kb-stat-value {
+      font-size: 1.75rem; font-weight: 700; color: var(--kb-neutral-900); line-height: 1.2;
+    }
+    .kb-stat-label {
+      font-size: 0.8125rem; color: var(--kb-neutral-500); margin-top: 4px;
+    }
+
+    .kb-result-files-title {
+      font-size: 0.875rem; font-weight: 600; color: var(--kb-neutral-700); margin-bottom: 10px;
+    }
+    .kb-file-list { display: flex; flex-direction: column; gap: 10px; }
+    .kb-file-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 14px;
+      border: 1px solid var(--kb-border);
+      border-radius: var(--kb-radius-medium);
+      background: var(--kb-neutral-0);
+    }
+    .kb-file-icon {
+      width: 36px; height: 36px; border-radius: var(--kb-radius-medium);
+      background: var(--kb-primary-50); color: var(--kb-primary);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .kb-file-body { min-width: 0; }
+    .kb-file-name { font-size: 0.875rem; font-weight: 600; color: var(--kb-neutral-800); }
+    .kb-file-meta { font-size: 0.75rem; color: var(--kb-neutral-500); margin-top: 2px; }
+
+    .kb-result-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+    /* ===== Toast ===== */
+    .kb-toast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 100;
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      width: min(400px, calc(100vw - 40px));
+      padding: 16px;
+      background: var(--kb-card);
+      border: 1px solid var(--kb-state-success-border);
+      border-left: 4px solid var(--kb-state-success);
+      border-radius: var(--kb-radius-medium);
+      box-shadow: var(--kb-shadow-lg);
+    }
+    .kb-toast-icon {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: var(--kb-state-success-bg); color: var(--kb-state-success);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .kb-toast-body { flex: 1; min-width: 0; }
+    .kb-toast-title { font-size: 0.9375rem; font-weight: 700; color: var(--kb-neutral-900); }
+    .kb-toast-desc { font-size: 0.8125rem; color: var(--kb-neutral-600); margin-top: 2px; }
+    .kb-toast-link {
+      font-size: 0.8125rem; font-weight: 600; color: var(--kb-primary);
+      white-space: nowrap;
+    }
+    .kb-toast-link:hover { color: var(--kb-primary-700); }
+    .kb-toast-close {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 28px; height: 28px; padding: 0;
+      background: transparent; border: none; border-radius: var(--kb-radius-small);
+      color: var(--kb-neutral-500); cursor: pointer;
+    }
+    .kb-toast-close:hover { background: var(--kb-neutral-100); color: var(--kb-neutral-700); }
+
+    .kb-meta-list { display: flex; flex-direction: column; gap: 14px; }
+    .kb-meta-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .kb-meta-item dt { font-size: 0.875rem; color: var(--kb-neutral-500); }
+    .kb-meta-item dd { font-size: 0.875rem; font-weight: 600; color: var(--kb-neutral-800); }
+
+    .kb-upcoming-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; }
+    .kb-upcoming-item:not(:last-child) { border-bottom: 1px solid var(--kb-border); }
+    .kb-upcoming-marker {
+      width: 28px; height: 28px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem; font-weight: 700;
+      flex-shrink: 0;
+    }
+    .kb-upcoming-marker.pending { background: var(--kb-neutral-100); color: var(--kb-neutral-500); border: 2px solid var(--kb-neutral-300); }
+    .kb-upcoming-marker.completed { background: var(--kb-primary); color: var(--kb-neutral-0); }
+    .kb-upcoming-title { font-weight: 600; color: var(--kb-neutral-800); font-size: 0.9375rem; }
+    .kb-upcoming-desc { font-size: 0.8125rem; color: var(--kb-neutral-500); margin-top: 2px; }
+
+    @media (max-width: 1024px) {
+      .kb-detail-layout { grid-template-columns: 1fr; }
+      .kb-stepper { gap: 8px; }
+      .kb-stat-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 768px) {
+      .kb-top-header { padding: 0 16px; gap: 12px; }
+      .kb-top-header-left { gap: 12px; }
+      .kb-top-back { display: none; }
+      .kb-top-brand-text { display: none; }
+      .kb-content { padding: 16px; }
+      .kb-task-header { flex-direction: column; }
+      .kb-stepper {
+        flex-direction: column;
+        gap: 16px;
+        align-items: stretch;
+      }
+      .kb-step {
+        flex-direction: row; align-items: center; text-align: left;
+        width: 100%;
+      }
+      .kb-step:not(:last-child)::after { display: none; }
+      .kb-step-label { margin-top: 0; margin-left: 12px; }
+      .kb-result-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+      .kb-result-actions { flex-direction: column; align-items: stretch; }
+      .kb-result-actions .kb-btn { width: 100%; }
+      .kb-stat-grid { grid-template-columns: repeat(2, 1fr); }
+      .kb-toast {
+        top: 12px;
+        right: 12px;
+        left: 12px;
+        width: auto;
+      }
+    }
+    @media (max-width: 480px) {
+      .kb-stat-grid { grid-template-columns: 1fr; }
+      .kb-result-title-wrap { align-items: flex-start; }
+    }
+    </style>
+</body>
+</html>

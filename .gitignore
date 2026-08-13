@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+ENV/
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# 环境变量与密钥
+.env
+.env.local
+*.key
+*.pem
+
+# 数据与运行时产物
+data/uploads/*
+!data/uploads/.gitkeep
+data/outputs/*
+!data/outputs/.gitkeep
+*.db
+*.sqlite3
+backend/data/
+
+# 校验中间产物
+*.validate_result.json
+*.metrics_result.json
+*.consistency_result.json
+*.review_summary.md
+
+# 日志
+*.log
+logs/
+
+# IDE / 系统
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# 前端
+node_modules/
+frontend/dist/

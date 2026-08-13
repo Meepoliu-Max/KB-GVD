@@ -1,0 +1,55 @@
+# 知序 KBRefiner 基础设施
+# 开发默认仅启动 Redis（后端用 SQLite + MinerU SDK 本地调用）
+# 生产/完整环境用 profiles 按需启动 PostgreSQL 与 MinerU 服务：
+#   docker compose --profile prod up -d
+#   docker compose --profile mineru up -d
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: kbrefiner-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # 生产数据库：开发用 SQLite 时不必启用
+  postgres:
+    image: postgres:16-alpine
+    container_name: kbrefiner-postgres
+    restart: unless-stopped
+    profiles: ["prod"]
+    environment:
+      POSTGRES_USER: kbrefiner
+      POSTGRES_PASSWORD: kbrefiner
+      POSTGRES_DB: kbrefiner
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kbrefiner"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # MinerU 文档解析服务：镜像较大，按需启动
+  # 镜像与端口以 MinerU 官方文档为准：https://github.com/opendatalab/MinerU
+  mineru:
+    image: opendatalab/mineru:3.4
+    container_name: kbrefiner-mineru
+    restart: unless-stopped
+    profiles: ["mineru"]
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./data:/app/data
+
+volumes:
+  redis-data:
+  pg-data:

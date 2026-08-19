@@ -1,0 +1,31 @@
+# Docker 构建上下文排除清单
+.git
+.gitignore
+.dockerignore
+.env
+.env.local
+.venv
+venv
+__pycache__
+*.pyc
+*.egg-info
+dist
+build
+.pytest_cache
+.ruff_cache
+
+# 运行时数据与产物（容器内用 volume 挂载）
+data
+output
+logs
+*.db
+*.sqlite3
+
+# 文档与示例（不进镜像；README.md 与 LICENSE 除外，安装依赖需要）
+docs
+examples
+tests
+*.md
+!README.md
+docker-compose.yml
+Makefile

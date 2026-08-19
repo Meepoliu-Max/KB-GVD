@@ -27,6 +27,7 @@ data/outputs/*
 *.db
 *.sqlite3
 backend/data/
+output/
 
 # 校验中间产物
 *.validate_result.json

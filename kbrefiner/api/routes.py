@@ -361,6 +361,49 @@ async def get_result(task_id: str, settings: Settings = Depends(get_settings)):
     return data
 
 
+@router.get("/export/{task_id}")
+async def export_result(
+    task_id: str,
+    format: str = "json",
+    settings: Settings = Depends(get_settings),
+):
+    """按指定格式导出任务结果（扣子/Dify 可直接导入）。
+
+    format 取值：coze_qa / coze_text / dify_qa / dify_text / dify_jsonl / json
+    CSV 格式以 UTF-8-BOM 返回（Excel 中文不乱码），可直接下载后导入。
+    """
+    from kbrefiner.core.exporter import SUPPORTED_FORMATS, get_exporter
+    from kbrefiner.models import KbDocument
+
+    if format not in SUPPORTED_FORMATS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"不支持的格式 '{format}'，支持: {', '.join(SUPPORTED_FORMATS)}",
+        )
+
+    final_path = Path(settings.output_dir) / task_id / "final.json"
+    if not final_path.exists():
+        raise HTTPException(status_code=404, detail=f"任务 {task_id} 的结果尚未生成")
+
+    doc = KbDocument.model_validate_json(final_path.read_text(encoding="utf-8"))
+    exporter = get_exporter(format)
+
+    media_types = {
+        ".csv": "text/csv",
+        ".jsonl": "application/x-ndjson",
+        ".json": "application/json",
+    }
+    from fastapi.responses import Response
+
+    return Response(
+        content=exporter.export(doc),
+        media_type=media_types.get(exporter.extension, "text/plain"),
+        headers={
+            "Content-Disposition": f'attachment; filename="kbrefiner_{task_id}_{format}{exporter.extension}"'
+        },
+    )
+
+
 @router.get("/tasks")
 async def list_tasks(settings: Settings = Depends(get_settings)):
     """获取所有任务列表。

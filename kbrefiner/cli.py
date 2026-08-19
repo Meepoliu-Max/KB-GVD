@@ -26,6 +26,7 @@ import click
 
 from kbrefiner import __version__
 from kbrefiner.config import get_settings
+from kbrefiner.core.exporter import SUPPORTED_FORMATS, get_exporter
 
 
 @click.group()
@@ -43,6 +44,13 @@ def cli():
 @click.option("--output-dir", type=str, default="./output", help="中间结果输出目录")
 @click.option("--no-checkpoint", is_flag=True, default=False, help="禁用断点续跑")
 @click.option("--indent", type=int, default=2, help="JSON 输出缩进")
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(SUPPORTED_FORMATS),
+    default="json",
+    help="导出格式：coze_qa/coze_text/dify_qa/dify_text/dify_jsonl/json",
+)
 def process(
     file_path: str,
     output: Optional[str],
@@ -51,12 +59,16 @@ def process(
     output_dir: str,
     no_checkpoint: bool,
     indent: int,
+    fmt: str,
 ):
-    """处理文档（解析 + 四阶流水线 → 输出 JSON）。
+    """处理文档（解析 + 四阶流水线 → 按指定格式输出）。
 
     \b
     支持的文件格式：PDF, DOCX, PPTX, XLSX, 图片（需 MinerU）
     管道模式：从 stdin 读取 Markdown 时 file_path 传 -
+    导出格式：--format coze_qa 生成扣子问答表格 CSV（可直接导入扣子表格知识库）
+             --format dify_jsonl 生成 Dify API 批量导入 JSONL
+             其他格式见 kbrefiner process --help
     """
     from kbrefiner.sdk import KBRefiner
 
@@ -93,15 +105,16 @@ def process(
         finally:
             kb.close()
 
-    # 输出结果
-    json_str = result.model_dump_json(indent=indent, ensure_ascii=False)
+    # 按指定格式导出
+    exporter = get_exporter(fmt)
+    content = exporter.export(result)
 
     if output:
-        Path(output).write_text(json_str, encoding="utf-8")
-        click.echo(f"结果已保存到: {output}", err=True)
+        Path(output).write_text(content, encoding="utf-8-sig" if fmt.endswith("_qa") or fmt.endswith("_text") else "utf-8")
+        click.echo(f"结果已保存到: {output}（格式: {fmt}）", err=True)
     else:
         # 输出到 stdout（不包含进度信息）
-        click.echo(json_str)
+        click.echo(content)
 
     click.echo("处理完成", err=True)
 

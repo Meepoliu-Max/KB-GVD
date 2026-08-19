@@ -162,6 +162,44 @@ class KBRefiner:
             )
         )
 
+    def export(self, doc, fmt: str = "json") -> str:
+        """将处理结果导出为 Agent 平台格式。
+
+        Args:
+            doc: process/process_text 返回的 KbDocument
+            fmt: 导出格式（coze_qa / coze_text / dify_qa / dify_text / dify_jsonl / json）
+
+        Returns:
+            目标格式的文件内容字符串
+        """
+        from kbrefiner.core.exporter import get_exporter
+
+        return get_exporter(fmt).export(doc)
+
+    def export_to_files(self, doc, output_dir: str | Path, formats=None) -> list[Path]:
+        """导出多种格式到指定目录。
+
+        Args:
+            doc: KbDocument
+            output_dir: 输出目录
+            formats: 格式名列表（None 导出全部格式）
+
+        Returns:
+            生成的文件路径列表
+        """
+        from kbrefiner.core.exporter import SUPPORTED_FORMATS, get_exporter
+
+        out = Path(output_dir)
+        out.mkdir(parents=True, exist_ok=True)
+        fmts = formats or SUPPORTED_FORMATS
+        paths = []
+        for f in fmts:
+            exporter = get_exporter(f)
+            path = out / f"kbrefiner_{f}{exporter.extension}"
+            exporter.export_to_file(doc, path)
+            paths.append(path)
+        return paths
+
     def close(self):
         """关闭 LLM 客户端连接。"""
         self.llm_client.close()

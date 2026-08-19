@@ -635,27 +635,23 @@ a:hover {
                   </div>
 
                   <div class="kb-result-files">
-                    <div class="kb-result-files-title">导出文件</div>
-                    <div class="kb-file-list">
-                      <div class="kb-file-item">
-                        <div class="kb-file-icon">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-                        </div>
-                        <div class="kb-file-body">
-                          <div class="kb-file-name">KBRefiner_产品手册_v3_cleaned.json</div>
-                          <div class="kb-file-meta">清洗结果 · 2.4 MB</div>
-                        </div>
-                      </div>
-                      <div class="kb-file-item">
-                        <div class="kb-file-icon">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-                        </div>
-                        <div class="kb-file-body">
-                          <div class="kb-file-name">KBRefiner_产品手册_v3_qa_pairs.json</div>
-                          <div class="kb-file-meta">QA 对 · 856 KB</div>
-                        </div>
-                      </div>
+                    <div class="kb-result-files-title">导出知识库</div>
+                    <div class="kb-export-panel" data-dom-id="export-panel">
+                      <label class="kb-export-label" for="export-format">目标平台格式</label>
+                      <select id="export-format" class="kb-filter-select" data-dom-id="export-format" style="flex:1;min-width:200px;">
+                        <option value="coze_qa">扣子 Coze · 问答格式（CSV）</option>
+                        <option value="coze_text">扣子 Coze · 文本格式（CSV）</option>
+                        <option value="dify_qa">Dify · 问答格式（CSV）</option>
+                        <option value="dify_text">Dify · 文本格式（CSV）</option>
+                        <option value="dify_jsonl">Dify · JSONL（分段导入）</option>
+                        <option value="json">KBRefiner 原始格式（JSON，含完整元数据）</option>
+                      </select>
+                      <button class="kb-btn kb-btn-secondary" data-dom-id="btn-export-download" type="button">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        下载导出文件
+                      </button>
                     </div>
+                    <div class="kb-file-meta" style="margin-top:8px;">下载后可直接在扣子 / Dify 知识库中批量导入；JSON 格式保留 5 维元数据与质检信息，供回流审阅使用。</div>
                   </div>
                 </div>
                 <div class="kb-card-footer kb-result-actions">
@@ -875,21 +871,18 @@ a:hover {
         window.location.href = '/task-list';
       });
 
-      // ===== 下载结果 =====
-      btnDownload?.addEventListener('click', async () => {
+      // ===== 下载结果（主按钮：KBRefiner 原始 JSON） =====
+      btnDownload?.addEventListener('click', () => {
         if (!taskId) return;
-        try {
-          const result = await KBRefiner.API.getResult(taskId);
-          const blob = new Blob([JSON.stringify(result, null, 2)], { type: 'application/json' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `${taskName}_result.json`;
-          a.click();
-          URL.revokeObjectURL(url);
-        } catch (e) {
-          alert('下载失败: ' + e.message);
-        }
+        window.location.href = KBRefiner.API.exportUrl(taskId, 'json');
+      });
+
+      // ===== 按平台格式导出 =====
+      const exportFormat = document.querySelector('[data-dom-id="export-format"]');
+      const btnExport = document.querySelector('[data-dom-id="btn-export-download"]');
+      btnExport?.addEventListener('click', () => {
+        if (!taskId || !exportFormat) return;
+        window.location.href = KBRefiner.API.exportUrl(taskId, exportFormat.value);
       });
 
       // ===== 查看质检报告 =====
@@ -1042,6 +1035,27 @@ a:hover {
 
     .kb-result-files-title {
       font-size: 0.875rem; font-weight: 600; color: var(--kb-neutral-700); margin-bottom: 10px;
+    }
+    .kb-export-panel {
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+      padding: 12px 14px;
+      border: 1px solid var(--kb-border);
+      border-radius: var(--kb-radius-medium);
+      background: var(--kb-neutral-0);
+    }
+    .kb-export-label {
+      font-size: 0.875rem; font-weight: 600; color: var(--kb-neutral-700); flex-shrink: 0;
+    }
+    .kb-export-panel select {
+      height: 38px; padding: 0 12px;
+      border: 1px solid var(--kb-border); border-radius: var(--kb-radius-medium);
+      background: var(--kb-neutral-0); color: var(--kb-neutral-800);
+      font-size: 0.875rem; font-family: inherit;
+      cursor: pointer;
+    }
+    .kb-export-panel select:focus {
+      outline: none; border-color: var(--kb-primary);
+      box-shadow: 0 0 0 3px var(--kb-primary-50);
     }
     .kb-file-list { display: flex; flex-direction: column; gap: 10px; }
     .kb-file-item {

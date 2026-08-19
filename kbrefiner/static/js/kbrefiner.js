@@ -69,6 +69,11 @@ const KBRefiner = (() => {
       }
       return resp.json();
     },
+
+    /** 导出下载地址（浏览器直接访问即触发下载） */
+    exportUrl(taskId, format) {
+      return `/api/export/${taskId}?format=${encodeURIComponent(format)}`;
+    },
   };
 
   // ===== WebSocket 管理 =====

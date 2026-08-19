@@ -655,6 +655,10 @@ a:hover { color: var(--kb-primary-700); }
         taskTbody.innerHTML = _tasks.map(t => {
           const s = STATUS_MAP[t.status] || STATUS_MAP.pending;
           const pct = Math.round((t.progress || 0) * 100);
+          // 已完成任务直达完成页（含导出入口），其余进入详情页跟踪进度
+          const detailHref = t.status === 'completed'
+            ? `/task-completed?task_id=${t.task_id}&name=${encodeURIComponent(t.filename || '')}`
+            : `/task-detail?task_id=${t.task_id}&name=${encodeURIComponent(t.filename || '')}`;
           return `<tr class="kb-task-row" data-task-id="${t.task_id}">
             <td>
               <div class="kb-task-name">
@@ -671,13 +675,16 @@ a:hover { color: var(--kb-primary-700); }
               </div>
               <div class="kb-progress-text">${pct}%</div>
             </td>
-            <td><a class="kb-btn kb-btn-ghost kb-btn-sm" href="/task-detail?task_id=${t.task_id}&name=${encodeURIComponent(t.filename || '')}">查看</a></td>
+            <td><a class="kb-btn kb-btn-ghost kb-btn-sm" href="${detailHref}">查看</a></td>
           </tr>`;
         }).join('') || `<tr><td colspan="6"><div class="kb-empty">暂无任务记录</div></td></tr>`;
 
         taskCardsContainer.innerHTML = _tasks.map(t => {
           const s = STATUS_MAP[t.status] || STATUS_MAP.pending;
           const pct = Math.round((t.progress || 0) * 100);
+          const detailCardHref = t.status === 'completed'
+            ? `/task-completed?task_id=${t.task_id}&name=${encodeURIComponent(t.filename || '')}`
+            : `/task-detail?task_id=${t.task_id}&name=${encodeURIComponent(t.filename || '')}`;
           return `<article class="kb-task-card" data-task-id="${t.task_id}">
             <div class="kb-task-card-head">
               <div class="kb-task-name">
@@ -691,7 +698,7 @@ a:hover { color: var(--kb-primary-700); }
               <span class="kb-tag ${s.tag}">${s.tagText}</span>
             </div>
             <div class="kb-progress" aria-label="处理进度 ${pct}%"><div class="kb-progress-bar" style="width:${pct}%"></div></div>
-            <div class="kb-task-card-foot"><a class="kb-btn kb-btn-ghost kb-btn-sm" href="/task-detail?task_id=${t.task_id}&name=${encodeURIComponent(t.filename || '')}">查看详情</a></div>
+            <div class="kb-task-card-foot"><a class="kb-btn kb-btn-ghost kb-btn-sm" href="${detailCardHref}">查看详情</a></div>
           </article>`;
         }).join('') || '<div class="kb-empty">暂无任务记录</div>';
 

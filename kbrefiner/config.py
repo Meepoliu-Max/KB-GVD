@@ -31,11 +31,6 @@ class Settings(BaseSettings):
     # ===== 数据库 =====
     database_url: str = "sqlite+aiosqlite:///./data/kbrefiner.db"
 
-    # ===== Redis / Celery =====
-    redis_url: str = "redis://localhost:6379/0"
-    celery_broker_url: str = "redis://localhost:6379/1"
-    celery_result_backend: str = "redis://localhost:6379/2"
-
     # ===== 应用 =====
     app_env: Literal["development", "production", "test"] = "development"
     app_host: str = "0.0.0.0"

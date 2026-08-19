@@ -25,6 +25,7 @@ from kbrefiner.config import Settings, get_settings
 from kbrefiner.core.llm import DeepSeekClient
 from kbrefiner.core.pipeline import Pipeline, PipelineConfig
 from kbrefiner.core.sensitive import SensitiveDetector
+from kbrefiner.db import TaskStore
 
 from .deps import get_llm_client, get_sensitive_detector
 from .ws_manager import make_progress_callback, manager, push_error, push_result
@@ -33,9 +34,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["文档处理"])
 
-# 任务状态存储（内存，开发用；生产切 Redis / DB）
-# 结构: {task_id: {"status": str, "filename": str, "created_at": float, "error": str|None, "result": dict|None}}
-_task_store: dict[str, dict] = {}
+# 任务状态存储（SQLite 持久化，重启不丢失）
+_task_store = TaskStore("./data/tasks.db")
 # 后台任务引用，防止 GC
 _background_tasks: dict[str, asyncio.Task] = {}
 
@@ -74,7 +74,8 @@ async def _run_pipeline_background(
 
     try:
         # 检查是否已被取消
-        if _task_store.get(task_id, {}).get("status") == _TASK_CANCELLED:
+        info = _task_store.get(task_id)
+        if info and info.get("status") == _TASK_CANCELLED:
             logger.info("后台任务已被取消, 不执行: task_id=%s", task_id)
             return
 
@@ -85,22 +86,23 @@ async def _run_pipeline_background(
             on_stage_complete=on_stage_complete,
         )
         # 运行完成后再次检查是否被取消
-        if _task_store.get(task_id, {}).get("status") == _TASK_CANCELLED:
+        info = _task_store.get(task_id)
+        if info and info.get("status") == _TASK_CANCELLED:
             logger.info("后台任务完成后已被标记取消, 丢弃结果: task_id=%s", task_id)
             return
 
         result = json.loads(doc.model_dump_json(ensure_ascii=False))
         await push_result(task_id, result)
-        _task_store[task_id] = {"status": _TASK_COMPLETED, "result": result, "filename": _task_store[task_id].get("filename")}
+        _task_store.update_status(task_id, _TASK_COMPLETED)
         logger.info("后台任务完成: task_id=%s", task_id)
     except asyncio.CancelledError:
         logger.warning("后台任务被取消: task_id=%s", task_id)
-        _task_store[task_id] = {"status": _TASK_CANCELLED, "error": "任务已被取消", "filename": _task_store[task_id].get("filename")}
+        _task_store.update_status(task_id, _TASK_CANCELLED, error="任务已被取消")
         await push_error(task_id, "任务已被取消")
     except Exception as e:
         logger.error("后台任务失败: task_id=%s, error=%s", task_id, e)
         await push_error(task_id, str(e))
-        _task_store[task_id] = {"status": _TASK_FAILED, "error": str(e), "filename": _task_store[task_id].get("filename")}
+        _task_store.update_status(task_id, _TASK_FAILED, error=str(e))
     finally:
         _background_tasks.pop(task_id, None)
 
@@ -162,7 +164,6 @@ async def upload_file(
 async def process_document(
     file_id: str,
     async_mode: bool = False,
-    use_celery: bool = False,
     filename: Optional[str] = None,
     settings: Settings = Depends(get_settings),
     llm_client: DeepSeekClient = Depends(get_llm_client),
@@ -170,16 +171,14 @@ async def process_document(
 ):
     """发起文档处理。
 
-    用 MinerU 解析 → 4 阶流水线 → 输出最终 JSON。
-    三种模式：
+    用文档解析器解析 → 4 阶流水线 → 输出最终 JSON。
+    两种模式：
     - 同步（默认）：等待结果返回
     - async_mode=True：asyncio 后台任务 + WebSocket 进度
-    - use_celery=True：Celery worker 异步处理 + 文件系统中间结果
 
     Args:
         file_id: 上传时返回的文件 ID
         async_mode: 是否 asyncio 后台处理
-        use_celery: 是否 Celery 异步处理
         filename: 可选，原始文件名
 
     Returns:
@@ -194,19 +193,6 @@ async def process_document(
 
     file_path = candidates[0]
     doc_name = filename or file_path.name
-
-    # Celery 模式：直接提交到任务队列
-    if use_celery:
-        try:
-            from kbrefiner.tasks import process_document_task
-
-            process_document_task.delay(file_id=file_id, filename=doc_name)
-            _task_store[file_id] = {"status": "processing"}
-            logger.info("Celery 任务已提交: file_id=%s", file_id)
-            return {"task_id": file_id, "status": "processing"}
-        except Exception as e:
-            logger.error("Celery 任务提交失败: %s", e)
-            raise HTTPException(status_code=500, detail=f"任务提交失败: {e}")
 
     # MinerU 解析（同步和 async_mode 都需要）
     from kbrefiner.core.parser import ParserFactory, FileType

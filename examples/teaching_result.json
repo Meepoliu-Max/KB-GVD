@@ -1,0 +1,293 @@
+{
+  "document_info": {
+    "source": "stdin",
+    "doc_type": "教学知识",
+    "total_chunks": 4,
+    "total_qa_pairs": 15,
+    "processing_date": "2026-08-19"
+  },
+  "knowledge_atoms": [
+    {
+      "chunk_id": "P1-C001",
+      "title": "【二次函数】- 二次函数的概念与定义",
+      "content": "## 2.1 二次函数的概念\n\n### 定义\n\n一般地，形如 y = ax² + bx + c（a、b、c 是常数，且 a ≠ 0）的函数，叫做二次函数。其中 x 是自变量，a、b、c 分别是函数解析式的二次项系数、一次项系数和常数项。\n\n### 理解要点\n\n判断一个函数是否为二次函数，关键看：\n1. 整理后是否为整式\n2. 自变量的最高次数是否为 2\n3. 二次项系数 a 是否不为 0\n\n注意：y = ax² + bx + c 中若 a = 0，则它是一次函数（b≠0 时）或常函数（b=0 时），不是二次函数。",
+      "doc_type": "教学知识",
+      "metadata": {
+        "target_audience": "学生",
+        "business_module": "数学·二次函数",
+        "knowledge_type": "概念定义",
+        "version_timeliness": "【人工补全项】",
+        "summary": "二次函数定义与判断要点"
+      },
+      "qa_pairs": [
+        {
+          "question": "二次函数是啥意思？怎么判断一个函数是不是二次函数？",
+          "answer": "形如 y = ax² + bx + c（a、b、c 是常数，且 a ≠ 0）的函数叫做二次函数。判断关键看三点：1. 整理后是否为整式；2. 自变量的最高次数是否为 2；3. 二次项系数 a 是否不为 0。",
+          "keywords": [
+            "二次函数",
+            "定义",
+            "怎么判断",
+            "最高次数",
+            "a不等于0"
+          ],
+          "confidence_score": 90,
+          "remark": ""
+        },
+        {
+          "question": "如果二次函数里 a 等于 0 了，那还算二次函数吗？",
+          "answer": "不算。y = ax² + bx + c 中若 a = 0，则它是一次函数（b≠0 时）或常函数（b=0 时），不是二次函数。",
+          "keywords": [
+            "a等于0",
+            "一次函数",
+            "常函数",
+            "二次函数",
+            "系数"
+          ],
+          "confidence_score": 92,
+          "remark": ""
+        },
+        {
+          "question": "二次函数里的 a、b、c 都叫啥名字来着？",
+          "answer": "a、b、c 分别是函数解析式的二次项系数、一次项系数和常数项。",
+          "keywords": [
+            "二次项系数",
+            "一次项系数",
+            "常数项",
+            "abc",
+            "二次函数"
+          ],
+          "confidence_score": 90,
+          "remark": ""
+        },
+        {
+          "question": "二次函数和一次函数有啥区别？",
+          "answer": "二次函数形如 y = ax² + bx + c（a ≠ 0），自变量的最高次数是 2；若 a = 0 则变成一次函数（b≠0 时）或常函数（b=0 时）。",
+          "keywords": [
+            "二次函数",
+            "一次函数",
+            "区别",
+            "最高次数",
+            "a不等于0"
+          ],
+          "confidence_score": 85,
+          "remark": ""
+        }
+      ],
+      "remark": ""
+    },
+    {
+      "chunk_id": "P1-C002",
+      "title": "【二次函数】- 图象与性质（开口方向、顶点坐标与对称轴）",
+      "content": "## 2.2 二次函数的图象与性质\n\n### 抛物线的开口方向\n\n二次函数 y = ax² + bx + c 的图象是一条抛物线。\n- 当 a > 0 时，抛物线开口向上，顶点是最低点\n- 当 a < 0 时，抛物线开口向下，顶点是最高点\n- |a| 越大，抛物线开口越小；|a| 越小，抛物线开口越大\n\n### 顶点坐标与对称轴\n\n配方可得 y = a(x - h)² + k 的形式（顶点式），其中顶点坐标为 (h, k)，对称轴为直线 x = h。\n\nh = -b/2a，k = (4ac - b²)/4a\n\n### 考点提示\n\n中考常考：根据 a 的符号判断开口方向、根据顶点式写出对称轴和最值。这是本章必考点，选择题和填空题高频出现。",
+      "doc_type": "教学知识",
+      "metadata": {
+        "target_audience": "学生",
+        "business_module": "数学·二次函数",
+        "knowledge_type": "公式定理",
+        "version_timeliness": "【人工补全项】",
+        "summary": "抛物线开口方向、顶点与对称轴"
+      },
+      "qa_pairs": [
+        {
+          "question": "二次函数的开口方向怎么看？什么时候开口向上什么时候向下？",
+          "answer": "看 a 的符号：当 a > 0 时，抛物线开口向上，顶点是最低点；当 a < 0 时，抛物线开口向下，顶点是最高点。|a| 越大，抛物线开口越小；|a| 越小，抛物线开口越大。",
+          "keywords": [
+            "开口方向",
+            "开口向上",
+            "开口向下",
+            "a的符号",
+            "抛物线"
+          ],
+          "confidence_score": 92,
+          "remark": ""
+        },
+        {
+          "question": "顶点坐标和对称轴怎么求？公式是啥？",
+          "answer": "配方可得 y = a(x - h)² + k 的形式（顶点式），顶点坐标为 (h, k)，对称轴为直线 x = h。其中 h = -b/2a，k = (4ac - b²)/4a。",
+          "keywords": [
+            "顶点坐标",
+            "对称轴",
+            "顶点式",
+            "公式",
+            "配方"
+          ],
+          "confidence_score": 90,
+          "remark": ""
+        },
+        {
+          "question": "这个考不考？是不是重点？",
+          "answer": "是本章必考点。中考常考：根据 a 的符号判断开口方向、根据顶点式写出对称轴和最值，选择题和填空题高频出现。",
+          "keywords": [
+            "中考",
+            "必考点",
+            "高频",
+            "开口方向",
+            "对称轴"
+          ],
+          "confidence_score": 88,
+          "remark": ""
+        },
+        {
+          "question": "a 的绝对值大小跟抛物线开口有啥关系？",
+          "answer": "|a| 越大，抛物线开口越小；|a| 越小，抛物线开口越大。",
+          "keywords": [
+            "绝对值",
+            "开口大小",
+            "a",
+            "抛物线",
+            "开口"
+          ],
+          "confidence_score": 90,
+          "remark": ""
+        }
+      ],
+      "remark": ""
+    },
+    {
+      "chunk_id": "P1-C003",
+      "title": "【二次函数】- 例题解析（基础题与提高题）",
+      "content": "## 2.3 例题解析\n\n### 例题 1（基础题）\n\n已知二次函数 y = x² - 4x + 3，求它的顶点坐标和对称轴。\n\n**解析**：\n配方：y = x² - 4x + 3 = (x² - 4x + 4) - 4 + 3 = (x - 2)² - 1\n\n所以顶点坐标为 (2, -1)，对称轴为直线 x = 2。\n\n### 例题 2（提高题）\n\n已知抛物线 y = ax² + bx + c 经过点 (0, 3)、(1, 0)、(3, 0)，求解析式。\n\n**解析**：\n因为抛物线经过 (1, 0) 和 (3, 0)，可设交点式 y = a(x - 1)(x - 3)。\n代入 (0, 3)：3 = a(0-1)(0-3) = 3a，得 a = 1。\n所以解析式为 y = (x - 1)(x - 3) = x² - 4x + 3。",
+      "doc_type": "教学知识",
+      "metadata": {
+        "target_audience": "学生",
+        "business_module": "数学·二次函数",
+        "knowledge_type": "例题解析",
+        "version_timeliness": "【人工补全项】",
+        "summary": "二次函数顶点与解析式例题"
+      },
+      "qa_pairs": [
+        {
+          "question": "y = x² - 4x + 3 的顶点坐标和对称轴咋求？",
+          "answer": "配方：y = x² - 4x + 3 = (x² - 4x + 4) - 4 + 3 = (x - 2)² - 1，所以顶点坐标为 (2, -1)，对称轴为直线 x = 2。",
+          "keywords": [
+            "顶点坐标",
+            "对称轴",
+            "配方",
+            "例题",
+            "x²-4x+3"
+          ],
+          "confidence_score": 92,
+          "remark": ""
+        },
+        {
+          "question": "知道抛物线过三个点怎么求解析式？比如过 (0,3)、(1,0)、(3,0) 这种。",
+          "answer": "因为抛物线经过 (1, 0) 和 (3, 0)，可设交点式 y = a(x - 1)(x - 3)。代入 (0, 3)：3 = a(0-1)(0-3) = 3a，得 a = 1。所以解析式为 y = (x - 1)(x - 3) = x² - 4x + 3。",
+          "keywords": [
+            "求解析式",
+            "交点式",
+            "过三点",
+            "代入",
+            "例题"
+          ],
+          "confidence_score": 90,
+          "remark": ""
+        },
+        {
+          "question": "什么时候用交点式设解析式？",
+          "answer": "当抛物线经过两个 x 轴上的点（如 (1, 0) 和 (3, 0)）时，可设交点式 y = a(x - 1)(x - 3)，再代入另一个点求 a。",
+          "keywords": [
+            "交点式",
+            "什么时候用",
+            "x轴交点",
+            "设解析式",
+            "求a"
+          ],
+          "confidence_score": 85,
+          "remark": ""
+        }
+      ],
+      "remark": ""
+    },
+    {
+      "chunk_id": "P1-C004",
+      "title": "【二次函数】- 练习题",
+      "content": "## 2.4 练习题\n\n1. 写出抛物线 y = -2x² + 4x - 1 的开口方向和对称轴。\n2. 二次函数 y = 3(x - 1)² + 2 的顶点坐标是多少？\n3. 已知二次函数图象经过原点和 (2, 0)，且最大值为 2，求解析式。\n\n（练习题答案见教材附录，本讲义不含答案解析。）",
+      "doc_type": "教学知识",
+      "metadata": {
+        "target_audience": "学生",
+        "business_module": "数学·二次函数",
+        "knowledge_type": "例题解析",
+        "version_timeliness": "【人工补全项】",
+        "summary": "二次函数开口方向顶点练习题"
+      },
+      "qa_pairs": [
+        {
+          "question": "y = -2x² + 4x - 1 的开口方向和对称轴是啥？",
+          "answer": "文档未说明",
+          "keywords": [
+            "开口方向",
+            "对称轴",
+            "练习题",
+            "-2x²+4x-1"
+          ],
+          "confidence_score": 55,
+          "remark": "【低置信-人工复核】练习题无答案解析，无法给出答案"
+        },
+        {
+          "question": "y = 3(x - 1)² + 2 的顶点坐标是多少？",
+          "answer": "文档未说明",
+          "keywords": [
+            "顶点坐标",
+            "顶点式",
+            "练习题",
+            "3(x-1)²+2"
+          ],
+          "confidence_score": 55,
+          "remark": "【低置信-人工复核】练习题无答案解析，无法给出答案"
+        },
+        {
+          "question": "已知二次函数过原点和 (2,0)，最大值为 2，解析式怎么求？",
+          "answer": "文档未说明",
+          "keywords": [
+            "求解析式",
+            "最大值",
+            "过原点",
+            "练习题"
+          ],
+          "confidence_score": 50,
+          "remark": "【低置信-人工复核】练习题无答案解析，无法给出答案"
+        },
+        {
+          "question": "这些练习题有答案吗？",
+          "answer": "练习题答案见教材附录，本讲义不含答案解析。",
+          "keywords": [
+            "练习题",
+            "答案",
+            "教材附录",
+            "解析"
+          ],
+          "confidence_score": 88,
+          "remark": ""
+        }
+      ],
+      "remark": ""
+    }
+  ],
+  "exception_list": {
+    "content_conflicts": [],
+    "missing_info": [
+      "P1-C004 练习题无答案解析，学生无法核对答案",
+      "P1-C001: 缺少version_timeliness，已标记【人工补全项】",
+      "P1-C002: 缺少version_timeliness，已标记【人工补全项】",
+      "P1-C003: 缺少version_timeliness，已标记【人工补全项】",
+      "P1-C004: 缺少version_timeliness，已标记【人工补全项】"
+    ],
+    "vague_items": [],
+    "expired_items": [],
+    "chunk_anomalies": [],
+    "truncated_items": [],
+    "sensitive_items": [],
+    "low_confidence_qa": [
+      "P1-C004-Q1: 置信分55-练习题无答案解析，无法给出答案",
+      "P1-C004-Q2: 置信分55-练习题无答案解析，无法给出答案",
+      "P1-C004-Q3: 置信分50-练习题无答案解析，无法给出答案"
+    ],
+    "terminology_pending": []
+  },
+  "quality_summary": {
+    "avg_confidence": 82.1,
+    "low_confidence_count": 3,
+    "exception_count": 8,
+    "needs_review": true
+  }
+}

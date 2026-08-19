@@ -52,7 +52,7 @@ class Stage1Output(BaseModel):
     对应 stage1_clean.j2 的 JSON 输出格式：
     {
       "cleaned_text": "...",
-      "doc_type": "制度合规|FAQ|产品活动|技术运维",
+      "doc_type": "制度合规|FAQ|产品活动|技术运维|教学知识",
       "sensitive_items": ["..."],
       "terminology_pending": ["..."]
     }

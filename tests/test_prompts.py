@@ -126,6 +126,16 @@ class TestRenderStage2(unittest.TestCase):
         self.assertIn("故障原因", system)
         self.assertIn("解决方案", system)
 
+    def test_doc_type_rule_branch_教学知识(self):
+        system, _ = render_stage2(
+            cleaned_text="x",
+            doc_type="教学知识",
+            partition_prefix="P1",
+        )
+        self.assertIn("按知识点边界拆分", system)
+        self.assertIn("禁止题目与解析拆到两个 chunk", system)
+        self.assertIn("概念/定义", system)
+
     def test_title_context_present(self):
         _, user = render_stage2(
             cleaned_text="x",
@@ -240,6 +250,16 @@ class TestRenderStage3(unittest.TestCase):
         )
         self.assertIn("故障现象、故障原因、处置步骤分开设问", system)
 
+    def test_doc_type_教学知识_branch(self):
+        system, _ = render_stage3(
+            chunks=self.SAMPLE_CHUNKS,
+            doc_type="教学知识",
+            sensitive_items=[],
+        )
+        self.assertIn("模拟学生真实提问口吻", system)
+        self.assertIn("禁止自行演算或补充解法", system)
+        self.assertIn("概念辨析类问题重点覆盖", system)
+
     def test_retry_errors_injected(self):
         _, user = render_stage3(
             chunks=self.SAMPLE_CHUNKS,
@@ -306,6 +326,17 @@ class TestRenderStage4(unittest.TestCase):
         self.assertIn("故障排查", system)
         self.assertIn("操作步骤类", system)
         self.assertIn("版本说明", system)
+
+    def test_doc_type_教学知识_knowledge_type_subdivision(self):
+        system, _ = render_stage4(
+            chunks=self.SAMPLE_CHUNKS,
+            doc_type="教学知识",
+        )
+        self.assertIn("概念定义", system)
+        self.assertIn("公式定理", system)
+        self.assertIn("例题解析", system)
+        self.assertIn("考点梳理", system)
+        self.assertIn("学科·章节", system)
 
     def test_retry_errors_injected(self):
         _, user = render_stage4(

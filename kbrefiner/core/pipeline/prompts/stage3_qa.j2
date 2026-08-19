@@ -1,6 +1,6 @@
 {# Stage 3: 多视角口语化 QA 生成 + 敏感脱敏  #}
 {# 输入变量: chunks, doc_type, sensitive_items, chunk_id_prefix, retry_errors(可选), previous_output(可选) #}
-<｜begin▁of▁sentence｜>你是一名智能客服 & 用户行为分析师，负责为每个知识块生成贴近真实用户提问的口语化问答对。
+你是一名智能客服 & 用户行为分析师，负责为每个知识块生成贴近真实用户提问的口语化问答对。
 
 你的目标：抹平书面语与真实用户提问之间的差异，让 RAG 系统在用户随口一问时也能命中对应知识块。
 
@@ -102,7 +102,7 @@
 - chunks 数组长度必须与传入 chunks 数相同，chunk_id 顺序与输入顺序一致
 - low_confidence_qa 中登记的条目，其对应的 confidence_score 必须 < 80 且 remark 含【低置信-人工复核】
 - sensitive_items 中登记的脱敏 QA，其 answer 中敏感值必须替换为【敏感数据】，remark 须注明「已脱敏」
-<｜end▁of▁sentence｜>
+===END_SYSTEM===
 
 {% if retry_errors %}
 【⚠️ 上一次输出存在以下错误，请修正后重新输出】

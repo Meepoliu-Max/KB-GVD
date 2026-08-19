@@ -1,6 +1,6 @@
 {# Stage 1: 文档类型识别 + 敏感预扫描 + 术语检查  #}
 {# 输入变量: markdown, doc_title, document_source, retry_errors(可选), previous_output(可选) #}
-<｜begin▁of▁sentence｜>你是一名文档解析清洗专家，负责将原始业务文档转化为RAG知识库可用的预处理结果。
+你是一名文档解析清洗专家，负责将原始业务文档转化为RAG知识库可用的预处理结果。
 
 你的目标：
 1. 识别文档类型（4类之一）
@@ -61,7 +61,7 @@
 }
 
 必须输出上述 JSON，禁止增减字段。敏感数据标记的完整格式不可省略「-禁止向量化入库」后缀。
-<｜end▁of▁sentence｜>
+===END_SYSTEM===
 
 {% if retry_errors %}
 【⚠️ 上一次输出存在以下错误，请修正后重新输出】

@@ -12,7 +12,7 @@
                                  sensitive_items=[...], chunk_id_prefix="P1")
     system, user = render_stage4(chunks=[{chunk_id, title, content}], doc_type="技术运维")
 
-返回 (system_prompt, user_prompt) 元组，其中 system_prompt 包含 <｜begin▁of▁sentence｜>...<｜end▁of▁sentence｜> 包裹的完整系统段，user_prompt 包含用户输入段（含可选的 retry_errors 反馈注入）。
+返回 (system_prompt, user_prompt) 元组，其中 system_prompt 包含系统指令段，user_prompt 包含用户输入段（含可选的 retry_errors 反馈注入）。模板中用 ===END_SYSTEM=== 标记系统段结束。
 """
 from __future__ import annotations
 
@@ -48,16 +48,15 @@ _STAGE_FILES: dict[str, str] = {
 def _split_system_user(rendered: str) -> tuple[str, str]:
     """把渲染后的完整模板切分为 (system_prompt, user_prompt)。
 
-    约定：<｜end▁of▁sentence｜> 作为系统段结束标记。
-    该标记之前（含标记本身）为系统段，之后为用户段。
+    约定：===END_SYSTEM=== 作为系统段结束标记。
+    该标记之前为系统段，之后为用户段。
     """
-    marker = "<｜end▁of▁sentence｜>"
+    marker = "===END_SYSTEM==="
     pos = rendered.find(marker)
     if pos == -1:
         # 防御性：没找到标记则整个当用户段，系统段空
         return "", rendered
-    end = pos + len(marker)
-    return rendered[:end], rendered[end:].lstrip("\n")
+    return rendered[:pos].strip(), rendered[pos + len(marker):].lstrip("\n")
 
 
 def _render(name: str, **kwargs: Any) -> tuple[str, str]:

@@ -78,12 +78,13 @@ class KBRefiner:
         """
         settings = get_settings()
 
+        # 模型名：显式参数 > 环境变量 > 默认枚举
+        effective_model = model or settings.llm_model
         llm_config = LLMConfig(
             api_key=api_key or settings.llm_api_key,
             base_url=base_url or settings.llm_base_url,
         )
-        if model:
-            llm_config.default_model = model  # type: ignore
+        llm_config.default_model = effective_model  # type: ignore
 
         self.llm_client = DeepSeekClient(config=llm_config)
         self.parser_backend = parser_backend

@@ -104,8 +104,8 @@ class LLMConfig:
     max_retries: int = 3  # 含首次共 max_retries+1 次尝试
     retry_base_delay: float = 1.0  # 首次重试延迟（秒），指数退避
     retry_max_delay: float = 30.0  # 最大重试延迟
-    timeout: float = 120.0  # 单次请求超时（秒）
-    max_tokens: int = 8192  # JSON Output 需要足够大避免截断
+    timeout: float = 300.0  # 单次请求超时（秒），reasoner 模型需要更长推理时间
+    max_tokens: int = 16384  # 足够大避免 JSON 截断（模型不支持时 API 会自动截断）
     temperature: float = 0.0  # 默认 0 保证确定性输出（流水线场景）
 
 
@@ -289,7 +289,10 @@ class DeepSeekClient:
 
     def _resolve_model(self, model: Model | str | None) -> str:
         if model is None:
-            return self._config.default_model.value
+            dm = self._config.default_model
+            if isinstance(dm, Model):
+                return dm.value
+            return str(dm)
         if isinstance(model, Model):
             return model.value
         return model
@@ -328,18 +331,18 @@ class DeepSeekClient:
                     "temperature": temp,
                     "max_tokens": tokens,
                 }
-                if json_mode:
-                    kwargs["response_format"] = {"type": "json_object"}
+                # 不使用 response_format={'type': 'json_object'}，
+                # DeepSeek JSON Output 模式在复杂 prompt 下有返回空 content 的已知问题。
+                # 改为普通模式输出，由 _parse_json() 手动解析（容错 markdown 代码块包裹）。
 
                 client = self._get_sync_client()
                 response = client.chat.completions.create(**kwargs)
 
                 content = response.choices[0].message.content or ""
 
-                # JSON Output 已知问题：空 content
-                if json_mode and not content.strip():
+                if not content.strip():
                     raise EmptyContentError(
-                        f"JSON Output 模式返回空 content（attempt {attempt}/{total_attempts}）"
+                        f"API 返回空 content（attempt {attempt}/{total_attempts}）"
                     )
 
                 usage = {}
@@ -416,17 +419,18 @@ class DeepSeekClient:
                     "temperature": temp,
                     "max_tokens": tokens,
                 }
-                if json_mode:
-                    kwargs["response_format"] = {"type": "json_object"}
+                # 不使用 response_format={'type': 'json_object'}，
+                # DeepSeek JSON Output 模式在复杂 prompt 下有返回空 content 的已知问题。
+                # 改为普通模式输出，由 _parse_json() 手动解析（容错 markdown 代码块包裹）。
 
                 client = self._get_async_client()
                 response = await client.chat.completions.create(**kwargs)
 
                 content = response.choices[0].message.content or ""
 
-                if json_mode and not content.strip():
+                if not content.strip():
                     raise EmptyContentError(
-                        f"JSON Output 模式返回空 content（attempt {attempt}/{total_attempts}）"
+                        f"API 返回空 content（attempt {attempt}/{total_attempts}）"
                     )
 
                 usage = {}

@@ -1,6 +1,6 @@
 {# Stage 2: 语义级智能分块  #}
 {# 输入变量: cleaned_text, doc_type, partition_prefix, title_context(可选), retry_errors(可选), previous_output(可选) #}
-<｜begin▁of▁sentence｜>你是一名检索知识管理专家，负责基于语义闭环将文档拆分为独立可读的知识块。
+你是一名检索知识管理专家，负责基于语义闭环将文档拆分为独立可读的知识块。
 
 你的目标：一块一语义 —— 每个知识块只承载一个明确的语义主题，脱离原文上下文仍可独立读懂。
 
@@ -80,7 +80,7 @@
 }
 
 注意：exception_list 必须包含完整 9 个字段（无异常传空数组），禁止遗漏字段。
-<｜end▁of▁sentence｜>
+===END_SYSTEM===
 
 {% if retry_errors %}
 【⚠️ 上一次输出存在以下错误，请修正后重新输出】

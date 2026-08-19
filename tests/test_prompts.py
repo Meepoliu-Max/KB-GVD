@@ -2,7 +2,7 @@
 
 覆盖：
 - 4 个 stage 基础渲染：关键变量已替换、未残留 {{ }} 占位
-- system/user 分割正确（含 <｜end▁of▁sentence｜> 在 system 末尾）
+- system/user 分割正确（含 ===END_SYSTEM=== 在 system 末尾）
 - retry_errors/previous_output 注入（stage1/2/3/4 都验证）
 - Stage 2 doc_type 差异化分支（4 种类型分别命中正确分支文字）
 - Stage 3 sensitive_items 注入（列表/空列表两个分支）
@@ -37,9 +37,9 @@ class TestRenderStage1(unittest.TestCase):
             document_source="测试.pdf",
             doc_title="测试标题",
         )
-        # 系统段含结束标记（末尾）
-        self.assertTrue(system.rstrip().endswith("<｜end▁of▁sentence｜>"))
-        self.assertNotIn("<｜end▁of▁sentence｜>", user)
+        # 分割标记不进入任何一段（仅作切分用途，不发给 LLM）
+        self.assertNotIn("===END_SYSTEM===", system)
+        self.assertNotIn("===END_SYSTEM===", user)
         # 关键变量被替换
         self.assertIn("测试.pdf", user)           # document_source
         self.assertIn("测试标题", user)            # doc_title
@@ -81,7 +81,8 @@ class TestRenderStage2(unittest.TestCase):
             doc_type="技术运维",
             partition_prefix="P3",
         )
-        self.assertTrue(system.rstrip().endswith("<｜end▁of▁sentence｜>"))
+        self.assertNotIn("===END_SYSTEM===", system)
+        self.assertNotIn("===END_SYSTEM===", user)
         # partition_prefix 被渲染进 chunk_id 强制格式说明
         self.assertIn("P3-C001", system)
         self.assertIn("P3-C015", system)
@@ -168,7 +169,8 @@ class TestRenderStage3(unittest.TestCase):
             sensitive_items=[],
             chunk_id_prefix="P1",
         )
-        self.assertTrue(system.rstrip().endswith("<｜end▁of▁sentence｜>"))
+        self.assertNotIn("===END_SYSTEM===", system)
+        self.assertNotIn("===END_SYSTEM===", user)
         self.assertIn("P1-C001", user)
         self.assertIn("P1-C002", user)
         self.assertIn("登录失败处理", user)
@@ -265,7 +267,8 @@ class TestRenderStage4(unittest.TestCase):
             chunks=self.SAMPLE_CHUNKS,
             doc_type="技术运维",
         )
-        self.assertTrue(system.rstrip().endswith("<｜end▁of▁sentence｜>"))
+        self.assertNotIn("===END_SYSTEM===", system)
+        self.assertNotIn("===END_SYSTEM===", user)
         self.assertIn("P1-C001", user)
         self.assertIn("5 字段必填", system)
         self.assertIn("target_audience", system)

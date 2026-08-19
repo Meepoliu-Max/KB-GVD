@@ -182,9 +182,8 @@ class TestJsonOutput(unittest.TestCase):
         client.chat_json("sys", "usr")
 
         call_kwargs = mock_client.chat.completions.create.call_args[1]
-        self.assertEqual(
-            call_kwargs["response_format"], {"type": "json_object"}
-        )
+        # 不再使用 response_format json_object（DeepSeek 复杂 prompt 下返回空 content）
+        self.assertNotIn("response_format", call_kwargs)
 
     @patch("kbrefiner.core.llm.deepseek_client.OpenAI")
     def test_plain_chat_no_response_format(self, mock_openai_cls):

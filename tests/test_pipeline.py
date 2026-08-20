@@ -41,7 +41,9 @@ from kbrefiner.models import (
     Stage1Input,
     Stage2Input,
     Stage3Input,
+    Stage3Output,
     Stage4Input,
+    Stage4Output,
 )
 
 
@@ -575,6 +577,239 @@ class TestPipelineCheckpoint(unittest.TestCase):
 
             self.assertFalse((output_dir / "stage1.json").exists())
             self.assertFalse((output_dir / "final.json").exists())
+
+
+# =====================================================================
+# Stage 3/4 分批并行测试
+# =====================================================================
+
+
+def _make_chunks_dict(n: int) -> list[dict]:
+    """构造 n 个 Stage 2 风格的 chunks 输入。"""
+    return [
+        {"chunk_id": f"P1-C{i:03d}", "title": f"标题{i}", "content": f"内容{i}", "remark": ""}
+        for i in range(1, n + 1)
+    ]
+
+
+class TestPipelineBatchParallel(unittest.TestCase):
+    """Stage 3/4 分批并行：拆批有序、chunks 顺序合并、exception_list 归并、信号量限流。"""
+
+    @staticmethod
+    def _make_pipeline(tmpdir: str, **overrides) -> Pipeline:
+        config = PipelineConfig(
+            output_dir=Path(tmpdir),
+            stage_retries=1,
+            enable_checkpoint=False,
+            **overrides,
+        )
+        return Pipeline(DeepSeekClient(config=LLMConfig(api_key="test-key")), config)
+
+    @staticmethod
+    def _stage3_output_for(chunks: list[dict]) -> Stage3Output:
+        """为一批 chunks 构造 Stage 3 输出（每 chunk 1 条 QA + 本批异常）。"""
+        return Stage3Output.model_validate({
+            "chunks": [
+                {
+                    "chunk_id": c["chunk_id"],
+                    "qa_pairs": [{
+                        "question": f"问题-{c['chunk_id']}",
+                        "answer": f"答案-{c['chunk_id']}",
+                        "keywords": ["关键词"],
+                        "confidence_score": 90,
+                        "remark": "",
+                    }],
+                }
+                for c in chunks
+            ],
+            "exception_list": {
+                "content_conflicts": [f"{c['chunk_id']}: S3批次异常" for c in chunks],
+            },
+        })
+
+    @staticmethod
+    def _stage4_output_for(chunks: list[dict]) -> Stage4Output:
+        """为一批 chunks 构造 Stage 4 输出（每 chunk 1 份 metadata + 本批异常）。"""
+        return Stage4Output.model_validate({
+            "chunks": [
+                {
+                    "chunk_id": c["chunk_id"],
+                    "doc_type": "制度合规",
+                    "metadata": {
+                        "target_audience": "普通用户",
+                        "business_module": "账号管理",
+                        "knowledge_type": "制度规则",
+                        "version_timeliness": "2026-01-01生效",
+                        "summary": f"摘要-{c['chunk_id']}",
+                    },
+                }
+                for c in chunks
+            ],
+            "exception_list": {
+                "missing_info": [f"{c['chunk_id']}: S4批次缺失" for c in chunks],
+            },
+        })
+
+    def test_split_chunks_ordered(self):
+        """按 batch_size 有序切分，最后一批允许不满；size<=1 或不超限不分批。"""
+        with TemporaryDirectory() as tmpdir:
+            pipeline = self._make_pipeline(tmpdir, stage34_batch_size=3)
+
+            chunks = [f"c{i}" for i in range(7)]
+            self.assertEqual(
+                pipeline._split_chunks(chunks),
+                [["c0", "c1", "c2"], ["c3", "c4", "c5"], ["c6"]],
+            )
+            # 数量不超过 batch_size → 单批
+            self.assertEqual(pipeline._split_chunks(["a", "b"]), [["a", "b"]])
+            # batch_size <= 1 → 不分批
+            pipeline._config.stage34_batch_size = 1
+            self.assertEqual(pipeline._split_chunks(["a", "b"]), [["a", "b"]])
+
+    def test_merge_exception_lists_all_fields(self):
+        """_merge_exception_lists 覆盖全部 9 个字段且按批顺序拼接。"""
+        all_fields = [
+            "content_conflicts", "missing_info", "vague_items", "expired_items",
+            "chunk_anomalies", "truncated_items", "sensitive_items",
+            "low_confidence_qa", "terminology_pending",
+        ]
+        e1 = ExceptionList(**{f: [f"{f}-b1"] for f in all_fields})
+        e2 = ExceptionList(**{f: [f"{f}-b2"] for f in all_fields})
+
+        merged = Pipeline._merge_exception_lists([e1, e2])
+
+        for f in all_fields:
+            self.assertEqual(getattr(merged, f), [f"{f}-b1", f"{f}-b2"], f)
+
+        # 空输入 → 全空
+        empty = Pipeline._merge_exception_lists([])
+        for f in all_fields:
+            self.assertEqual(getattr(empty, f), [])
+
+    def test_stage34_batched_merge(self):
+        """6 chunks / batch_size=2 → 每阶段 3 批；合并后 chunks 保序、exception_list 归并。"""
+        with TemporaryDirectory() as tmpdir:
+            chunks = _make_chunks_dict(6)
+            stage2_out = {"chunks": chunks, "exception_list": {}}
+
+            # Stage 1/2 走真实 runner（顺序 mock LLM），Stage 3/4 打桩按批返回
+            pipeline = self._make_pipeline(tmpdir, stage34_batch_size=2, stage34_concurrency=3)
+
+            stage_outputs: dict[str, object] = {}
+
+            def on_complete(name, output):
+                stage_outputs[name] = output
+
+            llm_sequence = [_make_stage1_output_dict(), stage2_out]
+            llm_calls = [0]
+
+            async def mock_llm(**kwargs):
+                if llm_calls[0] >= len(llm_sequence):
+                    raise AssertionError("Stage 3/4 已打桩，LLM 不应被再次调用")
+                result = _make_chat_result(llm_sequence[llm_calls[0]])
+                llm_calls[0] += 1
+                return result
+
+            pipeline._client.chat_json_async = mock_llm  # type: ignore
+
+            s3_batches: list[list[str]] = []
+            s4_batches: list[list[str]] = []
+
+            async def mock_run_stage3(stage_input, client, **kwargs):
+                s3_batches.append([c["chunk_id"] for c in stage_input.chunks])
+                return self._stage3_output_for(stage_input.chunks)
+
+            async def mock_run_stage4(stage_input, client, **kwargs):
+                s4_batches.append([c["chunk_id"] for c in stage_input.chunks])
+                return self._stage4_output_for(stage_input.chunks)
+
+            with patch("kbrefiner.core.pipeline.orchestrator.run_stage3", mock_run_stage3), \
+                 patch("kbrefiner.core.pipeline.orchestrator.run_stage4", mock_run_stage4):
+                doc = asyncio.run(pipeline.run(
+                    markdown="# x",
+                    document_source="test.pdf",
+                    on_stage_complete=on_complete,
+                ))
+
+            expected_ids = [c["chunk_id"] for c in chunks]
+
+            # 每批恰好 2 个 chunk，批内连续，全部批覆盖 6 个 chunk
+            self.assertEqual(len(s3_batches), 3)
+            self.assertEqual(len(s4_batches), 3)
+            for batches in (s3_batches, s4_batches):
+                flat = [cid for batch in batches for cid in batch]
+                self.assertEqual(sorted(flat), sorted(expected_ids))
+
+            # 合并结果保持原始顺序（gather 按任务序返回）
+            s3_out = stage_outputs["Stage3-QA"]
+            self.assertEqual([c.chunk_id for c in s3_out.chunks], expected_ids)
+            self.assertEqual(
+                s3_out.exception_list.content_conflicts,
+                [f"{cid}: S3批次异常" for cid in expected_ids],
+            )
+
+            s4_out = stage_outputs["Stage4-Tag"]
+            self.assertEqual([c.chunk_id for c in s4_out.chunks], expected_ids)
+            self.assertEqual(
+                s4_out.exception_list.missing_info,
+                [f"{cid}: S4批次缺失" for cid in expected_ids],
+            )
+
+            # 最终文档 6 个原子，顺序一致，QA 与 metadata 均已合入
+            self.assertEqual(len(doc.knowledge_atoms), 6)
+            self.assertEqual(
+                [a.chunk_id for a in doc.knowledge_atoms], expected_ids
+            )
+            for atom in doc.knowledge_atoms:
+                self.assertEqual(len(atom.qa_pairs), 1)
+                self.assertEqual(atom.qa_pairs[0].question, f"问题-{atom.chunk_id}")
+                self.assertEqual(atom.metadata.summary, f"摘要-{atom.chunk_id}")
+
+    def test_stage34_semaphore_limits_concurrency(self):
+        """批间并发受 stage34_concurrency 信号量约束。"""
+        with TemporaryDirectory() as tmpdir:
+            # 6 chunks / batch_size=2 → 3 批，并发上限 2（batch_size<=1 表示不分批）
+            chunks = _make_chunks_dict(6)
+            stage2_out = {"chunks": chunks, "exception_list": {}}
+
+            pipeline = self._make_pipeline(
+                tmpdir, stage34_batch_size=2, stage34_concurrency=2
+            )
+
+            llm_sequence = [_make_stage1_output_dict(), stage2_out]
+            llm_calls = [0]
+
+            async def mock_llm(**kwargs):
+                result = _make_chat_result(llm_sequence[min(llm_calls[0], 1)])
+                llm_calls[0] += 1
+                return result
+
+            pipeline._client.chat_json_async = mock_llm  # type: ignore
+
+            active = {"s3": 0, "s4": 0}
+            peak = {"s3": 0, "s4": 0}
+
+            async def mock_run_stage3(stage_input, client, **kwargs):
+                active["s3"] += 1
+                peak["s3"] = max(peak["s3"], active["s3"])
+                await asyncio.sleep(0.1)
+                active["s3"] -= 1
+                return self._stage3_output_for(stage_input.chunks)
+
+            async def mock_run_stage4(stage_input, client, **kwargs):
+                active["s4"] += 1
+                peak["s4"] = max(peak["s4"], active["s4"])
+                await asyncio.sleep(0.1)
+                active["s4"] -= 1
+                return self._stage4_output_for(stage_input.chunks)
+
+            with patch("kbrefiner.core.pipeline.orchestrator.run_stage3", mock_run_stage3), \
+                 patch("kbrefiner.core.pipeline.orchestrator.run_stage4", mock_run_stage4):
+                asyncio.run(pipeline.run(markdown="# x", document_source="test.pdf"))
+
+            # 3 批 / 并发上限 2 → 峰值恰好为 2（sleep 保证并发窗口存在）
+            self.assertEqual(peak["s3"], 2)
+            self.assertEqual(peak["s4"], 2)
 
 
 if __name__ == "__main__":

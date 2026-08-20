@@ -78,12 +78,15 @@ class PipelineConfig:
     Attributes:
         output_dir: 中间结果与最终结果输出目录
         stage_retries: 断点校验失败重试次数（不含首次）
-        stage1_model: Stage 1 模型（None 用客户端默认 V4-Flash）
+        stage1_model: Stage 1 模型（None 用客户端默认）
         stage2_model: Stage 2 模型
-        stage3_model: Stage 3 模型（建议 V4-Pro，QA 生成复杂）
+        stage3_model: Stage 3 模型（建议 Pro，QA 生成复杂）
         stage4_model: Stage 4 模型
         enable_checkpoint: 是否启用断点续跑（检测已存在的中间结果）
         partition_prefix: 分片编号前缀（默认 P1，多文档时按 P2/P3 递增）
+        stage34_batch_size: Stage 3/4 分批大小。chunks 超过该值时拆成
+            多批并行调用 LLM 再合并（大文档显著提速），0 或 1 表示不分批
+        stage34_concurrency: Stage 3/4 批间最大并行数
     """
 
     output_dir: Path = field(default_factory=lambda: Path("./output"))
@@ -94,6 +97,8 @@ class PipelineConfig:
     stage4_model: Model | str | None = None
     enable_checkpoint: bool = True
     partition_prefix: str = "P1"
+    stage34_batch_size: int = 4
+    stage34_concurrency: int = 4
 
 
 class Pipeline:
@@ -247,7 +252,12 @@ class Pipeline:
         on_progress: ProgressCallback | None,
         on_stage_complete: StageCompleteCallback | None,
     ) -> tuple[Stage3Output, Stage4Output]:
-        """Stage 3 和 Stage 4 并行执行（输入相同）。"""
+        """Stage 3 和 Stage 4 并行执行（输入相同）。
+
+        Stage 3/4 输出 token 量与 chunk 数成正比，是流水线耗时大头。
+        chunks 较多时按 stage34_batch_size 拆批并行调用 LLM，再按批顺序
+        合并 chunks 与 exception_list，墙钟时间从 O(N) 降为 O(N/批次并行度)。
+        """
         # 准备两个 Stage 的输入
         stage3_input = stage2_to_stage3_input(
             stage2_output, stage1_output.doc_type, stage1_output.sensitive_items
@@ -267,16 +277,33 @@ class Pipeline:
                 if on_stage_complete:
                     on_stage_complete("Stage3-QA", output)
                 return output
-            output = await run_stage3(
-                stage3_input, self._client,
-                model=self._config.stage3_model,
-                max_retries=self._config.stage_retries,
-                on_progress=on_progress,
+            batches = self._split_chunks(stage3_input.chunks)
+            if len(batches) > 1:
+                logger.info("Stage 3 分批并行: %d chunks → %d 批", len(stage3_input.chunks), len(batches))
+            outputs = await self._run_batches_parallel(
+                batches,
+                lambda batch: run_stage3(
+                    Stage3Input(
+                        chunks=batch,
+                        doc_type=stage3_input.doc_type,
+                        sensitive_items=stage3_input.sensitive_items,
+                        chunk_id_prefix=stage3_input.chunk_id_prefix,
+                    ),
+                    self._client,
+                    model=self._config.stage3_model,
+                    max_retries=self._config.stage_retries,
+                    on_progress=on_progress,
+                ),
+                merge=lambda parts: Stage3Output(
+                    chunks=[c for p in parts for c in p.chunks],
+                    exception_list=self._merge_exception_lists(p.exception_list for p in parts),
+                ),
+                stage_name="Stage3-QA",
             )
-            self._save_checkpoint("stage3", output)
+            self._save_checkpoint("stage3", outputs)
             if on_stage_complete:
-                on_stage_complete("Stage3-QA", output)
-            return output
+                on_stage_complete("Stage3-QA", outputs)
+            return outputs
 
         async def _run_stage4():
             if s4_checkpoint is not None:
@@ -285,16 +312,31 @@ class Pipeline:
                 if on_stage_complete:
                     on_stage_complete("Stage4-Tag", output)
                 return output
-            output = await run_stage4(
-                stage4_input, self._client,
-                model=self._config.stage4_model,
-                max_retries=self._config.stage_retries,
-                on_progress=on_progress,
+            batches = self._split_chunks(stage4_input.chunks)
+            if len(batches) > 1:
+                logger.info("Stage 4 分批并行: %d chunks → %d 批", len(stage4_input.chunks), len(batches))
+            outputs = await self._run_batches_parallel(
+                batches,
+                lambda batch: run_stage4(
+                    Stage4Input(
+                        chunks=batch,
+                        doc_type=stage4_input.doc_type,
+                    ),
+                    self._client,
+                    model=self._config.stage4_model,
+                    max_retries=self._config.stage_retries,
+                    on_progress=on_progress,
+                ),
+                merge=lambda parts: Stage4Output(
+                    chunks=[c for p in parts for c in p.chunks],
+                    exception_list=self._merge_exception_lists(p.exception_list for p in parts),
+                ),
+                stage_name="Stage4-Tag",
             )
-            self._save_checkpoint("stage4", output)
+            self._save_checkpoint("stage4", outputs)
             if on_stage_complete:
-                on_stage_complete("Stage4-Tag", output)
-            return output
+                on_stage_complete("Stage4-Tag", outputs)
+            return outputs
 
         # 并行执行
         logger.info("Stage 3 / Stage 4 并行执行")
@@ -302,6 +344,50 @@ class Pipeline:
             _run_stage3(), _run_stage4()
         )
         return stage3_output, stage4_output
+
+    # =================================================================
+    # Stage 3/4 分批并行辅助
+    # =================================================================
+
+    def _split_chunks(self, chunks: list[dict[str, Any]]) -> list[list[dict[str, Any]]]:
+        """按 stage34_batch_size 将 chunks 切成有序批次（保持原顺序）。"""
+        size = self._config.stage34_batch_size
+        if size <= 1 or len(chunks) <= size:
+            return [chunks]
+        return [chunks[i:i + size] for i in range(0, len(chunks), size)]
+
+    async def _run_batches_parallel(
+        self,
+        batches: list[list[dict[str, Any]]],
+        run_batch,
+        merge,
+        stage_name: str,
+    ):
+        """并行执行各批次并合并结果。单批失败则整阶段失败（与不分批行为一致）。"""
+        if len(batches) == 1:
+            return await run_batch(batches[0])
+        semaphore = asyncio.Semaphore(max(1, self._config.stage34_concurrency))
+
+        async def _guarded(batch):
+            async with semaphore:
+                return await run_batch(batch)
+
+        parts = await asyncio.gather(*[_guarded(b) for b in batches])
+        merged = merge(parts)
+        logger.info("%s 分批合并完成: %d 批 → %d chunks", stage_name, len(batches), len(merged.chunks))
+        return merged
+
+    @staticmethod
+    def _merge_exception_lists(exception_lists):
+        """合并多批的 exception_list（9 个字段均为字符串列表，直接拼接）。"""
+        from kbrefiner.models.schemas import ExceptionList
+
+        result = ExceptionList()
+        for el in exception_lists:
+            for field_name in type(result).model_fields:
+                items = getattr(el, field_name, None) or []
+                getattr(result, field_name).extend(items)
+        return result
 
     # =================================================================
     # 持久化（断点续跑）

@@ -224,7 +224,7 @@ class TestE2E(unittest.TestCase):
         """上传不支持的文件类型返回 400。"""
         resp = self.client.post(
             "/api/upload",
-            files={"file": ("test.txt", b"hello", "text/plain")},
+            files={"file": ("test.exe", b"hello", "application/octet-stream")},
         )
         self.assertEqual(resp.status_code, 400)
 

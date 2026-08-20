@@ -112,13 +112,13 @@ async def upload_file(
     file: UploadFile,
     settings: Settings = Depends(get_settings),
 ):
-    """上传文档文件，支持 PDF / DOCX / PPTX / XLSX / 图片格式。
+    """上传文档文件，支持 PDF / DOCX / PPTX / XLSX / 图片 / Markdown / TXT 格式。
 
     Returns:
         {"file_id": "abc123", "filename": "policy.pdf", "size": 12345}
     """
     # 验证文件类型
-    allowed_extensions = {".pdf", ".docx", ".pptx", ".xlsx", ".png", ".jpg", ".jpeg", ".bmp"}
+    allowed_extensions = {".pdf", ".docx", ".pptx", ".xlsx", ".png", ".jpg", ".jpeg", ".bmp", ".md", ".markdown", ".txt"}
     ext = Path(file.filename or "").suffix.lower()
     if ext not in allowed_extensions:
         raise HTTPException(
@@ -289,15 +289,24 @@ async def get_status(task_id: str, settings: Settings = Depends(get_settings)):
     Returns:
         {"task_id": "...", "status": "completed|processing|failed|pending", "progress": 0.75, "filename": "..."}
     """
-    # 优先检查内存中的任务存储（异步任务）
+    # 优先检查持久化任务存储（异步任务）
     stored = _task_store.get(task_id)
     if stored:
         status = stored.get("status", _TASK_PROCESSING)
+        progress = 0.0
+        if status == _TASK_COMPLETED:
+            progress = 1.0
+        elif status == _TASK_PROCESSING:
+            # 结合输出目录已落盘的阶段文件估算真实进度
+            output_dir = Path(settings.output_dir) / task_id
+            stage_files = ["stage1", "stage2", "stage3", "stage4", "final"]
+            done = sum(1 for s in stage_files if (output_dir / f"{s}.json").exists())
+            progress = done / len(stage_files)
         return {
             "task_id": task_id,
             "filename": stored.get("filename", "未知文件"),
             "status": status,
-            "progress": 1.0 if status == _TASK_COMPLETED else 0.5 if status == _TASK_PROCESSING else 0.0,
+            "progress": progress,
             "error": stored.get("error"),
             "created_at": stored.get("created_at"),
             "file_size": stored.get("file_size", 0),

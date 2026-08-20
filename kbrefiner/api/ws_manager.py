@@ -120,8 +120,11 @@ def make_progress_callback(task_id: str, total_stages: int = 5):
 
     stage_runner 中的 on_progress(stage_name, attempt, status) 格式：
     - stage_name: "Stage1-Clean" 等
-    - attempt: 当前重试次数（0-based）
-    - status: "started" | "retrying" | "completed" | "failed"
+    - attempt: 当前尝试次数（1-based）
+    - status: "calling_llm" | "validating" | "success" | "retrying"
+
+    返回的回调为同步函数（匹配 stage_runner 的 ProgressCallback 签名），
+    内部通过 asyncio.ensure_future 调度异步推送（stage_runner 在事件循环中运行）。
 
     Returns:
         on_progress callable, on_stage_complete callable
@@ -129,32 +132,52 @@ def make_progress_callback(task_id: str, total_stages: int = 5):
     stage_order = ["Stage1-Clean", "Stage2-Chunk", "Stage3-QA", "Stage4-Tag", "Postprocess"]
     completed_count = 0
 
-    async def _on_progress(stage_name: str, attempt: int, status: str) -> None:
+    def _schedule(coro) -> None:
+        """调度协程执行；无事件循环时（同步 CLI 场景）静默关闭跳过。"""
+        try:
+            asyncio.ensure_future(coro)
+        except RuntimeError:
+            coro.close()
+
+    def _on_progress(stage_name: str, attempt: int, status: str) -> None:
         nonlocal completed_count
 
         stage_idx = stage_order.index(stage_name) if stage_name in stage_order else -1
+        base = stage_idx if stage_idx >= 0 else 0
 
-        if status == "started":
-            base_progress = stage_idx / total_stages if stage_idx >= 0 else 0.0
-            msg = f"{stage_name} 开始处理..."
-            await push_progress(task_id, stage=stage_name, progress=base_progress, status="processing", message=msg)
-
-        elif status == "retrying":
-            msg = f"{stage_name} 第 {attempt + 1} 次重试..."
-            base_progress = stage_idx / total_stages if stage_idx >= 0 else 0.0
-            await push_progress(task_id, stage=stage_name, progress=base_progress, status="processing", message=msg)
-
-        elif status == "completed":
+        if status == "calling_llm":
+            msg = f"{stage_name} 正在调用 LLM 生成..."
+            _schedule(push_progress(task_id, stage=stage_name,
+                                    progress=(base + 0.2) / total_stages,
+                                    status="processing", message=msg))
+        elif status == "validating":
+            msg = f"{stage_name} 结果校验中..."
+            _schedule(push_progress(task_id, stage=stage_name,
+                                    progress=(base + 0.6) / total_stages,
+                                    status="processing", message=msg))
+        elif status == "success":
             completed_count += 1
-            progress = completed_count / total_stages
             msg = f"{stage_name} 完成"
-            await push_progress(task_id, stage=stage_name, progress=progress, status="completed", message=msg)
-
+            _schedule(push_progress(task_id, stage=stage_name,
+                                    progress=(base + 1) / total_stages,
+                                    status="completed", message=msg))
+        elif status == "retrying":
+            msg = f"{stage_name} 第 {attempt} 次重试..."
+            _schedule(push_progress(task_id, stage=stage_name,
+                                    progress=(base + 0.1) / total_stages,
+                                    status="processing", message=msg))
+        elif status == "started":
+            msg = f"{stage_name} 开始处理..."
+            _schedule(push_progress(task_id, stage=stage_name,
+                                    progress=base / total_stages,
+                                    status="processing", message=msg))
         elif status == "failed":
             msg = f"{stage_name} 处理失败"
-            await push_progress(task_id, stage=stage_name, progress=completed_count / total_stages, status="failed", message=msg)
+            _schedule(push_progress(task_id, stage=stage_name,
+                                    progress=completed_count / total_stages,
+                                    status="failed", message=msg))
 
-    async def _on_stage_complete(stage_name: str, output: Any) -> None:
+    def _on_stage_complete(stage_name: str, output: Any) -> None:
         # stage_runner 已完成推送，这里仅做额外日志
         logger.info("Stage 完成回调: %s (task_id=%s)", stage_name, task_id)
 

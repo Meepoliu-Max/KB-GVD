@@ -40,7 +40,7 @@ class SimpleParser(BaseParser):
 
     @property
     def supported_types(self) -> set[FileType]:
-        return {FileType.PDF, FileType.DOCX}
+        return {FileType.PDF, FileType.DOCX, FileType.MARKDOWN}
 
     def parse(self, file_path: str | Path) -> ParsedDocument:
         """解析文档，返回 ParsedDocument。"""
@@ -57,6 +57,8 @@ class SimpleParser(BaseParser):
             markdown = self._parse_pdf(path)
         elif file_type == FileType.DOCX:
             markdown = self._parse_docx(path)
+        elif file_type == FileType.MARKDOWN:
+            markdown = self._read_text(path)
         else:
             raise UnsupportedFileError(f"不支持的格式: {file_type}")
 
@@ -74,6 +76,17 @@ class SimpleParser(BaseParser):
             tables=tables,
             page_count=self._detect_page_count(markdown),
         )
+
+    def _read_text(self, path: Path) -> str:
+        """直读 Markdown/纯文本文件（无需解析，保持原文）。"""
+        try:
+            return path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            # 非 UTF-8 编码兜底
+            try:
+                return path.read_text(encoding="gb18030")
+            except Exception as e:
+                raise ParseFailedError(f"文本文件读取失败: {e}") from e
 
     def _parse_pdf(self, path: Path) -> str:
         """使用 pypdf 解析 PDF。"""

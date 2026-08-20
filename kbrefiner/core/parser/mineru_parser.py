@@ -324,9 +324,14 @@ class ParserFactory:
         """获取解析器实例。
 
         Args:
-            file_type: 文件类型（当前解析器均支持全部类型，可忽略）
+            file_type: 文件类型。MARKDOWN/TXT 无需重型解析，直接走 SimpleParser 直读
             backend: 解析后端，auto / mineru / simple
         """
+        # Markdown/纯文本本身就是流水线输入格式，直读即可，无需 MinerU
+        if file_type == FileType.MARKDOWN:
+            from kbrefiner.core.parser.simple_parser import SimpleParser
+            return SimpleParser()
+
         if cls._parser is not None and cls._backend == backend:
             return cls._parser
 

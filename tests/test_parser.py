@@ -280,7 +280,9 @@ class TestMineruParserBoundary(unittest.TestCase):
 
     def test_supported_types(self):
         parser = MineruParser()
-        self.assertEqual(parser.supported_types, set(FileType))
+        # MARKDOWN 由 SimpleParser 直读，不走 MinerU
+        expected = set(FileType) - {FileType.MARKDOWN}
+        self.assertEqual(parser.supported_types, expected)
 
     def test_encrypted_detection(self):
         """模拟加密 PDF：mock _run_mineru 抛出 EncryptedDocumentError。"""

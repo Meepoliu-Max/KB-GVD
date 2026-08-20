@@ -583,61 +583,64 @@ a:hover {
               <div class="kb-card kb-stage-panel">
                 <div class="kb-card-header">
                   <div>
-                    <h3 class="kb-stage-panel-title">Stage 2 · 处理中</h3>
-                    <p class="kb-stage-panel-desc">MinerU 解析 + 语义级智能分块 + 向量索引</p>
+                    <h3 class="kb-stage-panel-title" data-dom-id="stage-panel-title">准备中</h3>
+                    <p class="kb-stage-panel-desc">RAG 四阶流水线：清洗 → 分块 → QA 生成 → 元数据打标</p>
                   </div>
                   <span class="kb-tag kb-tag-info">运行中</span>
                 </div>
                 <div class="kb-card-body">
                   <div class="kb-stage-progress-wrap">
                     <div class="kb-stage-progress-header">
-                      <span class="kb-font-semibold">本阶段总体进度</span>
-                      <span class="kb-font-bold kb-text-primary">68%</span>
+                      <span class="kb-font-semibold">总体进度</span>
+                      <span class="kb-font-bold kb-text-primary">0%</span>
                     </div>
                     <div class="kb-progress" style="margin-top:8px">
-                      <div class="kb-progress-bar" style="width:68%"></div>
+                      <div class="kb-progress-bar" style="width:0%"></div>
                     </div>
                   </div>
 
                   <div class="kb-substage-list">
-                    <div class="kb-substage completed">
-                      <div class="kb-substage-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg>
-                      </div>
+                    <div class="kb-substage pending">
+                      <div class="kb-substage-icon"></div>
                       <div class="kb-substage-body">
-                        <div class="kb-substage-title">文档解析与清洗</div>
-                        <div class="kb-substage-meta">MinerU 解析完成，版式与表格识别就绪</div>
-                      </div>
-                    </div>
-                    <div class="kb-substage completed">
-                      <div class="kb-substage-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg>
-                      </div>
-                      <div class="kb-substage-body">
-                        <div class="kb-substage-title">语义分块</div>
-                        <div class="kb-substage-meta">8 个知识原子已生成，边界校验通过</div>
-                      </div>
-                    </div>
-                    <div class="kb-substage running">
-                      <div class="kb-substage-icon kb-substage-spinner"></div>
-                      <div class="kb-substage-body">
-                        <div class="kb-substage-title">生成向量嵌入</div>
-                        <div class="kb-substage-meta">正在生成向量索引…</div>
+                        <div class="kb-substage-title">Stage 1 · 文档解析与清洗</div>
+                        <div class="kb-substage-meta">敏感信息检测、版式清理、文档类型识别</div>
                       </div>
                     </div>
                     <div class="kb-substage pending">
                       <div class="kb-substage-icon"></div>
                       <div class="kb-substage-body">
-                        <div class="kb-substage-title">构建索引</div>
-                        <div class="kb-substage-meta">等待嵌入完成后写入向量库</div>
+                        <div class="kb-substage-title">Stage 2 · 语义分块</div>
+                        <div class="kb-substage-meta">按文档类型差异化策略生成知识原子</div>
+                      </div>
+                    </div>
+                    <div class="kb-substage pending">
+                      <div class="kb-substage-icon"></div>
+                      <div class="kb-substage-body">
+                        <div class="kb-substage-title">Stage 3 · QA 对生成</div>
+                        <div class="kb-substage-meta">模拟真实用户提问生成问答对</div>
+                      </div>
+                    </div>
+                    <div class="kb-substage pending">
+                      <div class="kb-substage-icon"></div>
+                      <div class="kb-substage-body">
+                        <div class="kb-substage-title">Stage 4 · 元数据打标</div>
+                        <div class="kb-substage-meta">5 维元数据标签推理</div>
+                      </div>
+                    </div>
+                    <div class="kb-substage pending">
+                      <div class="kb-substage-icon"></div>
+                      <div class="kb-substage-body">
+                        <div class="kb-substage-title">后处理合并</div>
+                        <div class="kb-substage-meta">合并各阶段结果，生成最终输出</div>
                       </div>
                     </div>
                   </div>
 
                   <div class="kb-live-status">
                     <span class="kb-status kb-status-running">运行中</span>
-                    <span class="kb-live-text">正在生成向量索引…</span>
-                    <span class="kb-estimate">预计剩余 01:36</span>
+                    <span class="kb-live-text">已连接，等待处理进度...</span>
+                    <span class="kb-estimate" data-dom-id="elapsed-time">已用时间 00:00</span>
                   </div>
                 </div>
                 <div class="kb-card-footer kb-stage-actions">
@@ -668,19 +671,19 @@ a:hover {
                   <dl class="kb-meta-list">
                     <div class="kb-meta-item">
                       <dt>创建时间</dt>
-                      <dd>2026-08-10 12:30</dd>
+                      <dd data-dom-id="meta-created">—</dd>
                     </div>
                     <div class="kb-meta-item">
                       <dt>文档数量</dt>
-                      <dd>12</dd>
+                      <dd>1</dd>
                     </div>
                     <div class="kb-meta-item">
-                      <dt>总大小</dt>
-                      <dd>128.5 MB</dd>
+                      <dt>文件大小</dt>
+                      <dd data-dom-id="meta-file-size">—</dd>
                     </div>
                     <div class="kb-meta-item">
-                      <dt>知识库名称</dt>
-                      <dd>产品手册知识库</dd>
+                      <dt>文档名称</dt>
+                      <dd data-dom-id="meta-filename" class="kb-truncate" style="max-width:100%;">—</dd>
                     </div>
                   </dl>
                 </div>
@@ -730,13 +733,13 @@ a:hover {
       const liveStatusBadge = document.querySelector('.kb-live-status .kb-status');
       const estimateEl = document.querySelector('.kb-estimate');
 
-      // 阶段映射
+      // 阶段映射（label 与上方子阶段列表标题一致，用于匹配高亮）
       const STAGE_MAP = {
-        'Stage1-Clean': { label: '文档解析与清洗', desc: 'MinerU 解析完成，版式与表格识别就绪', step: 1 },
-        'Stage2-Chunk': { label: '语义分块', desc: '知识原子已生成，边界校验通过', step: 1 },
-        'Stage3-QA': { label: 'QA 对生成', desc: '基于 DeepSeek 的问答对生成', step: 2 },
-        'Stage4-Tag': { label: '元数据打标', desc: '标签推理与业务模块分类', step: 2 },
-        'Postprocess': { label: '后处理合并', desc: '合并所有阶段结果，生成最终输出', step: 3 },
+        'Stage1-Clean': { label: 'Stage 1 · 文档解析与清洗', step: 2 },
+        'Stage2-Chunk': { label: 'Stage 2 · 语义分块', step: 2 },
+        'Stage3-QA': { label: 'Stage 3 · QA 对生成', step: 2 },
+        'Stage4-Tag': { label: 'Stage 4 · 元数据打标', step: 3 },
+        'Postprocess': { label: '后处理合并', step: 3 },
       };
       const STEP_NAMES = ['上传', '处理中', '审阅中', '导出完成'];
 
@@ -750,16 +753,44 @@ a:hover {
         alert('暂停功能暂未开放');
       });
 
+      // ===== 已用时间计时器 =====
+      let _elapsedTimer = null;
+      function startElapsed(created_at) {
+        const el = document.querySelector('[data-dom-id="elapsed-time"]');
+        if (!el) return;
+        const start = created_at ? created_at * 1000 : Date.now();
+        const fmt = (ms) => {
+          const s = Math.max(0, Math.floor(ms / 1000));
+          return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+        };
+        el.textContent = '已用时间 ' + fmt(Date.now() - start);
+        _elapsedTimer = setInterval(() => {
+          el.textContent = '已用时间 ' + fmt(Date.now() - start);
+        }, 1000);
+      }
+      function stopElapsed() {
+        if (_elapsedTimer) { clearInterval(_elapsedTimer); _elapsedTimer = null; }
+      }
+
       // ===== 初始化 =====
       if (taskId) {
         taskNameEl.textContent = taskName;
-        // 加载任务元数据
+        // 加载任务元数据（真实数据填充侧栏）
         KBRefiner.API.getStatus(taskId).then(status => {
-          const metaDate = document.querySelector('.kb-task-meta-row .kb-text-sm:first-child');
-          if (metaDate && status.created_at) {
-            metaDate.textContent = '创建时间：' + new Date(status.created_at * 1000).toLocaleString('zh-CN');
+          const metaCreated = document.querySelector('[data-dom-id="meta-created"]');
+          if (metaCreated && status.created_at) {
+            metaCreated.textContent = new Date(status.created_at * 1000).toLocaleString('zh-CN');
           }
-        }).catch(() => {});
+          const metaSize = document.querySelector('[data-dom-id="meta-file-size"]');
+          if (metaSize) {
+            const b = status.file_size || 0;
+            metaSize.textContent = b >= 1048576 ? (b / 1048576).toFixed(1) + ' MB'
+              : b >= 1024 ? (b / 1024).toFixed(1) + ' KB' : b + ' B';
+          }
+          const metaName = document.querySelector('[data-dom-id="meta-filename"]');
+          if (metaName) metaName.textContent = status.filename || taskName;
+          startElapsed(status.created_at);
+        }).catch(() => startElapsed(null));
         startWatching(taskId);
       } else {
         statusBadge.className = 'kb-status kb-status-pending';
@@ -772,12 +803,14 @@ a:hover {
         ws.connect({
           onProgress: (msg) => updateProgress(msg),
           onResult: (result) => {
+            stopElapsed();
             // 处理完成，跳转到完成页
             setTimeout(() => {
               window.location.href = `/task-completed?task_id=${id}&name=${encodeURIComponent(taskName)}`;
             }, 500);
           },
           onError: (error) => {
+            stopElapsed();
             liveStatusText.textContent = '处理出错: ' + error;
             liveStatusBadge.className = 'kb-status kb-status-error';
             liveStatusBadge.textContent = '失败';
@@ -792,18 +825,21 @@ a:hover {
         try {
           const status = await KBRefiner.API.getStatus(id);
           if (status.status === 'completed') {
+            stopElapsed();
             setTimeout(() => {
               window.location.href = `/task-completed?task_id=${id}&name=${encodeURIComponent(taskName)}`;
             }, 500);
             return;
           }
           if (status.status === 'failed') {
+            stopElapsed();
             liveStatusText.textContent = '处理失败: ' + (status.error || '未知错误');
             liveStatusBadge.className = 'kb-status kb-status-error';
             liveStatusBadge.textContent = '失败';
             return;
           }
           if (status.status === 'cancelled') {
+            stopElapsed();
             liveStatusText.textContent = '任务已被取消';
             liveStatusBadge.className = 'kb-status kb-status-pending';
             liveStatusBadge.textContent = '已取消';
@@ -815,6 +851,12 @@ a:hover {
             document.querySelector('[data-dom-id="btn-cancel-task"]')?.setAttribute('disabled', 'disabled');
             document.querySelector('[data-dom-id="btn-pause-task"]')?.setAttribute('disabled', 'disabled');
             return;
+          }
+          // WebSocket 断连时用轮询进度兜底刷新进度条
+          if (status.status === 'processing' && (status.progress || 0) > 0) {
+            const pct = Math.round(status.progress * 100);
+            if (stageProgressBar) stageProgressBar.style.width = pct + '%';
+            if (stageProgressPct) stageProgressPct.textContent = pct + '%';
           }
           // 5 秒后再次轮询
           setTimeout(() => pollStatus(id), 5000);
@@ -848,8 +890,7 @@ a:hover {
         // 更新阶段标题
         const stageTitle = document.querySelector('.kb-stage-panel-title');
         if (stageTitle && msg.stage) {
-          const stageLabel = STAGE_MAP[msg.stage]?.label || msg.stage;
-          stageTitle.textContent = `Stage · ${stageLabel}`;
+          stageTitle.textContent = STAGE_MAP[msg.stage]?.label || msg.stage;
         }
       }
 

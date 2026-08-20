@@ -25,6 +25,7 @@ class FileType(str, Enum):
     XLSX = "xlsx"
     IMAGE = "image"  # png/jpg/jpeg/webp
     WEBPAGE = "webpage"  # URL
+    MARKDOWN = "markdown"  # md/markdown/txt 直读（无需解析）
 
     @classmethod
     def from_path(cls, path: str | Path) -> "FileType":
@@ -42,6 +43,9 @@ class FileType(str, Enum):
             "jpg": cls.IMAGE,
             "jpeg": cls.IMAGE,
             "webp": cls.IMAGE,
+            "md": cls.MARKDOWN,
+            "markdown": cls.MARKDOWN,
+            "txt": cls.MARKDOWN,
         }
         if ext not in mapping:
             raise UnsupportedFileError(f"不支持的文件格式: .{ext}")

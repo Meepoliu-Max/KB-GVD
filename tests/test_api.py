@@ -128,7 +128,7 @@ class TestUpload(unittest.TestCase):
         """不支持的文件类型应返回 400。"""
         response = self.client.post(
             "/api/upload",
-            files={"file": ("test.txt", b"hello", "text/plain")},
+            files={"file": ("test.exe", b"hello", "application/octet-stream")},
         )
         self.assertEqual(response.status_code, 400)
         self.assertIn("不支持的文件类型", response.json()["detail"])

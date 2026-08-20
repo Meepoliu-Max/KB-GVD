@@ -69,6 +69,13 @@ async def _run_pipeline_background(
             stage_retries=2,
             enable_checkpoint=True,
             partition_prefix="P1",
+            # 显式传入 .env 配置的真实模型名。
+            # PipelineConfig 内置默认值（deepseek-v4-*）为无效模型名，
+            # DeepSeek API 会静默返回空 content 导致重试风暴。
+            stage1_model=settings.llm_model,
+            stage2_model=settings.llm_model,
+            stage3_model=settings.llm_model_pro,
+            stage4_model=settings.llm_model,
         ),
     )
 
@@ -239,6 +246,11 @@ async def process_document(
             stage_retries=2,
             enable_checkpoint=True,
             partition_prefix="P1",
+            # 显式传入 .env 配置的真实模型名（同后台任务）
+            stage1_model=settings.llm_model,
+            stage2_model=settings.llm_model,
+            stage3_model=settings.llm_model_pro,
+            stage4_model=settings.llm_model,
         ),
     )
 

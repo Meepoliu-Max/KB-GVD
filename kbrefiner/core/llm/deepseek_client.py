@@ -100,7 +100,10 @@ class LLMConfig:
 
     api_key: str = ""  # 空则从 LLM_API_KEY 环境变量读取
     base_url: str = DEFAULT_BASE_URL
-    default_model: Model = Model.V4_FLASH
+    # 默认模型：必须是服务商真实模型名（deepseek-chat）。
+    # 历史默认值 Model.V4_FLASH（"deepseek-v4-flash"）为虚构名，
+    # DeepSeek API 对无效模型名静默返回空 content（HTTP 200），引发重试风暴。
+    default_model: Model | str = "deepseek-chat"
     max_retries: int = 3  # 含首次共 max_retries+1 次尝试
     retry_base_delay: float = 1.0  # 首次重试延迟（秒），指数退避
     retry_max_delay: float = 30.0  # 最大重试延迟
@@ -363,7 +366,12 @@ class DeepSeekClient:
 
             except EmptyContentError as e:
                 last_error = e
-                logger.warning("空 content，将重试: %s", e)
+                logger.warning(
+                    "空 content，将重试 (model=%s, attempt %d/%d): %s"
+                    "（若持续为空，请检查 LLM_MODEL 是否为服务商真实模型名，"
+                    "DeepSeek 对无效模型名会静默返回空 content）",
+                    model_name, attempt, total_attempts, e,
+                )
                 self._sleep_for_retry(attempt)
             except Exception as e:
                 last_error = e
@@ -451,7 +459,12 @@ class DeepSeekClient:
 
             except EmptyContentError as e:
                 last_error = e
-                logger.warning("空 content，将重试: %s", e)
+                logger.warning(
+                    "空 content，将重试 (model=%s, attempt %d/%d): %s"
+                    "（若持续为空，请检查 LLM_MODEL 是否为服务商真实模型名，"
+                    "DeepSeek 对无效模型名会静默返回空 content）",
+                    model_name, attempt, total_attempts, e,
+                )
                 await self._async_sleep_for_retry(attempt)
             except Exception as e:
                 last_error = e

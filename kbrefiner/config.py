@@ -19,10 +19,10 @@ class Settings(BaseSettings):
     # ===== LLM API（通用，兼容所有 OpenAI 格式）=====
     llm_api_key: str = ""
     llm_base_url: str = "https://api.deepseek.com"
-    # 主力模型：日常 4 阶流水线
-    llm_model: str = "deepseek-v4-flash"
-    # 备选模型：复杂推理（跨片冲突判定等）
-    llm_model_pro: str = "deepseek-v4-pro"
+    # 主力模型：日常 4 阶流水线（deepseek-chat 为 DeepSeek 官方真实模型名）
+    llm_model: str = "deepseek-chat"
+    # 备选模型：复杂推理（deepseek-reasoner 为官方推理模型）
+    llm_model_pro: str = "deepseek-chat"
 
     # ===== 文档解析 =====
     parser_backend: Literal["auto", "mineru", "simple"] = "auto"

@@ -12,10 +12,17 @@ from kbrefiner.core.sensitive import SensitiveDetector
 
 
 def get_llm_client(settings: Settings = Depends(get_settings)) -> DeepSeekClient:
-    """创建 LLM 客户端实例。"""
+    """创建 LLM 客户端实例。
+
+    default_model 必须显式传入 settings.llm_model：
+    客户端内置默认值为无效模型名（deepseek-v4-flash），
+    DeepSeek API 对无效模型名静默返回空 content（HTTP 200），
+    会触发大规模无效重试导致任务极慢。
+    """
     config = LLMConfig(
         api_key=settings.llm_api_key,
         base_url=settings.llm_base_url,
+        default_model=settings.llm_model,
     )
     return DeepSeekClient(config=config)
 

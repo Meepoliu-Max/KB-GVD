@@ -107,9 +107,11 @@ class TestConfiguration(unittest.TestCase):
             client = DeepSeekClient()
             self.assertEqual(client.config.api_key, "env-key")
 
-    def test_default_model_is_v4_flash(self):
+    def test_default_model_is_deepseek_chat(self):
+        # 默认必须是服务商真实模型名；虚构名（deepseek-v4-flash）会被
+        # DeepSeek API 静默返回空 content，引发重试风暴
         client = DeepSeekClient(api_key="k")
-        self.assertEqual(client.config.default_model, Model.V4_FLASH)
+        self.assertEqual(client.config.default_model, "deepseek-chat")
 
     def test_custom_default_model(self):
         cfg = LLMConfig(api_key="k", default_model=Model.V4_PRO)
@@ -126,7 +128,7 @@ class TestModelSwitching(unittest.TestCase):
     """模型切换。"""
 
     @patch("kbrefiner.core.llm.deepseek_client.OpenAI")
-    def test_default_model_v4_flash(self, mock_openai_cls):
+    def test_default_model_deepseek_chat(self, mock_openai_cls):
         mock_client = MagicMock()
         mock_openai_cls.return_value = mock_client
         mock_client.chat.completions.create.return_value = _make_response("hello")
@@ -135,7 +137,7 @@ class TestModelSwitching(unittest.TestCase):
         client.chat("sys", "usr")
 
         call_kwargs = mock_client.chat.completions.create.call_args[1]
-        self.assertEqual(call_kwargs["model"], "deepseek-v4-flash")
+        self.assertEqual(call_kwargs["model"], "deepseek-chat")
 
     @patch("kbrefiner.core.llm.deepseek_client.OpenAI")
     def test_explicit_v4_pro(self, mock_openai_cls):

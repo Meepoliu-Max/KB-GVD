@@ -15,9 +15,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi.testclient import TestClient
 
 from kbrefiner.main import app
+from kbrefiner.api import routes
 from kbrefiner.config import Settings, get_settings
 from kbrefiner.core.llm import DeepSeekClient, LLMConfig
 from kbrefiner.core.pipeline import Pipeline, PipelineConfig
+from kbrefiner.db import TaskStore
 from kbrefiner.models import KbDocument, DocType
 
 
@@ -107,6 +109,10 @@ def _make_mock_pipeline_output() -> KbDocument:
     )
 
 
+# 真实任务库（测试结束后恢复）
+_original_task_store = routes._task_store
+
+
 def _create_test_client(temp_dir: str) -> TestClient:
     """创建测试客户端，使用临时目录。"""
     settings = Settings(
@@ -120,8 +126,18 @@ def _create_test_client(temp_dir: str) -> TestClient:
     def override_settings():
         return settings
 
+    # 隔离任务库：routes 模块级 _task_store 指向真实 ./data/tasks.db，
+    # 不替换的话测试任务会写入真实任务列表
+    routes._task_store = TaskStore(str(Path(temp_dir) / "tasks.db"))
+
     app.dependency_overrides[get_settings] = override_settings
     return TestClient(app)
+
+
+def _restore_task_store() -> None:
+    """恢复真实任务库并释放临时库连接（配合 _create_test_client 的替换）。"""
+    routes._task_store.close()
+    routes._task_store = _original_task_store
 
 
 class TestE2E(unittest.TestCase):
@@ -132,6 +148,7 @@ class TestE2E(unittest.TestCase):
         self.client = _create_test_client(self.temp_dir.name)
 
     def tearDown(self):
+        _restore_task_store()
         self.temp_dir.cleanup()
         app.dependency_overrides.clear()
 
@@ -203,6 +220,10 @@ class TestE2E(unittest.TestCase):
         mock_parser = MagicMock()
         mock_parser.parse.return_value = MagicMock(markdown="# 模拟文档\n正文内容")
         mock_get_parser.return_value = mock_parser
+
+        # Mock Pipeline 输出（不设置的话后台任务拿到 MagicMock，
+        # json.loads 序列化失败，任务被误标为 failed）
+        mock_pipeline_run.return_value = _make_mock_pipeline_output()
 
         # ---- Step 2: Trigger async process ----
         resp = self.client.post(

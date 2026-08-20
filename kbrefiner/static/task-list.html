@@ -719,6 +719,15 @@ a:hover { color: var(--kb-primary-700); }
       // ===== 初始化加载 =====
       loadTasks();
 
+      // ===== 自动刷新：存在排队/运行中任务时每 5s 轮询（用户正在搜索/筛选时跳过，避免打断） =====
+      setInterval(() => {
+        const filtering = (searchInput?.value) || (statusFilter?.value && statusFilter.value !== 'all');
+        if (filtering) return;
+        if (_tasks.some(t => t.status === 'processing' || t.status === 'pending')) {
+          loadTasks();
+        }
+      }, 5000);
+
       // ===== 新建任务按钮 =====
       document.querySelector('[data-dom-id="btn-new-task"]')?.addEventListener('click', () => {
         window.location.href = '/task-new';

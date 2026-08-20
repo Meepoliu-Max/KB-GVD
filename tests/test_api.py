@@ -21,10 +21,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi.testclient import TestClient
 
 from kbrefiner.main import app
+from kbrefiner.api import routes
 from kbrefiner.api.ws_manager import manager
 from kbrefiner.config import Settings, get_settings
 from kbrefiner.core.llm import DeepSeekClient, LLMConfig
 from kbrefiner.core.pipeline import Pipeline, PipelineConfig
+from kbrefiner.db import TaskStore
 from kbrefiner.models import KbDocument, DocType, Stage1Output, Stage2Output, Stage3Output, Stage4Output
 
 
@@ -82,6 +84,10 @@ def _make_mock_pipeline_output() -> KbDocument:
     )
 
 
+# 真实任务库（测试结束后恢复）
+_original_task_store = routes._task_store
+
+
 def _create_test_client(temp_dir: str) -> TestClient:
     """创建测试客户端，使用临时目录作为 storage。"""
     settings = Settings(
@@ -94,8 +100,18 @@ def _create_test_client(temp_dir: str) -> TestClient:
     def override_settings():
         return settings
 
+    # 隔离任务库：routes 模块级 _task_store 指向真实 ./data/tasks.db，
+    # 不替换的话测试任务会写入真实任务列表
+    routes._task_store = TaskStore(str(Path(temp_dir) / "tasks.db"))
+
     app.dependency_overrides[get_settings] = override_settings
     return TestClient(app)
+
+
+def _restore_task_store() -> None:
+    """恢复真实任务库并释放临时库连接（配合 _create_test_client 的替换）。"""
+    routes._task_store.close()
+    routes._task_store = _original_task_store
 
 
 class TestUpload(unittest.TestCase):
@@ -106,6 +122,7 @@ class TestUpload(unittest.TestCase):
         self.client = _create_test_client(self.temp_dir.name)
 
     def tearDown(self):
+        _restore_task_store()
         self.temp_dir.cleanup()
         app.dependency_overrides.clear()
 
@@ -157,6 +174,7 @@ class TestProcess(unittest.TestCase):
         (upload_dir / "abc123.pdf").write_bytes(b"%PDF-1.4 test content")
 
     def tearDown(self):
+        _restore_task_store()
         self.temp_dir.cleanup()
         app.dependency_overrides.clear()
 
@@ -200,6 +218,7 @@ class TestStatus(unittest.TestCase):
         self.client = _create_test_client(self.temp_dir.name)
 
     def tearDown(self):
+        _restore_task_store()
         self.temp_dir.cleanup()
         app.dependency_overrides.clear()
 
@@ -252,6 +271,7 @@ class TestResult(unittest.TestCase):
         self.client = _create_test_client(self.temp_dir.name)
 
     def tearDown(self):
+        _restore_task_store()
         self.temp_dir.cleanup()
         app.dependency_overrides.clear()
 
@@ -281,6 +301,7 @@ class TestWebSocket(unittest.TestCase):
         self.client = _create_test_client(self.temp_dir.name)
 
     def tearDown(self):
+        _restore_task_store()
         self.temp_dir.cleanup()
         app.dependency_overrides.clear()
 
@@ -341,6 +362,137 @@ class TestWebSocket(unittest.TestCase):
             self.assertTrue(manager.is_connected(task_id))
         # 退出 with 块后连接已断开
         self.assertFalse(manager.is_connected(task_id))
+
+
+class TestCancel(unittest.TestCase):
+    """任务取消测试。"""
+
+    def setUp(self):
+        self.temp_dir = TemporaryDirectory()
+        self.client = _create_test_client(self.temp_dir.name)
+
+    def tearDown(self):
+        _restore_task_store()
+        self.temp_dir.cleanup()
+        app.dependency_overrides.clear()
+
+    def test_cancel_persists_status(self):
+        """取消后状态应持久化为 cancelled（此前只改内存副本导致状态丢失）。"""
+        routes._task_store["task_cancel_1"] = {
+            "status": "processing",
+            "filename": "doc.pdf",
+            "file_size": 1024,
+        }
+
+        resp = self.client.post("/api/task/task_cancel_1/cancel")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["status"], "cancelled")
+
+        # /status 应读到持久化后的 cancelled
+        status_resp = self.client.get("/api/status/task_cancel_1")
+        self.assertEqual(status_resp.status_code, 200)
+        data = status_resp.json()
+        self.assertEqual(data["status"], "cancelled")
+        self.assertIn("取消", data["error"])
+
+    def test_cancel_not_found(self):
+        """取消不存在的任务应返回 404。"""
+        resp = self.client.post("/api/task/nonexistent/cancel")
+        self.assertEqual(resp.status_code, 404)
+
+    def test_cancel_completed_rejected(self):
+        """已完成的任务不可取消。"""
+        routes._task_store["task_done"] = {
+            "status": "completed",
+            "filename": "doc.pdf",
+            "file_size": 1024,
+        }
+        resp = self.client.post("/api/task/task_done/cancel")
+        self.assertEqual(resp.status_code, 400)
+
+
+class TestListTasks(unittest.TestCase):
+    """任务列表测试。"""
+
+    def setUp(self):
+        self.temp_dir = TemporaryDirectory()
+        self.client = _create_test_client(self.temp_dir.name)
+        self.output_base = Path(self.temp_dir.name) / "outputs"
+
+    def tearDown(self):
+        _restore_task_store()
+        self.temp_dir.cleanup()
+        app.dependency_overrides.clear()
+
+    def test_list_progress_from_stage_files(self):
+        """processing 任务的进度应按落盘阶段文件估算（此前硬编码 0.5）。"""
+        routes._task_store["task_p"] = {
+            "status": "processing",
+            "filename": "a.pdf",
+            "file_size": 10,
+        }
+        task_dir = self.output_base / "task_p"
+        task_dir.mkdir(parents=True)
+        (task_dir / "stage1.json").write_text("{}", encoding="utf-8")
+        (task_dir / "stage2.json").write_text("{}", encoding="utf-8")
+
+        resp = self.client.get("/api/tasks")
+        self.assertEqual(resp.status_code, 200)
+        tasks = {t["task_id"]: t for t in resp.json()["tasks"]}
+        self.assertAlmostEqual(tasks["task_p"]["progress"], 0.4, places=2)
+
+    def test_list_completed_progress_one(self):
+        """completed 任务进度为 1.0。"""
+        routes._task_store["task_c"] = {
+            "status": "completed",
+            "filename": "b.pdf",
+            "file_size": 10,
+        }
+
+        resp = self.client.get("/api/tasks")
+        tasks = {t["task_id"]: t for t in resp.json()["tasks"]}
+        self.assertEqual(tasks["task_c"]["progress"], 1.0)
+
+    def test_list_includes_history_task_from_output_dir(self):
+        """输出目录中存在、任务库中不存在的历史任务也应出现在列表。"""
+        task_dir = self.output_base / "task_hist"
+        task_dir.mkdir(parents=True)
+        final = {"document_info": {"source": "history.pdf"}}
+        (task_dir / "final.json").write_text(
+            json.dumps(final, ensure_ascii=False), encoding="utf-8"
+        )
+
+        resp = self.client.get("/api/tasks")
+        self.assertEqual(resp.status_code, 200)
+        tasks = {t["task_id"]: t for t in resp.json()["tasks"]}
+        self.assertIn("task_hist", tasks)
+        self.assertEqual(tasks["task_hist"]["filename"], "history.pdf")
+        self.assertEqual(tasks["task_hist"]["status"], "completed")
+
+
+class TestRecoverInterrupted(unittest.TestCase):
+    """服务重启后中断任务恢复测试。"""
+
+    def test_processing_marked_failed(self):
+        """processing 任务在启动恢复时应被标记为 failed（避免僵尸状态）。"""
+        with TemporaryDirectory() as tmpdir:
+            store = TaskStore(str(Path(tmpdir) / "tasks.db"))
+            store["t1"] = {"status": "processing", "filename": "a.pdf"}
+            store["t2"] = {"status": "completed", "filename": "b.pdf"}
+            store["t3"] = {"status": "pending", "filename": "c.pdf"}
+
+            routes._task_store = store
+            try:
+                routes.recover_interrupted_tasks()
+
+                self.assertEqual(store.get("t1")["status"], "failed")
+                self.assertIn("中断", store.get("t1")["error"])
+                # 其他状态不受影响
+                self.assertEqual(store.get("t2")["status"], "completed")
+                self.assertEqual(store.get("t3")["status"], "pending")
+            finally:
+                routes._task_store = _original_task_store
+                store.close()
 
 
 if __name__ == "__main__":

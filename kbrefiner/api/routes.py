@@ -46,9 +46,44 @@ _TASK_COMPLETED = "completed"
 _TASK_FAILED = "failed"
 _TASK_CANCELLED = "cancelled"
 
+# 阶段落盘文件（用于估算真实进度）
+_STAGE_FILES = ("stage1", "stage2", "stage3", "stage4", "final")
+
+
+def _estimate_progress(output_base: Path, task_id: str) -> float:
+    """按输出目录已落盘的文件估算进度（0.0~1.0）。
+
+    final.json 是流水线最后落盘的文件，存在即视为已完成（兼容
+    关闭 checkpoint、只有 final.json 的场景）；否则按阶段文件数估算。
+    """
+    task_dir = output_base / task_id
+    if (task_dir / "final.json").exists():
+        return 1.0
+    done = sum(1 for s in _STAGE_FILES if (task_dir / f"{s}.json").exists())
+    return done / len(_STAGE_FILES)
+
 
 def _make_task_id() -> str:
     return uuid.uuid4().hex[:12]
+
+
+def recover_interrupted_tasks() -> None:
+    """服务启动时把上次运行遗留的 processing 任务标记为失败。
+
+    后台 asyncio 任务随进程终止而消失，不处理会永远停留在 processing
+    （僵尸状态，列表页一直转圈）。断点文件仍在输出目录，
+    对同一文件重新发起处理可从断点续跑。
+    """
+    interrupted = [
+        task_id for task_id, info in _task_store.items()
+        if info.get("status") == _TASK_PROCESSING
+    ]
+    for task_id in interrupted:
+        _task_store.update_status(
+            task_id, _TASK_FAILED, error="服务重启，任务已中断（重新发起可从断点续跑）"
+        )
+    if interrupted:
+        logger.info("启动恢复：%d 个中断任务已标记为 failed: %s", len(interrupted), interrupted)
 
 
 async def _run_pipeline_background(
@@ -199,7 +234,10 @@ async def process_document(
         raise HTTPException(status_code=404, detail=f"文件 {file_id} 不存在")
 
     file_path = candidates[0]
-    doc_name = filename or file_path.name
+    # 文件名优先级：显式参数 > 任务存储的上传原始文件名 > 磁盘文件名
+    # （磁盘文件以上传时生成的 file_id 重命名存储，直接用会导致列表页显示一堆数字）
+    stored_info = _task_store.get(file_id) or {}
+    doc_name = filename or stored_info.get("filename") or file_path.name
 
     # MinerU 解析（同步和 async_mode 都需要）
     from kbrefiner.core.parser import ParserFactory, FileType
@@ -310,10 +348,7 @@ async def get_status(task_id: str, settings: Settings = Depends(get_settings)):
             progress = 1.0
         elif status == _TASK_PROCESSING:
             # 结合输出目录已落盘的阶段文件估算真实进度
-            output_dir = Path(settings.output_dir) / task_id
-            stage_files = ["stage1", "stage2", "stage3", "stage4", "final"]
-            done = sum(1 for s in stage_files if (output_dir / f"{s}.json").exists())
-            progress = done / len(stage_files)
+            progress = _estimate_progress(Path(settings.output_dir), task_id)
         return {
             "task_id": task_id,
             "filename": stored.get("filename", "未知文件"),
@@ -321,6 +356,7 @@ async def get_status(task_id: str, settings: Settings = Depends(get_settings)):
             "progress": progress,
             "error": stored.get("error"),
             "created_at": stored.get("created_at"),
+            "updated_at": stored.get("updated_at"),
             "file_size": stored.get("file_size", 0),
         }
 
@@ -419,42 +455,58 @@ async def list_tasks(settings: Settings = Depends(get_settings)):
     """
     tasks = []
     now = time.time()
+    output_base = Path(settings.output_dir)
 
-    # 收集内存中的任务
+    # 收集任务库中的任务
     for task_id, info in _task_store.items():
+        status = info.get("status", _TASK_PENDING)
+        if status == _TASK_COMPLETED:
+            progress = 1.0
+        elif status == _TASK_PROCESSING:
+            # 按落盘阶段文件估算真实进度（与 /status 口径一致）
+            progress = _estimate_progress(output_base, task_id)
+        else:
+            progress = 0.0
         tasks.append({
             "task_id": task_id,
             "filename": info.get("filename", "未知文件"),
-            "status": info.get("status", _TASK_PENDING),
+            "status": status,
             "created_at": info.get("created_at", now),
-            "progress": 1.0 if info.get("status") == _TASK_COMPLETED else 0.5 if info.get("status") == _TASK_PROCESSING else 0.0,
+            "progress": progress,
             "error": info.get("error"),
             "file_size": info.get("file_size", 0),
         })
 
-    # 补充输出目录中存在的任务
-    output_base = Path(settings.output_dir)
+    # 补充输出目录中存在的任务（不在任务库中的历史任务）
     if output_base.exists():
         for task_dir in output_base.iterdir():
             if not task_dir.is_dir():
                 continue
             tid = task_dir.name
             if tid not in _task_store:
-                # 检查阶段文件
-                stages = ["stage1", "stage2", "stage3", "stage4", "final"]
-                completed = [s for s in stages if (task_dir / f"{s}.json").exists()]
-                if "final" in completed:
+                # 按阶段文件判断状态与进度
+                progress = _estimate_progress(output_base, tid)
+                if progress >= 1.0:
                     status = _TASK_COMPLETED
-                    progress = 1.0
-                elif completed:
+                elif progress > 0:
                     status = _TASK_PROCESSING
-                    progress = len(completed) / len(stages)
                 else:
                     status = _TASK_PENDING
-                    progress = 0.0
+                # 从最终结果读取原始文档名（历史任务兜底）
+                final_file = task_dir / "final.json"
+                hist_name = "未知文件"
+                if final_file.exists():
+                    try:
+                        hist_name = (
+                            json.loads(final_file.read_text(encoding="utf-8"))
+                            .get("document_info", {})
+                            .get("source") or hist_name
+                        )
+                    except (json.JSONDecodeError, OSError):
+                        pass
                 tasks.append({
                     "task_id": tid,
-                    "filename": "未知文件",
+                    "filename": hist_name,
                     "status": status,
                     "created_at": task_dir.stat().st_ctime,
                     "progress": progress,
@@ -490,9 +542,8 @@ async def cancel_task(task_id: str):
         background_task.cancel()
         logger.info("已发送取消信号: task_id=%s", task_id)
 
-    # 更新状态
-    task_info["status"] = _TASK_CANCELLED
-    task_info["error"] = "用户手动取消"
+    # 更新状态（get() 返回副本，必须写回存储才能持久化）
+    _task_store.update_status(task_id, _TASK_CANCELLED, error="用户手动取消")
 
     # 推送取消通知（如果 WebSocket 还在）
     try:

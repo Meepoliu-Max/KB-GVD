@@ -252,15 +252,27 @@ const KBRefiner = (() => {
       </div>
     `).join('') : '<div style="color:var(--kb-neutral-500);padding:20px;text-align:center;">暂无 QA 对</div>';
 
-    // 异常清单
+    // 异常清单（后端 ExceptionList 为 9 个字符串数组字段，逐项平铺展示）
     const excTab = container.querySelector('#tab-exceptions');
     const excList = r.exception_list || {};
-    const excItems = excList.items || excList.exceptions || [];
+    const excLabels = {
+      content_conflicts: '内容冲突',
+      missing_info: '缺失信息',
+      vague_items: '模糊表述',
+      expired_items: '过期内容',
+      chunk_anomalies: '拆分异常',
+      truncated_items: '截断位置',
+      sensitive_items: '敏感数据',
+      low_confidence_qa: '低置信 QA',
+      terminology_pending: '术语待确认',
+    };
+    const excItems = Object.entries(excList)
+      .filter(([, v]) => Array.isArray(v) && v.length)
+      .flatMap(([k, v]) => v.map(text => ({ label: excLabels[k] || k, text })));
     excTab.innerHTML = excItems.length ? excItems.map(exc => `
-      <div style="border-left:3px solid ${exc.severity === 'error' ? 'var(--kb-state-error)' : 'var(--kb-state-warning)'};padding:8px 12px;margin:4px 0;background:${exc.severity === 'error' ? 'var(--kb-state-error-bg)' : 'var(--kb-state-warning-bg)'};border-radius:0 var(--kb-radius-small) var(--kb-radius-small) 0;font-size:0.8125rem;">
-        <strong>${exc.chunk_id || '-'}</strong>
-        <div>${escapeHtml(exc.detail || exc.message || '')}</div>
-        <div style="font-size:0.7rem;color:var(--kb-neutral-500);margin-top:2px;">${exc.severity || 'warning'} | ${exc.field || ''}</div>
+      <div style="border-left:3px solid var(--kb-state-warning);padding:8px 12px;margin:4px 0;background:var(--kb-state-warning-bg);border-radius:0 var(--kb-radius-small) var(--kb-radius-small) 0;font-size:0.8125rem;">
+        <strong>${escapeHtml(exc.label)}</strong>
+        <div>${escapeHtml(exc.text)}</div>
       </div>
     `).join('') : '<div style="color:var(--kb-neutral-500);padding:20px;text-align:center;">无异常项</div>';
 

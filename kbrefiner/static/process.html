@@ -533,15 +533,27 @@ function renderResults() {
     </div>
   `).join('') : '<div style="color:var(--text-secondary);">暂无 QA 对</div>';
 
-  // Exceptions
+  // Exceptions（后端 ExceptionList 为 9 个字符串数组字段，逐项平铺展示）
   const excTab = document.getElementById('tab-exceptions');
   const excList = r.exception_list || {};
-  const excItems = excList.items || excList.exceptions || [];
+  const excLabels = {
+    content_conflicts: '内容冲突',
+    missing_info: '缺失信息',
+    vague_items: '模糊表述',
+    expired_items: '过期内容',
+    chunk_anomalies: '拆分异常',
+    truncated_items: '截断位置',
+    sensitive_items: '敏感数据',
+    low_confidence_qa: '低置信 QA',
+    terminology_pending: '术语待确认',
+  };
+  const excItems = Object.entries(excList)
+    .filter(([, v]) => Array.isArray(v) && v.length)
+    .flatMap(([k, v]) => v.map(text => ({ label: excLabels[k] || k, text })));
   excTab.innerHTML = excItems.length ? excItems.map(exc => `
-    <div class="exception-item ${exc.severity === 'error' ? 'danger' : ''}">
-      <strong>${exc.chunk_id || '-'}</strong>
-      <div>${escapeHtml(exc.detail || exc.message || '')}</div>
-      <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${exc.severity || 'warning'} | ${exc.field || ''}</div>
+    <div class="exception-item">
+      <strong>${escapeHtml(exc.label)}</strong>
+      <div>${escapeHtml(exc.text)}</div>
     </div>
   `).join('') : '<div style="color:var(--text-secondary);">无异常项</div>';
 

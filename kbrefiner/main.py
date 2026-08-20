@@ -1,4 +1,5 @@
 """FastAPI 应用入口。"""
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -11,10 +12,19 @@ from kbrefiner.config import get_settings
 
 settings = get_settings()
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """启动时恢复上次运行遗留的中断任务（processing → failed）。"""
+    routes.recover_interrupted_tasks()
+    yield
+
+
 app = FastAPI(
     title="知序 KBRefiner",
     description="RAG 知识库预处理工具：4 阶 AI 流水线把原始文档转为结构化知识原子 + QA + 元数据 + 异常清单",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 # CORS：允许前端跨域调用

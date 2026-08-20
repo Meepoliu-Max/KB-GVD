@@ -562,11 +562,11 @@ a:hover {
         <div class="kb-content">
           <div class="kb-task-header">
             <div class="kb-task-title-wrap">
-              <h2 class="kb-task-name">KBRefiner_产品手册_v3.pdf</h2>
+              <h2 class="kb-task-name">—</h2>
               <div class="kb-task-meta-row">
-                <span class="kb-text-sm kb-text-secondary">创建时间：2026-08-10 12:30</span>
+                <span class="kb-text-sm kb-text-secondary" data-dom-id="header-created">创建时间：—</span>
                 <span class="kb-dot-separator"></span>
-                <span class="kb-text-sm kb-text-secondary">共 12 个文档</span>
+                <span class="kb-text-sm kb-text-secondary" data-dom-id="header-size">—</span>
               </div>
             </div>
             <span class="kb-status kb-status-success">已完成</span>
@@ -609,7 +609,7 @@ a:hover {
                     </div>
                     <div>
                       <h3 class="kb-result-title">处理完成</h3>
-                      <p class="kb-result-subtitle">KBRefiner_产品手册_v3.pdf 已成功清洗、分块并生成 QA 对。</p>
+                      <p class="kb-result-subtitle">正在加载处理结果...</p>
                     </div>
                   </div>
                   <span class="kb-tag kb-tag-success">成功</span>
@@ -617,20 +617,20 @@ a:hover {
                 <div class="kb-card-body">
                   <div class="kb-stat-grid">
                     <div class="kb-stat-item">
-                      <div class="kb-stat-value">12</div>
-                      <div class="kb-stat-label">文档</div>
-                    </div>
-                    <div class="kb-stat-item">
-                      <div class="kb-stat-value">36</div>
+                      <div class="kb-stat-value">—</div>
                       <div class="kb-stat-label">分块</div>
                     </div>
                     <div class="kb-stat-item">
-                      <div class="kb-stat-value">24</div>
+                      <div class="kb-stat-value">—</div>
                       <div class="kb-stat-label">QA 对</div>
                     </div>
                     <div class="kb-stat-item">
-                      <div class="kb-stat-value">8</div>
-                      <div class="kb-stat-label">标签</div>
+                      <div class="kb-stat-value">—</div>
+                      <div class="kb-stat-label">置信度</div>
+                    </div>
+                    <div class="kb-stat-item">
+                      <div class="kb-stat-value">—</div>
+                      <div class="kb-stat-label">异常项</div>
                     </div>
                   </div>
 
@@ -676,23 +676,23 @@ a:hover {
                   <dl class="kb-meta-list">
                     <div class="kb-meta-item">
                       <dt>创建时间</dt>
-                      <dd>2026-08-10 12:30</dd>
+                      <dd data-dom-id="meta-created">—</dd>
                     </div>
                     <div class="kb-meta-item">
                       <dt>完成时间</dt>
-                      <dd>2026-08-10 12:38</dd>
+                      <dd data-dom-id="meta-completed">—</dd>
                     </div>
                     <div class="kb-meta-item">
-                      <dt>文档数量</dt>
-                      <dd>12</dd>
+                      <dt>文档名称</dt>
+                      <dd data-dom-id="meta-filename" class="kb-truncate" style="max-width:100%;">—</dd>
                     </div>
                     <div class="kb-meta-item">
-                      <dt>总大小</dt>
-                      <dd>128.5 MB</dd>
+                      <dt>文件大小</dt>
+                      <dd data-dom-id="meta-file-size">—</dd>
                     </div>
                     <div class="kb-meta-item">
-                      <dt>知识库名称</dt>
-                      <dd>产品手册知识库</dd>
+                      <dt>文档类型</dt>
+                      <dd data-dom-id="meta-doc-type">—</dd>
                     </div>
                   </dl>
                 </div>
@@ -769,15 +769,25 @@ a:hover {
       async function loadTaskMeta(id) {
         try {
           const status = await KBRefiner.API.getStatus(id);
-          const metaDate = document.querySelector('.kb-meta-item:first-child dd');
-          if (metaDate && status.created_at) {
-            metaDate.textContent = new Date(status.created_at * 1000).toLocaleString('zh-CN');
-          }
-          // 完成时间取当前时间（实际完成时的时间）
-          const completeItem = document.querySelector('.kb-meta-item:nth-child(2) dd');
-          if (completeItem) {
-            completeItem.textContent = new Date().toLocaleString('zh-CN');
-          }
+          const fmtTime = (ts) => ts ? new Date(ts * 1000).toLocaleString('zh-CN') : '—';
+          const fmtSize = (b) => {
+            b = b || 0;
+            return b >= 1048576 ? (b / 1048576).toFixed(1) + ' MB'
+              : b >= 1024 ? (b / 1024).toFixed(1) + ' KB' : b + ' B';
+          };
+          const setText = (sel, text) => {
+            const el = document.querySelector(`[data-dom-id="${sel}"]`);
+            if (el) el.textContent = text;
+          };
+          // 头部 meta
+          setText('header-created', '创建时间：' + fmtTime(status.created_at));
+          setText('header-size', fmtSize(status.file_size));
+          // 侧栏任务信息
+          setText('meta-created', fmtTime(status.created_at));
+          setText('meta-completed', fmtTime(status.updated_at));
+          setText('meta-filename', status.filename || taskName);
+          setText('meta-file-size', fmtSize(status.file_size));
+          // 文档类型在 renderResult 中从结果读取
         } catch (e) {
           console.error('加载任务元数据失败:', e);
         }
@@ -835,19 +845,9 @@ a:hover {
           toastDesc.textContent = `${taskName} 已成功处理并导出，共 ${docInfo.total_chunks || 0} 个分块、${docInfo.total_qa_pairs || 0} 个 QA 对。`;
         }
 
-        // 更新侧边栏元数据
-        const metaItems = document.querySelectorAll('.kb-meta-item');
-        const docTypeMap = { '制度合规': '制度合规', 'FAQ': 'FAQ', '产品活动': '产品活动', '技术运维': '技术运维' };
-        if (metaItems.length >= 3) {
-          // 文档数量
-          const docCount = metaItems[2]?.querySelector('dd');
-          if (docCount) docCount.textContent = `${docInfo.total_chunks || 0} 个分块`;
-          // 知识库类型
-          if (metaItems.length >= 5) {
-            const typeEl = metaItems[4]?.querySelector('dd');
-            if (typeEl) typeEl.textContent = docTypeMap[docType] || docType || '通用';
-          }
-        }
+        // 更新侧边栏文档类型
+        const docTypeEl = document.querySelector('[data-dom-id="meta-doc-type"]');
+        if (docTypeEl) docTypeEl.textContent = docType || '—';
 
         // 更新处理摘要
         const summaryItems = document.querySelectorAll('.kb-upcoming-item');

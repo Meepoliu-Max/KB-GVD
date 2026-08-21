@@ -85,7 +85,7 @@ print(result.model_dump_json(indent=2))
 kb = KBRefiner(
     api_key="sk-xxx",
     base_url="https://api.deepseek.com",
-    model="deepseek-v4-flash",
+    model="deepseek-chat",
 )
 ```
 
@@ -97,9 +97,11 @@ kb = KBRefiner(
 |------|------|--------|
 | `LLM_API_KEY` | LLM API Key（必填） | - |
 | `LLM_BASE_URL` | LLM API 地址 | `https://api.deepseek.com` |
-| `LLM_MODEL` | 默认模型（四阶流水线） | `deepseek-v4-flash` |
-| `LLM_MODEL_PRO` | Pro 模型（复杂推理） | `deepseek-v4-pro` |
+| `LLM_MODEL` | 默认模型（四阶流水线） | `deepseek-chat` |
+| `LLM_MODEL_PRO` | Pro 模型（复杂推理） | `deepseek-chat` |
 | `PARSER_BACKEND` | 文档解析后端 | `auto` |
+
+> ⚠️ 模型名必须是服务商真实模型名（如 `deepseek-chat`）。无效模型名不会报错，DeepSeek 会静默返回空 content 引发重试风暴。完整注意事项见 [docs/opensource/README.md](./docs/opensource/README.md)。
 
 ### 支持的 LLM
 
@@ -147,8 +149,7 @@ kbrefiner/
 │   │   ├── sensitive/  # 敏感数据检测
 │   │   └── validation/ # 输出校验
 │   ├── models/         # 数据模型
-│   ├── static/         # Web UI 静态文件
-│   └── tasks/          # 异步任务（Celery）
+│   └── static/         # Web UI 静态文件
 ├── tests/              # 测试
 ├── pyproject.toml      # 包定义
 ├── LICENSE             # GPL-3.0

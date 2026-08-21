@@ -495,5 +495,53 @@ class TestRecoverInterrupted(unittest.TestCase):
                 store.close()
 
 
+class TestExportFilename(unittest.TestCase):
+    """导出文件名跟随用户上传原文件名测试。"""
+
+    def setUp(self):
+        self.temp_dir = TemporaryDirectory()
+        self.client = _create_test_client(self.temp_dir.name)
+
+    def tearDown(self):
+        _restore_task_store()
+        self.temp_dir.cleanup()
+        app.dependency_overrides.clear()
+
+    def _write_final(self, task_id: str):
+        task_dir = Path(self.temp_dir.name) / "outputs" / task_id
+        task_dir.mkdir(parents=True, exist_ok=True)
+        (task_dir / "final.json").write_text(
+            _make_mock_pipeline_output().model_dump_json(indent=2), encoding="utf-8"
+        )
+
+    def test_export_uses_original_filename(self):
+        """下载名 = 原文件名去扩展名 + 格式后缀（RFC 5987 编码中文）。"""
+        from urllib.parse import quote
+
+        self._write_final("task_exp1")
+        routes._task_store["task_exp1"] = {
+            "status": "completed",
+            "filename": "产品手册.pdf",
+        }
+
+        resp = self.client.get("/api/export/task_exp1?format=coze_qa")
+        self.assertEqual(resp.status_code, 200)
+        disposition = resp.headers["content-disposition"]
+        # UTF-8 主值：原文件名 + 格式后缀（产品手册_coze_qa.csv）
+        self.assertIn(f"filename*=UTF-8''{quote('产品手册_coze_qa.csv')}", disposition)
+        # ASCII 兜底：任务 ID 命名（旧客户端可读）
+        self.assertIn('filename="kbrefiner_task_exp1_coze_qa.csv"', disposition)
+
+    def test_export_fallback_when_no_record(self):
+        """任务库无记录（历史任务）时回退任务 ID 命名。"""
+        self._write_final("task_exp2")
+
+        resp = self.client.get("/api/export/task_exp2?format=json")
+        self.assertEqual(resp.status_code, 200)
+        disposition = resp.headers["content-disposition"]
+        self.assertIn("filename*=UTF-8''kbrefiner_task_exp2_json.json", disposition)
+        self.assertIn('filename="kbrefiner_task_exp2_json.json"', disposition)
+
+
 if __name__ == "__main__":
     unittest.main()

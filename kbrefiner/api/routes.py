@@ -483,18 +483,35 @@ async def export_result(
     doc = KbDocument.model_validate_json(final_path.read_text(encoding="utf-8"))
     exporter = get_exporter(format)
 
+    # 下载文件名跟随用户上传的原文件名（如 产品手册_qa.csv），
+    # 取不到时回退任务 ID。原始名含中文，Content-Disposition 采用
+    # RFC 5987 双写：filename= ASCII 兜底 + filename*= UTF-8 主值。
+    info = _task_store.get(task_id) or {}
+    raw_name = str(info.get("filename") or "").strip()
+    stem = Path(raw_name).stem if raw_name else ""
+    stem = stem.replace('"', "").replace("\r", "").replace("\n", "").strip()
+    if not stem:
+        stem = f"kbrefiner_{task_id}"
+
+    download_name = f"{stem}_{format}{exporter.extension}"
+    ascii_fallback = f"kbrefiner_{task_id}_{format}{exporter.extension}"
+    from urllib.parse import quote
+
+    from fastapi.responses import Response
+
     media_types = {
         ".csv": "text/csv",
         ".jsonl": "application/x-ndjson",
         ".json": "application/json",
     }
-    from fastapi.responses import Response
-
     return Response(
         content=exporter.export(doc),
         media_type=media_types.get(exporter.extension, "text/plain"),
         headers={
-            "Content-Disposition": f'attachment; filename="kbrefiner_{task_id}_{format}{exporter.extension}"'
+            "Content-Disposition": (
+                f'attachment; filename="{ascii_fallback}"; '
+                f"filename*=UTF-8''{quote(download_name)}"
+            )
         },
     )
 

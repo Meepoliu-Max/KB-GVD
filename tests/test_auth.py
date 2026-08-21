@@ -22,34 +22,41 @@ from fastapi.testclient import TestClient
 from kbrefiner import auth as auth_mod
 from kbrefiner.api import deps, routes
 from kbrefiner.config import Settings, get_settings
-from kbrefiner.db import TaskStore, UserStore
+from kbrefiner.db import SettingsStore, TaskStore, UserStore
 from kbrefiner.main import app
 
 # 真实存储（测试结束后恢复）
 _original_task_store = routes._task_store
 _original_user_store = deps._user_store
 _original_deps_task_store = deps._task_store
+_original_settings_store = deps._settings_store
 
 
 class _StoreBundle:
-    """临时目录内的任务库 + 用户库（同一 SQLite 文件）。"""
+    """临时目录内的任务库 + 用户库 + 设置库（同一 SQLite 文件）。"""
 
     def __init__(self, temp_dir: str):
         db = str(Path(temp_dir) / "tasks.db")
         self.task_store = TaskStore(db)
         self.user_store = UserStore(db)
+        self.settings_store = SettingsStore(db)
 
     def install(self) -> None:
         routes._task_store = self.task_store
         deps._task_store = self.task_store
         deps._user_store = self.user_store
+        # 隔离运行时设置：否则真实库的 DB 覆盖（如 access_require_login）
+        # 会压过测试注入的 .env 值
+        deps._settings_store = self.settings_store
 
     def restore(self) -> None:
         routes._task_store = _original_task_store
         deps._task_store = _original_deps_task_store
         deps._user_store = _original_user_store
+        deps._settings_store = _original_settings_store
         self.task_store.close()
         self.user_store.close()
+        self.settings_store.close()
 
 
 def _make_client(*, require_login: bool = False, temp_dir: str = ".") -> TestClient:

@@ -39,7 +39,9 @@ from kbrefiner.models import (
     DocType,
     ExceptionList,
     Stage1Input,
+    Stage1Output,
     Stage2Input,
+    Stage2Output,
     Stage3Input,
     Stage3Output,
     Stage4Input,
@@ -810,6 +812,193 @@ class TestPipelineBatchParallel(unittest.TestCase):
             # 3 批 / 并发上限 2 → 峰值恰好为 2（sleep 保证并发窗口存在）
             self.assertEqual(peak["s3"], 2)
             self.assertEqual(peak["s4"], 2)
+
+
+# =====================================================================
+# Stage 1 分段并行测试
+# =====================================================================
+
+
+class TestStage1Segmented(unittest.TestCase):
+    """Stage 1 分段并行：段落边界切分、多数表决合并、清单去重、流水线串联。"""
+
+    @staticmethod
+    def _make_pipeline(tmpdir: str, **overrides) -> Pipeline:
+        config = PipelineConfig(
+            output_dir=Path(tmpdir),
+            stage_retries=1,
+            enable_checkpoint=False,
+            **overrides,
+        )
+        return Pipeline(DeepSeekClient(config=LLMConfig(api_key="test-key")), config)
+
+    def test_split_markdown_paragraph_boundaries(self):
+        """按段落边界累积切段：不超限不分段、单段超限独立成段、顺序保持。"""
+        with TemporaryDirectory() as tmpdir:
+            pipeline = self._make_pipeline(tmpdir, stage1_segment_chars=100)
+
+            # 不超限 → 单段
+            self.assertEqual(pipeline._split_markdown("短文本"), ["短文本"])
+            # 禁用（0）→ 单段
+            pipeline._config.stage1_segment_chars = 0
+            long_text = "x" * 500
+            self.assertEqual(pipeline._split_markdown(long_text), [long_text])
+            pipeline._config.stage1_segment_chars = 100
+
+            # p1(59) + p2(20) ≤ 100 同段；追加 p3(59) 超限 → 切成 2 段
+            p1 = "P1_" + "a" * 56  # 59 chars
+            p2 = "P2_" + "b" * 17  # 20 chars
+            p3 = "P3_" + "c" * 56  # 59 chars
+            segments = pipeline._split_markdown("\n\n".join([p1, p2, p3]))
+            self.assertEqual(len(segments), 2)
+            self.assertEqual(segments[0], f"{p1}\n\n{p2}")
+            self.assertEqual(segments[1], p3)
+            # 拼回原文无损
+            self.assertEqual("\n\n".join(segments), "\n\n".join([p1, p2, p3]))
+
+            # 单段本身超限 → 独立成段不硬切
+            big = "B" * 300
+            segments = pipeline._split_markdown(f"{big}\n\n{big}")
+            self.assertEqual(segments, [big, big])
+
+    def test_merge_stage1_outputs(self):
+        """合并：doc_type 多数表决、cleaned_text 按序拼接、清单拼接去重。"""
+        def _part(idx: int, doc_type: DocType, sens: list[str], terms: list[str]) -> Stage1Output:
+            return Stage1Output(
+                cleaned_text=f"\n\n第{idx}段清洗结果\n\n",
+                doc_type=doc_type,
+                sensitive_items=sens,
+                terminology_pending=terms,
+            )
+
+        parts = [
+            _part(1, DocType.COMPLIANCE, ["s1"], ["红宝识 / 红宝石"]),
+            _part(2, DocType.FAQ, ["s2a", "s2b"], ["红宝识 / 红宝石", "水机 / 饮水机"]),
+            _part(3, DocType.COMPLIANCE, ["s1"], []),
+        ]
+
+        merged = Pipeline._merge_stage1_outputs(parts)
+
+        # 多数表决：COMPLIANCE 2 票 vs FAQ 1 票
+        self.assertEqual(merged.doc_type, DocType.COMPLIANCE)
+        # cleaned_text 按段序拼接（strip 后以空行连接）
+        self.assertEqual(merged.cleaned_text, "第1段清洗结果\n\n第2段清洗结果\n\n第3段清洗结果")
+        # sensitive_items 去重（s1 重复报告）
+        self.assertEqual(merged.sensitive_items, ["s1", "s2a", "s2b"])
+        # terminology_pending 去重（跨段同一称谓对）
+        self.assertEqual(merged.terminology_pending, ["红宝识 / 红宝石", "水机 / 饮水机"])
+
+    def test_stage1_segmented_pipeline(self):
+        """markdown 超限时分段并行执行，合并结果进入 Stage 2。"""
+        with TemporaryDirectory() as tmpdir:
+            # 构造 3 段 markdown（每章为单段落 ~66 chars，阈值 100 → 3 个分段）
+            paras = [f"# 第{i}章 " + "内容" * 30 for i in range(1, 4)]
+            markdown = "\n\n".join(paras)
+
+            pipeline = self._make_pipeline(
+                tmpdir, stage1_segment_chars=100, stage1_concurrency=2
+            )
+
+            received_segments: list[str] = []
+            stage_outputs: dict[str, object] = {}
+
+            def on_complete(name, output):
+                stage_outputs[name] = output
+
+            async def mock_run_stage1(stage_input, client, **kwargs):
+                received_segments.append(stage_input.markdown)
+                idx = len(received_segments)
+                return Stage1Output(
+                    cleaned_text=f"[cleaned-{idx}]",
+                    doc_type=DocType.COMPLIANCE if idx != 2 else DocType.FAQ,
+                    sensitive_items=[f"s{idx}"],
+                    terminology_pending=[],
+                )
+
+            # Stage 2 走真实 runner（mock LLM），Stage 3/4 打桩
+            stage2_out = {
+                "chunks": [
+                    {"chunk_id": "P1-C001", "title": "t", "content": "c", "remark": ""},
+                ],
+                "exception_list": {},
+            }
+            llm_calls = [0]
+
+            async def mock_llm(**kwargs):
+                result = _make_chat_result(stage2_out)
+                llm_calls[0] += 1
+                return result
+
+            pipeline._client.chat_json_async = mock_llm  # type: ignore
+
+            async def mock_run_stage3(stage_input, client, **kwargs):
+                return Stage3Output.model_validate({
+                    "chunks": [{"chunk_id": "P1-C001", "qa_pairs": [{
+                        "question": "q", "answer": "a", "keywords": ["k"],
+                        "confidence_score": 90, "remark": "",
+                    }]}],
+                    "exception_list": {},
+                })
+
+            async def mock_run_stage4(stage_input, client, **kwargs):
+                return Stage4Output.model_validate({
+                    "chunks": [{"chunk_id": "P1-C001", "doc_type": "制度合规", "metadata": {
+                        "target_audience": "普通用户", "business_module": "账号管理",
+                        "knowledge_type": "制度规则", "version_timeliness": "2026-01-01生效",
+                        "summary": "s",
+                    }}],
+                    "exception_list": {},
+                })
+
+            with patch("kbrefiner.core.pipeline.orchestrator.run_stage1", mock_run_stage1), \
+                 patch("kbrefiner.core.pipeline.orchestrator.run_stage3", mock_run_stage3), \
+                 patch("kbrefiner.core.pipeline.orchestrator.run_stage4", mock_run_stage4):
+                doc = asyncio.run(pipeline.run(
+                    markdown=markdown,
+                    document_source="seg_test.pdf",
+                    on_stage_complete=on_complete,
+                ))
+
+            # 分段覆盖全部原文且顺序保持
+            self.assertEqual(received_segments, paras)
+
+            # 合并结果：cleaned_text 按段序拼接、doc_type 多数表决
+            s1 = stage_outputs["Stage1-Clean"]
+            self.assertEqual(s1.cleaned_text, "[cleaned-1]\n\n[cleaned-2]\n\n[cleaned-3]")
+            self.assertEqual(s1.doc_type, DocType.COMPLIANCE)
+            self.assertEqual(s1.sensitive_items, ["s1", "s2", "s3"])
+
+            # 流水线完整走通
+            self.assertEqual(doc.document_info.source, "seg_test.pdf")
+            self.assertEqual(len(doc.knowledge_atoms), 1)
+
+    def test_stage1_small_markdown_single_call(self):
+        """markdown 未超限时只调用一次 run_stage1（不分段）。"""
+        with TemporaryDirectory() as tmpdir:
+            pipeline = self._make_pipeline(tmpdir, stage1_segment_chars=10000)
+
+            calls = [0]
+
+            async def mock_run_stage1(stage_input, client, **kwargs):
+                calls[0] += 1
+                return Stage1Output.model_validate(_make_stage1_output_dict())
+
+            async def mock_run_stage2(stage_input, client, **kwargs):
+                return Stage2Output.model_validate(_make_stage2_output_dict())
+
+            async def mock_run_stage3(stage_input, client, **kwargs):
+                return Stage3Output.model_validate(_make_stage3_output_dict())
+
+            async def mock_run_stage4(stage_input, client, **kwargs):
+                return Stage4Output.model_validate(_make_stage4_output_dict())
+
+            with patch("kbrefiner.core.pipeline.orchestrator.run_stage1", mock_run_stage1), \
+                 patch("kbrefiner.core.pipeline.orchestrator.run_stage2", mock_run_stage2), \
+                 patch("kbrefiner.core.pipeline.orchestrator.run_stage3", mock_run_stage3), \
+                 patch("kbrefiner.core.pipeline.orchestrator.run_stage4", mock_run_stage4):
+                asyncio.run(pipeline.run(markdown="# 短文档", document_source="small.pdf"))
+
+            self.assertEqual(calls[0], 1)
 
 
 if __name__ == "__main__":

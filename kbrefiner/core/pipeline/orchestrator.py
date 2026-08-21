@@ -87,6 +87,9 @@ class PipelineConfig:
         stage34_batch_size: Stage 3/4 分批大小。chunks 超过该值时拆成
             多批并行调用 LLM 再合并（大文档显著提速），0 或 1 表示不分批
         stage34_concurrency: Stage 3/4 批间最大并行数
+        stage1_segment_chars: Stage 1 输入 markdown 超过该字符数时按段落
+            边界分段并行清洗再合并（0 表示不分段）
+        stage1_concurrency: Stage 1 分段间最大并行数
     """
 
     output_dir: Path = field(default_factory=lambda: Path("./output"))
@@ -99,6 +102,8 @@ class PipelineConfig:
     partition_prefix: str = "P1"
     stage34_batch_size: int = 4
     stage34_concurrency: int = 4
+    stage1_segment_chars: int = 8000
+    stage1_concurrency: int = 4
 
 
 class Pipeline:
@@ -199,17 +204,43 @@ class Pipeline:
                 on_stage_complete("Stage1-Clean", output)
             return output
 
-        stage_input = Stage1Input(
-            markdown=markdown,
-            document_source=document_source,
-            doc_title=doc_title,
-        )
-        output = await run_stage1(
-            stage_input, self._client,
-            model=self._config.stage1_model,
-            max_retries=self._config.stage_retries,
-            on_progress=on_progress,
-        )
+        segments = self._split_markdown(markdown)
+        if len(segments) > 1:
+            logger.info(
+                "Stage 1 分段并行: %d chars → %d 段（每段 ≤ %d chars）",
+                len(markdown), len(segments), self._config.stage1_segment_chars,
+            )
+            semaphore = asyncio.Semaphore(max(1, self._config.stage1_concurrency))
+
+            async def _run_segment(seg: str):
+                async with semaphore:
+                    return await run_stage1(
+                        Stage1Input(
+                            markdown=seg,
+                            document_source=document_source,
+                            doc_title=doc_title,
+                        ),
+                        self._client,
+                        model=self._config.stage1_model,
+                        max_retries=self._config.stage_retries,
+                        on_progress=on_progress,
+                    )
+
+            parts = await asyncio.gather(*[_run_segment(s) for s in segments])
+            output = self._merge_stage1_outputs(parts)
+            logger.info("Stage 1 分段合并完成: cleaned_text %d chars", len(output.cleaned_text))
+        else:
+            output = await run_stage1(
+                Stage1Input(
+                    markdown=markdown,
+                    document_source=document_source,
+                    doc_title=doc_title,
+                ),
+                self._client,
+                model=self._config.stage1_model,
+                max_retries=self._config.stage_retries,
+                on_progress=on_progress,
+            )
         self._save_checkpoint("stage1", output)
         if on_stage_complete:
             on_stage_complete("Stage1-Clean", output)
@@ -344,6 +375,56 @@ class Pipeline:
             _run_stage3(), _run_stage4()
         )
         return stage3_output, stage4_output
+
+    # =================================================================
+    # Stage 1 分段并行辅助
+    # =================================================================
+
+    def _split_markdown(self, markdown: str) -> list[str]:
+        """按段落边界将 markdown 切成 ~stage1_segment_chars 的有序分段。
+
+        在 "\\n\\n" 段落边界累积切段，避免切在句子/表格中间；
+        单段本身超限时独立成段（不再硬切，保证表格/长段完整）。
+        """
+        limit = self._config.stage1_segment_chars
+        if limit <= 0 or len(markdown) <= limit:
+            return [markdown]
+
+        segments: list[str] = []
+        current: list[str] = []
+        current_len = 0
+        for para in markdown.split("\n\n"):
+            add = len(para) + 2
+            if current and current_len + add > limit:
+                segments.append("\n\n".join(current))
+                current, current_len = [], 0
+            current.append(para)
+            current_len += add
+        if current:
+            segments.append("\n\n".join(current))
+        return segments
+
+    @staticmethod
+    def _merge_stage1_outputs(parts: list[Stage1Output]) -> Stage1Output:
+        """合并分段 Stage 1 输出。
+
+        - cleaned_text：按段顺序以空行拼接
+        - doc_type：各段多数表决（平票取第一段的类型）
+        - sensitive_items / terminology_pending：跨段拼接并去重
+          （不同段对同一实体称谓的检测可能重复报告）
+        """
+        from collections import Counter
+
+        def _dedupe(items: list[str]) -> list[str]:
+            return list(dict.fromkeys(items))
+
+        doc_type = Counter(p.doc_type for p in parts).most_common(1)[0][0]
+        return Stage1Output(
+            cleaned_text="\n\n".join(p.cleaned_text.strip() for p in parts if p.cleaned_text.strip()),
+            doc_type=doc_type,
+            sensitive_items=_dedupe([i for p in parts for i in p.sensitive_items]),
+            terminology_pending=_dedupe([i for p in parts for i in p.terminology_pending]),
+        )
 
     # =================================================================
     # Stage 3/4 分批并行辅助

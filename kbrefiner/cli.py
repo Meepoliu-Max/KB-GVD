@@ -4,6 +4,7 @@
     kbrefiner process <file>          # 处理文档（解析 + 四阶流水线）
     kbrefiner process <file> -o out.json  # 指定输出路径
     kbrefiner serve                   # 启动本地 Web UI
+    kbrefiner createsuperuser         # 创建超级管理员账号
     kbrefiner config                  # 显示当前配置
     kbrefiner version                 # 显示版本号
 
@@ -178,6 +179,44 @@ def config():
         click.echo("⚠ 未配置 LLM API Key！请创建 .env 文件：", err=True)
         click.echo("  cp .env.example .env", err=True)
         click.echo("  编辑 .env 填入你的 API Key", err=True)
+
+
+@cli.command()
+@click.version_option(version=__version__, prog_name="kbrefiner")
+@click.option("--email", prompt="管理员邮箱")
+@click.option("--username", prompt="管理员用户名")
+@click.option(
+    "--password",
+    prompt="登录密码",
+    hide_input=True,
+    confirmation_prompt="再次输入密码",
+    help="登录密码（至少 6 位；不传则交互式输入）",
+)
+@click.option("--db", type=str, default="./data/tasks.db", help="用户库路径")
+def createsuperuser(email: str, username: str, password: str, db: str):
+    """创建超级管理员账号（首个后台账号入口）。
+
+    \b
+    示例：
+        kbrefiner createsuperuser
+        kbrefiner createsuperuser --email admin@x.com --username admin
+    """
+    from kbrefiner.db import UserStore
+
+    if len(password) < 6:
+        click.echo("错误：密码至少 6 位", err=True)
+        sys.exit(1)
+
+    store = UserStore(db)
+    try:
+        user = store.create(email, username, password, role="super_admin")
+    except ValueError as e:
+        click.echo(f"错误：{e}", err=True)
+        sys.exit(1)
+    finally:
+        store.close()
+    click.echo(f"超级管理员创建成功: {user['email']}（id={user['id']}）")
+    click.echo(f"登录入口: /login（前台） 或 /admin/login（管理后台）")
 
 
 @cli.command()

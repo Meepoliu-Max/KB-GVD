@@ -37,6 +37,15 @@ class Settings(BaseSettings):
     app_port: int = 8000
     log_level: str = "INFO"
 
+    # ===== 认证与访问控制 =====
+    # 前台是否强制登录（默认关闭：开源单机模式直接可用；
+    # 开启后未登录访问前台页面/业务 API 跳转或返回 401）
+    require_login: bool = False
+    # 令牌签名密钥（留空自动生成并持久化到 data/.auth_secret）
+    auth_secret: str = ""
+    # 令牌有效期（小时）
+    auth_token_expire_hours: int = 24 * 7
+
     # ===== 文件存储 =====
     upload_dir: str = "./data/uploads"
     output_dir: str = "./data/outputs"

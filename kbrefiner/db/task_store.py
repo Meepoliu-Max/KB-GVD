@@ -5,9 +5,10 @@
 
 表结构：
     tasks(task_id TEXT PRIMARY KEY,
-          status TEXT, filename TEXT,
+          status TEXT, filename TEXT, user_id TEXT,
           created_at REAL, updated_at REAL,
-          file_size INTEGER, error TEXT, result TEXT)
+          file_size INTEGER, token_consumed INTEGER DEFAULT 0,
+          error TEXT, result TEXT)
 
 除常规方法外，实现 Mapping 风格接口（__getitem__/__setitem__/__contains__/items/get），
 使路由层可像 dict 一样使用（_task_store[tid] = {...}）。
@@ -32,7 +33,10 @@ from typing import Any, Iterator, Optional
 
 
 # 写入白名单：__setitem__ 接受的字段
-_FIELDS = ("status", "filename", "created_at", "updated_at", "file_size", "error", "result")
+_FIELDS = (
+    "status", "filename", "user_id", "created_at", "updated_at",
+    "file_size", "token_consumed", "error", "result",
+)
 
 
 class TaskStore:
@@ -53,9 +57,11 @@ class TaskStore:
                     task_id TEXT PRIMARY KEY,
                     status TEXT DEFAULT 'pending',
                     filename TEXT,
+                    user_id TEXT,
                     created_at REAL,
                     updated_at REAL,
                     file_size INTEGER DEFAULT 0,
+                    token_consumed INTEGER DEFAULT 0,
                     error TEXT,
                     result TEXT
                 )
@@ -64,8 +70,17 @@ class TaskStore:
             columns = {r[1] for r in self._conn.execute("PRAGMA table_info(tasks)")}
             if "result" not in columns:
                 self._conn.execute("ALTER TABLE tasks ADD COLUMN result TEXT")
+            if "user_id" not in columns:
+                self._conn.execute("ALTER TABLE tasks ADD COLUMN user_id TEXT")
+            if "token_consumed" not in columns:
+                self._conn.execute(
+                    "ALTER TABLE tasks ADD COLUMN token_consumed INTEGER DEFAULT 0"
+                )
             self._conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_tasks_created ON tasks(created_at DESC)"
+            )
+            self._conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_tasks_user ON tasks(user_id)"
             )
             self._conn.commit()
 
@@ -111,13 +126,76 @@ class TaskStore:
             ).fetchone()
         return self._row_to_dict(row) if row else default
 
-    def list_all(self) -> list[dict[str, Any]]:
-        """按创建时间倒序列出全部任务。"""
+    def list_all(self, user_id: str | None = None) -> list[dict[str, Any]]:
+        """按创建时间倒序列出任务；指定 user_id 时只列该用户的任务。"""
+        sql = "SELECT * FROM tasks"
+        params: tuple = ()
+        if user_id is not None:
+            sql += " WHERE user_id = ?"
+            params = (user_id,)
+        sql += " ORDER BY created_at DESC"
+        with self._lock:
+            rows = self._conn.execute(sql, params).fetchall()
+        return [self._row_to_dict(r) for r in rows]
+
+    def add_tokens(self, task_id: str, tokens: int) -> None:
+        """累加任务的 Token 消耗（LLM 调用后回写）。"""
+        if tokens <= 0:
+            return
+        with self._lock:
+            self._conn.execute(
+                "UPDATE tasks SET token_consumed = COALESCE(token_consumed, 0) + ?, "
+                "updated_at = ? WHERE task_id = ?",
+                (int(tokens), time.time(), task_id),
+            )
+            self._conn.commit()
+
+    def stats_by_user(self) -> dict[str, dict[str, int]]:
+        """按用户聚合任务统计（管理后台用户列表/详情用）。
+
+        Returns:
+            {user_id: {"task_count": n, "upload_count": n, "token_total": n}}
+            user_id 为 NULL 的匿名任务不参与聚合。
+        """
         with self._lock:
             rows = self._conn.execute(
-                "SELECT * FROM tasks ORDER BY created_at DESC"
+                "SELECT user_id, COUNT(*) AS task_count, "
+                "SUM(CASE WHEN file_size > 0 THEN 1 ELSE 0 END) AS upload_count, "
+                "COALESCE(SUM(token_consumed), 0) AS token_total "
+                "FROM tasks WHERE user_id IS NOT NULL GROUP BY user_id"
             ).fetchall()
-        return [self._row_to_dict(r) for r in rows]
+        return {
+            r["user_id"]: {
+                "task_count": int(r["task_count"] or 0),
+                "upload_count": int(r["upload_count"] or 0),
+                "token_total": int(r["token_total"] or 0),
+            }
+            for r in rows
+        }
+
+    def daily_stats(self, days: int = 7) -> list[dict[str, Any]]:
+        """近 N 天每日任务数与 Token 消耗（本地时区日期，管理仪表盘趋势图用）。
+
+        Returns:
+            [{"date": "2026-08-21", "task_count": 3, "token_total": 12000}, ...]
+        """
+        since = time.time() - days * 86400
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT date(created_at, 'unixepoch', 'localtime') AS d, "
+                "COUNT(*) AS task_count, "
+                "COALESCE(SUM(token_consumed), 0) AS token_total "
+                "FROM tasks WHERE created_at >= ? GROUP BY d ORDER BY d",
+                (since,),
+            ).fetchall()
+        return [
+            {
+                "date": r["d"],
+                "task_count": int(r["task_count"] or 0),
+                "token_total": int(r["token_total"] or 0),
+            }
+            for r in rows
+        ]
 
     # ===== Mapping 兼容接口（供路由层 dict 式调用） =====
 
@@ -138,16 +216,18 @@ class TaskStore:
         row.setdefault("filename", "")
         row["created_at"] = row.get("created_at") or now
         row["file_size"] = row.get("file_size") or 0
+        row["token_consumed"] = row.get("token_consumed") or 0
         # result 序列化为 JSON 文本存储
         result = row.get("result")
         row["result"] = json.dumps(result, ensure_ascii=False) if result is not None else None
         with self._lock:
             self._conn.execute(
                 "INSERT OR REPLACE INTO tasks "
-                "(task_id, status, filename, created_at, updated_at, file_size, error, result) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (task_id, row["status"], row["filename"], row["created_at"], now,
-                 row["file_size"], row.get("error"), row["result"]),
+                "(task_id, status, filename, user_id, created_at, updated_at, file_size, token_consumed, error, result) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (task_id, row["status"], row["filename"], row.get("user_id"),
+                 row["created_at"], now, row["file_size"], row["token_consumed"],
+                 row.get("error"), row["result"]),
             )
             self._conn.commit()
 

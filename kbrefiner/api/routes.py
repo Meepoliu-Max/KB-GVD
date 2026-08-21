@@ -27,7 +27,7 @@ from kbrefiner.core.pipeline import Pipeline, PipelineConfig
 from kbrefiner.core.sensitive import SensitiveDetector
 from kbrefiner.db import TaskStore
 
-from .deps import get_llm_client, get_sensitive_detector
+from .deps import get_current_user, get_llm_client, get_sensitive_detector
 from .ws_manager import make_progress_callback, manager, push_error, push_result
 
 logger = logging.getLogger(__name__)
@@ -136,6 +136,10 @@ async def _run_pipeline_background(
         result = json.loads(doc.model_dump_json(ensure_ascii=False))
         await push_result(task_id, result)
         _task_store.update_status(task_id, _TASK_COMPLETED)
+        # 回写该任务累计的 LLM Token 消耗（客户端实例生命周期内所有成功调用）
+        _task_store.add_tokens(
+            task_id, int(llm_client.usage_total.get("total_tokens", 0))
+        )
         logger.info("后台任务完成: task_id=%s", task_id)
     except asyncio.CancelledError:
         logger.warning("后台任务被取消: task_id=%s", task_id)
@@ -153,8 +157,12 @@ async def _run_pipeline_background(
 async def upload_file(
     file: UploadFile,
     settings: Settings = Depends(get_settings),
+    current_user: Optional[dict] = Depends(get_current_user),
 ):
     """上传文档文件，支持 PDF / DOCX / PPTX / XLSX / 图片 / Markdown / TXT 格式。
+
+    开放模式（require_login=False）匿名可上传，user_id 为 NULL；
+    强制登录模式由依赖层保证已登录。
 
     Returns:
         {"file_id": "abc123", "filename": "policy.pdf", "size": 12345}
@@ -186,10 +194,11 @@ async def upload_file(
 
     logger.info("文件上传成功: %s (%s, %d bytes)", file_path, file.filename, len(content))
 
-    # 记录任务初始状态
+    # 记录任务初始状态（关联上传用户，管理后台按用户聚合统计）
     _task_store[file_id] = {
         "status": _TASK_PENDING,
         "filename": file.filename,
+        "user_id": current_user["id"] if current_user else None,
         "created_at": time.time(),
         "file_size": len(content),
     }
@@ -238,6 +247,8 @@ async def process_document(
     # （磁盘文件以上传时生成的 file_id 重命名存储，直接用会导致列表页显示一堆数字）
     stored_info = _task_store.get(file_id) or {}
     doc_name = filename or stored_info.get("filename") or file_path.name
+    # 保留上传时关联的用户（后续写入不覆盖丢失）
+    owner_id = stored_info.get("user_id")
 
     # MinerU 解析（同步和 async_mode 都需要）
     from kbrefiner.core.parser import ParserFactory, FileType
@@ -260,8 +271,9 @@ async def process_document(
         _task_store[file_id] = {
             "status": _TASK_PROCESSING,
             "filename": doc_name,
-            "created_at": _task_store.get(file_id, {}).get("created_at", time.time()),
-            "file_size": _task_store.get(file_id, {}).get("file_size", 0),
+            "user_id": owner_id,
+            "created_at": stored_info.get("created_at", time.time()),
+            "file_size": stored_info.get("file_size", 0),
         }
         task = asyncio.create_task(
             _run_pipeline_background(
@@ -303,8 +315,9 @@ async def process_document(
             "status": _TASK_FAILED,
             "error": str(e),
             "filename": doc_name,
-            "created_at": _task_store.get(file_id, {}).get("created_at", time.time()),
-            "file_size": _task_store.get(file_id, {}).get("file_size", 0),
+            "user_id": owner_id,
+            "created_at": stored_info.get("created_at", time.time()),
+            "file_size": stored_info.get("file_size", 0),
         }
         raise HTTPException(status_code=500, detail=f"处理失败: {e}")
 
@@ -314,9 +327,14 @@ async def process_document(
         "status": _TASK_COMPLETED,
         "result": result,
         "filename": doc_name,
-        "created_at": _task_store.get(file_id, {}).get("created_at", time.time()),
-        "file_size": _task_store.get(file_id, {}).get("file_size", 0),
+        "user_id": owner_id,
+        "created_at": stored_info.get("created_at", time.time()),
+        "file_size": stored_info.get("file_size", 0),
     }
+    # 回写该任务累计的 LLM Token 消耗（与后台任务口径一致）
+    _task_store.add_tokens(
+        file_id, int(llm_client.usage_total.get("total_tokens", 0))
+    )
 
     # 保存最终结果到 checkpoint（与后台任务一致）
     final_path = output_dir / "final.json"
@@ -448,17 +466,29 @@ async def export_result(
 
 
 @router.get("/tasks")
-async def list_tasks(settings: Settings = Depends(get_settings)):
-    """获取所有任务列表。
+async def list_tasks(
+    settings: Settings = Depends(get_settings),
+    current_user: Optional[dict] = Depends(get_current_user),
+):
+    """获取任务列表（按创建时间倒序）。
 
-    返回按创建时间倒序排列的任务列表。
+    数据隔离：
+    - 匿名（开放模式未登录）与管理员：返回全部任务
+    - 登录的普通用户：仅返回自己上传的任务
     """
+    # 普通登录用户只看自己的任务；匿名（开放模式）与管理员看全部
+    scope_user_id = None
+    if current_user and current_user.get("role") not in ("super_admin", "admin"):
+        scope_user_id = current_user["id"]
+
     tasks = []
     now = time.time()
     output_base = Path(settings.output_dir)
 
     # 收集任务库中的任务
     for task_id, info in _task_store.items():
+        if scope_user_id is not None and info.get("user_id") != scope_user_id:
+            continue
         status = info.get("status", _TASK_PENDING)
         if status == _TASK_COMPLETED:
             progress = 1.0
@@ -475,10 +505,12 @@ async def list_tasks(settings: Settings = Depends(get_settings)):
             "progress": progress,
             "error": info.get("error"),
             "file_size": info.get("file_size", 0),
+            "token_consumed": int(info.get("token_consumed") or 0),
         })
 
-    # 补充输出目录中存在的任务（不在任务库中的历史任务）
-    if output_base.exists():
+    # 补充输出目录中存在的任务（不在任务库中的历史任务）。
+    # 历史任务无归属用户，仅在非隔离视角（匿名/管理员）下展示
+    if scope_user_id is None and output_base.exists():
         for task_dir in output_base.iterdir():
             if not task_dir.is_dir():
                 continue

@@ -48,3 +48,6 @@ logs/
 # 前端
 node_modules/
 frontend/dist/
+
+# 认证签名密钥（本地生成，勿入库）
+data/.auth_secret

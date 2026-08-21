@@ -175,6 +175,17 @@ class DeepSeekClient:
         self._config = _get_config(api_key, config)
         self._sync_client: OpenAI | None = None
         self._async_client: AsyncOpenAI | None = None
+        # 累计 Token 消耗（实例生命周期内所有成功调用，含重试）
+        self.usage_total: dict[str, int] = {
+            "prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0,
+        }
+
+    def _accumulate_usage(self, usage: dict | None) -> None:
+        """把一次成功调用的 usage 累加进 usage_total。"""
+        if not usage:
+            return
+        for key in self.usage_total:
+            self.usage_total[key] += int(usage.get(key) or 0)
 
     @property
     def config(self) -> LLMConfig:
@@ -355,6 +366,7 @@ class DeepSeekClient:
                         "completion_tokens": response.usage.completion_tokens,
                         "total_tokens": response.usage.total_tokens,
                     }
+                self._accumulate_usage(usage)
 
                 return ChatResult(
                     content=content,
@@ -448,6 +460,7 @@ class DeepSeekClient:
                         "completion_tokens": response.usage.completion_tokens,
                         "total_tokens": response.usage.total_tokens,
                     }
+                self._accumulate_usage(usage)
 
                 return ChatResult(
                     content=content,

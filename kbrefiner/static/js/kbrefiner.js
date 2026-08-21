@@ -76,6 +76,105 @@ const KBRefiner = (() => {
     },
   };
 
+  // ===== 认证与管理后台 API =====
+  const Auth = {
+    /** 登录（成功后服务端设置 HttpOnly Cookie） */
+    async login(email, password) {
+      const resp = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.detail || `登录失败 (${resp.status})`);
+      }
+      return resp.json();
+    },
+
+    /** 登出 */
+    async logout() {
+      const resp = await fetch('/api/auth/logout', { method: 'POST' });
+      if (!resp.ok) throw new Error(`登出失败 (${resp.status})`);
+      return resp.json();
+    },
+
+    /** 当前用户（开放模式未登录返回 {user: null}） */
+    async me() {
+      const resp = await fetch('/api/auth/me');
+      if (!resp.ok) {
+        if (resp.status === 401) return { user: null, require_login: true };
+        throw new Error(`获取用户信息失败 (${resp.status})`);
+      }
+      return resp.json();
+    },
+  };
+
+  const Admin = {
+    async _json(resp, action) {
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.detail || `${action}失败 (${resp.status})`);
+      }
+      return resp.json();
+    },
+
+    /** 仪表盘统计 */
+    async stats() {
+      return this._json(await fetch('/api/admin/stats'), '获取统计');
+    },
+
+    /** 用户列表（支持 search/role/status 筛选） */
+    async listUsers(params = {}) {
+      const qs = new URLSearchParams(
+        Object.entries(params).filter(([, v]) => v !== '' && v != null)
+      ).toString();
+      return this._json(await fetch(`/api/admin/users${qs ? `?${qs}` : ''}`), '获取用户列表');
+    },
+
+    /** 创建用户 */
+    async createUser(payload) {
+      return this._json(await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      }), '创建用户');
+    },
+
+    /** 用户详情（含统计与最近任务） */
+    async getUser(userId) {
+      return this._json(await fetch(`/api/admin/users/${userId}`), '获取用户详情');
+    },
+
+    /** 更新用户（用户名/邮箱/角色/状态） */
+    async updateUser(userId, payload) {
+      return this._json(await fetch(`/api/admin/users/${userId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      }), '更新用户');
+    },
+
+    /** 重置密码 */
+    async resetPassword(userId, newPassword) {
+      return this._json(await fetch(`/api/admin/users/${userId}/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ new_password: newPassword }),
+      }), '重置密码');
+    },
+
+    /** 删除用户 */
+    async deleteUser(userId) {
+      return this._json(await fetch(`/api/admin/users/${userId}`, { method: 'DELETE' }), '删除用户');
+    },
+
+    /** 全部任务（管理视角） */
+    async listTasks() {
+      return this._json(await fetch('/api/admin/tasks'), '获取任务列表');
+    },
+  };
+
   // ===== WebSocket 管理 =====
   class WSClient {
     constructor(taskId) {
@@ -300,6 +399,8 @@ const KBRefiner = (() => {
 
   return {
     API,
+    Auth,
+    Admin,
     WSClient,
     escapeHtml,
     formatBytes,

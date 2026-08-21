@@ -214,6 +214,27 @@ class TestJsonOutput(unittest.TestCase):
         self.assertEqual(result.parsed["name"], "test")
         self.assertEqual(result.parsed["value"], 42)
 
+    def test_parse_json_tolerates_control_characters(self):
+        """字符串值内含裸换行/制表符（SLA 表格类文档高发）应容错解析。
+
+        默认 strict=True 报 "Invalid control character"；
+        修复后应回退 strict=False 成功解析。
+        """
+        raw = '{"cleaned_text": "第一行\n第二行\t带制表符", "issues": []}'
+        # 前置确认：默认 strict 模式确实无法解析（回归保护）
+        with self.assertRaises(json.JSONDecodeError):
+            json.loads(raw)
+
+        parsed = DeepSeekClient._parse_json(raw)
+        self.assertEqual(parsed["cleaned_text"], "第一行\n第二行\t带制表符")
+        self.assertEqual(parsed["issues"], [])
+
+    def test_parse_json_still_rejects_truly_broken_json(self):
+        """真截断/语法错误不应被容错掩盖。"""
+        raw = '{"cleaned_text": "未闭合字符串'
+        with self.assertRaises(JsonParseError):
+            DeepSeekClient._parse_json(raw)
+
     @patch("kbrefiner.core.llm.deepseek_client.OpenAI")
     def test_json_with_markdown_code_block(self, mock_openai_cls):
         """LLM 用 ```json ... ``` 包裹 JSON 时应能正确解析。"""

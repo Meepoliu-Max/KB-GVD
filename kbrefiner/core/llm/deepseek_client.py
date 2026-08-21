@@ -527,10 +527,16 @@ class DeepSeekClient:
         try:
             parsed = json.loads(text)
         except json.JSONDecodeError as e:
-            raise JsonParseError(
-                f"无法解析为 JSON: {e}",
-                raw_content=content,
-            ) from e
+            # 容错：LLM 偶尔在字符串值内输出裸控制字符（换行/制表符，
+            # 报错 "Invalid control character"），strict=False 允许后即可解析。
+            # 该场景在含表格的规范类文档（SLA/SOP 多行单元格）中高发。
+            try:
+                parsed = json.loads(text, strict=False)
+            except json.JSONDecodeError:
+                raise JsonParseError(
+                    f"无法解析为 JSON: {e}",
+                    raw_content=content,
+                ) from e
 
         if not isinstance(parsed, dict):
             raise JsonParseError(

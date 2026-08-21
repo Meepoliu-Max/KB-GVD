@@ -90,6 +90,9 @@ class PipelineConfig:
         stage1_segment_chars: Stage 1 输入 markdown 超过该字符数时按段落
             边界分段并行清洗再合并（0 表示不分段）
         stage1_concurrency: Stage 1 分段间最大并行数
+        stage2_segment_chars: Stage 2 输入 cleaned_text 超过该字符数时按段落
+            边界分段并行分块再合并（0 表示不分段）
+        stage2_concurrency: Stage 2 分段间最大并行数
     """
 
     output_dir: Path = field(default_factory=lambda: Path("./output"))
@@ -104,6 +107,8 @@ class PipelineConfig:
     stage34_concurrency: int = 4
     stage1_segment_chars: int = 8000
     stage1_concurrency: int = 4
+    stage2_segment_chars: int = 8000
+    stage2_concurrency: int = 4
 
 
 class Pipeline:
@@ -265,12 +270,41 @@ class Pipeline:
             doc_type=stage1_output.doc_type,
             partition_prefix=self._config.partition_prefix,
         )
-        output = await run_stage2(
-            stage_input, self._client,
-            model=self._config.stage2_model,
-            max_retries=self._config.stage_retries,
-            on_progress=on_progress,
+        segments = self._split_text(
+            stage1_output.cleaned_text, self._config.stage2_segment_chars
         )
+        if len(segments) > 1:
+            logger.info(
+                "Stage 2 分段并行: %d chars → %d 段（每段 ≤ %d chars）",
+                len(stage1_output.cleaned_text), len(segments),
+                self._config.stage2_segment_chars,
+            )
+            semaphore = asyncio.Semaphore(max(1, self._config.stage2_concurrency))
+
+            async def _run_segment(seg: str):
+                async with semaphore:
+                    return await run_stage2(
+                        Stage2Input(
+                            cleaned_text=seg,
+                            doc_type=stage1_output.doc_type,
+                            partition_prefix=self._config.partition_prefix,
+                        ),
+                        self._client,
+                        model=self._config.stage2_model,
+                        max_retries=self._config.stage_retries,
+                        on_progress=on_progress,
+                    )
+
+            parts = await asyncio.gather(*[_run_segment(s) for s in segments])
+            output = self._merge_stage2_outputs(parts)
+            logger.info("Stage 2 分段合并完成: %d chunks", len(output.chunks))
+        else:
+            output = await run_stage2(
+                stage_input, self._client,
+                model=self._config.stage2_model,
+                max_retries=self._config.stage_retries,
+                on_progress=on_progress,
+            )
         self._save_checkpoint("stage2", output)
         if on_stage_complete:
             on_stage_complete("Stage2-Chunk", output)
@@ -377,23 +411,23 @@ class Pipeline:
         return stage3_output, stage4_output
 
     # =================================================================
-    # Stage 1 分段并行辅助
+    # Stage 1/2 分段并行辅助
     # =================================================================
 
-    def _split_markdown(self, markdown: str) -> list[str]:
-        """按段落边界将 markdown 切成 ~stage1_segment_chars 的有序分段。
+    @staticmethod
+    def _split_text(text: str, limit: int) -> list[str]:
+        """按段落边界将文本切成 ~limit 字符的有序分段。
 
         在 "\\n\\n" 段落边界累积切段，避免切在句子/表格中间；
         单段本身超限时独立成段（不再硬切，保证表格/长段完整）。
         """
-        limit = self._config.stage1_segment_chars
-        if limit <= 0 or len(markdown) <= limit:
-            return [markdown]
+        if limit <= 0 or len(text) <= limit:
+            return [text]
 
         segments: list[str] = []
         current: list[str] = []
         current_len = 0
-        for para in markdown.split("\n\n"):
+        for para in text.split("\n\n"):
             add = len(para) + 2
             if current and current_len + add > limit:
                 segments.append("\n\n".join(current))
@@ -403,6 +437,65 @@ class Pipeline:
         if current:
             segments.append("\n\n".join(current))
         return segments
+
+    def _split_markdown(self, markdown: str) -> list[str]:
+        """Stage 1 专用：按 stage1_segment_chars 切分 markdown。"""
+        return self._split_text(markdown, self._config.stage1_segment_chars)
+
+    def _merge_stage2_outputs(self, parts: list[Stage2Output]) -> Stage2Output:
+        """合并分段 Stage 2 输出。
+
+        各段独立分块时 chunk_id 都从 {prefix}-C001 起，需按段序连续重编号；
+        exception_list 文本中引用的旧 chunk_id 同步重映射，再拼接合并。
+        """
+        prefix = self._config.partition_prefix
+        merged_chunks = []
+        exception_lists = []
+        next_idx = 1
+        for part in parts:
+            id_map: dict[str, str] = {}
+            for chunk in part.chunks:
+                new_id = f"{prefix}-C{next_idx:03d}"
+                id_map[chunk.chunk_id] = new_id
+                merged_chunks.append(chunk.model_copy(update={"chunk_id": new_id}))
+                next_idx += 1
+            exception_lists.append(
+                self._remap_exception_ids(part.exception_list, id_map)
+            )
+        return Stage2Output(
+            chunks=merged_chunks,
+            exception_list=self._merge_exception_lists(exception_lists),
+        )
+
+    @staticmethod
+    def _remap_exception_ids(exc, id_map: dict[str, str]):
+        """将 exception_list 文本中的旧 chunk_id 替换为重编号后的新 ID。
+
+        两阶段替换（旧 ID → 唯一占位符 → 新 ID），避免新旧 ID 交叉时
+        误替换（如段内重编号 C001→C002 与 C002→C003 同时存在）。
+        """
+        if not id_map:
+            return exc
+        from kbrefiner.models.schemas import ExceptionList
+
+        remapped = ExceptionList()
+        placeholders = {old: f"\x00KBR{i}\x00" for i, old in enumerate(id_map)}
+
+        def _translate(text: str, mapping: dict[str, str]) -> str:
+            for old, new in mapping.items():
+                text = text.replace(old, new)
+            return text
+
+        for field_name in ExceptionList.model_fields:
+            items = getattr(exc, field_name, None) or []
+            # 第一遍：旧 ID → 占位符；第二遍：占位符 → 新 ID
+            staged = [_translate(t, placeholders) for t in items]
+            final = [
+                _translate(t, {placeholders[old]: new for old, new in id_map.items()})
+                for t in staged
+            ]
+            getattr(remapped, field_name).extend(final)
+        return remapped
 
     @staticmethod
     def _merge_stage1_outputs(parts: list[Stage1Output]) -> Stage1Output:

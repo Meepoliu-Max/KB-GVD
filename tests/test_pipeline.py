@@ -1001,5 +1001,213 @@ class TestStage1Segmented(unittest.TestCase):
             self.assertEqual(calls[0], 1)
 
 
+# =====================================================================
+# Stage 2 分段并行测试
+# =====================================================================
+
+
+class TestStage2Segmented(unittest.TestCase):
+    """Stage 2 分段并行：chunk_id 连续重编号、异常文本重映射、流水线串联。"""
+
+    @staticmethod
+    def _make_pipeline(tmpdir: str, **overrides) -> Pipeline:
+        config = PipelineConfig(
+            output_dir=Path(tmpdir),
+            stage_retries=1,
+            enable_checkpoint=False,
+            **overrides,
+        )
+        return Pipeline(DeepSeekClient(config=LLMConfig(api_key="test-key")), config)
+
+    @staticmethod
+    def _stage2_part(chunk_ids: list[str], anomalies: list[str]) -> Stage2Output:
+        """构造一段 Stage 2 输出：指定 chunk_id 列表 + chunk_anomalies 文本。"""
+        return Stage2Output.model_validate({
+            "chunks": [
+                {"chunk_id": cid, "title": f"t-{cid}", "content": f"c-{cid}", "remark": ""}
+                for cid in chunk_ids
+            ],
+            "exception_list": {"chunk_anomalies": anomalies},
+        })
+
+    def test_merge_renumbers_chunk_ids(self):
+        """两段各有 C001/C002 → 合并后 C001~C004 连续，顺序保持。"""
+        with TemporaryDirectory() as tmpdir:
+            pipeline = self._make_pipeline(tmpdir)
+
+            p1 = self._stage2_part(["P1-C001", "P1-C002"], [])
+            p2 = self._stage2_part(["P1-C001", "P1-C002"], [])
+
+            merged = pipeline._merge_stage2_outputs([p1, p2])
+
+            self.assertEqual(
+                [c.chunk_id for c in merged.chunks],
+                ["P1-C001", "P1-C002", "P1-C003", "P1-C004"],
+            )
+            # title/content 跟随原 chunk（顺序对应）
+            self.assertEqual([c.title for c in merged.chunks],
+                             ["t-P1-C001", "t-P1-C002", "t-P1-C001", "t-P1-C002"])
+
+    def test_merge_remaps_exception_ids(self):
+        """异常文本中的旧 chunk_id 同步重映射（段 1 占 C001 → 段 2 偏移 +1）。"""
+        with TemporaryDirectory() as tmpdir:
+            pipeline = self._make_pipeline(tmpdir)
+
+            p1 = self._stage2_part(["P1-C001"], ["P1-C001: 拆分颗粒度异常-内容15字"])
+            p2 = self._stage2_part(
+                ["P1-C001", "P1-C002"],
+                ["P1-C001: 拆分颗粒度异常-内容200字", "P1-C002: 截断"],
+            )
+
+            merged = pipeline._merge_stage2_outputs([p1, p2])
+
+            self.assertEqual(
+                merged.exception_list.chunk_anomalies,
+                [
+                    "P1-C001: 拆分颗粒度异常-内容15字",
+                    "P1-C002: 拆分颗粒度异常-内容200字",
+                    "P1-C003: 截断",
+                ],
+            )
+
+    def test_remap_crossing_ids_no_pollution(self):
+        """交叉重编号（C001→C002、C002→C003）时两阶段替换不互相污染。"""
+        exc = ExceptionList(
+            chunk_anomalies=["P1-C001: 内容15字", "P1-C002: 内容20字"],
+        )
+        id_map = {"P1-C001": "P1-C002", "P1-C002": "P1-C003"}
+
+        remapped = Pipeline._remap_exception_ids(exc, id_map)
+
+        # 若直接顺序替换，"P1-C001"→"P1-C002" 后会被第二条规则再改成 "P1-C003"
+        self.assertEqual(
+            remapped.chunk_anomalies,
+            ["P1-C002: 内容15字", "P1-C003: 内容20字"],
+        )
+
+    def test_stage2_segmented_pipeline(self):
+        """cleaned_text 超限时分段并行，重编号后的 chunks 进入 Stage 3/4。"""
+        with TemporaryDirectory() as tmpdir:
+            # 3 段 cleaned_text（每段 ~66 chars，阈值 100 → 3 个分段）
+            paras = [f"# 第{i}章 " + "内容" * 30 for i in range(1, 4)]
+
+            pipeline = self._make_pipeline(
+                tmpdir, stage2_segment_chars=100, stage2_concurrency=2
+            )
+
+            received_segments: list[str] = []
+            stage3_inputs: list[list[str]] = []
+            stage_outputs: dict[str, object] = {}
+
+            def on_complete(name, output):
+                stage_outputs[name] = output
+
+            async def mock_run_stage1(stage_input, client, **kwargs):
+                # cleaned_text 设为完整分段文本，驱动 Stage 2 分段（阈值 100）
+                return Stage1Output.model_validate({
+                    **_make_stage1_output_dict(),
+                    "cleaned_text": "\n\n".join(paras),
+                })
+
+            async def mock_run_stage2(stage_input, client, **kwargs):
+                received_segments.append(stage_input.cleaned_text)
+                # 每段固定产出 2 个 chunk（C001/C002）
+                return self._stage2_part(
+                    ["P1-C001", "P1-C002"], [f"P1-C002: 第{len(received_segments)}段异常"]
+                )
+
+            async def mock_run_stage3(stage_input, client, **kwargs):
+                stage3_inputs.append([c["chunk_id"] for c in stage_input.chunks])
+                return Stage3Output.model_validate({
+                    "chunks": [
+                        {"chunk_id": cid, "qa_pairs": [{
+                            "question": "q", "answer": "a", "keywords": ["k"],
+                            "confidence_score": 90, "remark": "",
+                        }]}
+                        for cid in stage3_inputs[-1]
+                    ],
+                    "exception_list": {},
+                })
+
+            async def mock_run_stage4(stage_input, client, **kwargs):
+                return Stage4Output.model_validate({
+                    "chunks": [
+                        {"chunk_id": c["chunk_id"], "doc_type": "制度合规", "metadata": {
+                            "target_audience": "普通用户", "business_module": "账号管理",
+                            "knowledge_type": "制度规则", "version_timeliness": "2026-01-01生效",
+                            "summary": "s",
+                        }}
+                        for c in stage_input.chunks
+                    ],
+                    "exception_list": {},
+                })
+
+            with patch("kbrefiner.core.pipeline.orchestrator.run_stage1", mock_run_stage1), \
+                 patch("kbrefiner.core.pipeline.orchestrator.run_stage2", mock_run_stage2), \
+                 patch("kbrefiner.core.pipeline.orchestrator.run_stage3", mock_run_stage3), \
+                 patch("kbrefiner.core.pipeline.orchestrator.run_stage4", mock_run_stage4):
+                doc = asyncio.run(pipeline.run(
+                    markdown="\n\n".join(paras),
+                    document_source="s2_seg_test.pdf",
+                    on_stage_complete=on_complete,
+                ))
+
+            # Stage 2 收到完整分段（覆盖全部段落、顺序保持）
+            self.assertEqual(received_segments, paras)
+
+            # 合并结果：chunk_id 连续重编号 C001~C006
+            s2 = stage_outputs["Stage2-Chunk"]
+            self.assertEqual(
+                [c.chunk_id for c in s2.chunks],
+                [f"P1-C{i:03d}" for i in range(1, 7)],
+            )
+            # 异常文本已重映射（三段的 P1-C002 → C002/C004/C006）
+            self.assertEqual(
+                s2.exception_list.chunk_anomalies,
+                ["P1-C002: 第1段异常", "P1-C004: 第2段异常", "P1-C006: 第3段异常"],
+            )
+
+            # Stage 3/4 收到重编号后的完整 chunks（分批并行输入）
+            self.assertEqual(
+                sorted(cid for batch in stage3_inputs for cid in batch),
+                [f"P1-C{i:03d}" for i in range(1, 7)],
+            )
+
+            # 最终文档 6 个原子（QA/metadata 已按新 ID 对齐）
+            self.assertEqual(len(doc.knowledge_atoms), 6)
+            self.assertEqual(
+                [a.chunk_id for a in doc.knowledge_atoms],
+                [f"P1-C{i:03d}" for i in range(1, 7)],
+            )
+
+    def test_stage2_small_text_single_call(self):
+        """cleaned_text 未超限时只调用一次 run_stage2（不分段）。"""
+        with TemporaryDirectory() as tmpdir:
+            pipeline = self._make_pipeline(tmpdir, stage2_segment_chars=10000)
+
+            calls = [0]
+
+            async def mock_run_stage1(stage_input, client, **kwargs):
+                return Stage1Output.model_validate(_make_stage1_output_dict())
+
+            async def mock_run_stage2(stage_input, client, **kwargs):
+                calls[0] += 1
+                return Stage2Output.model_validate(_make_stage2_output_dict())
+
+            async def mock_run_stage3(stage_input, client, **kwargs):
+                return Stage3Output.model_validate(_make_stage3_output_dict())
+
+            async def mock_run_stage4(stage_input, client, **kwargs):
+                return Stage4Output.model_validate(_make_stage4_output_dict())
+
+            with patch("kbrefiner.core.pipeline.orchestrator.run_stage1", mock_run_stage1), \
+                 patch("kbrefiner.core.pipeline.orchestrator.run_stage2", mock_run_stage2), \
+                 patch("kbrefiner.core.pipeline.orchestrator.run_stage3", mock_run_stage3), \
+                 patch("kbrefiner.core.pipeline.orchestrator.run_stage4", mock_run_stage4):
+                asyncio.run(pipeline.run(markdown="# 短文档", document_source="small.pdf"))
+
+            self.assertEqual(calls[0], 1)
+
+
 if __name__ == "__main__":
     unittest.main()

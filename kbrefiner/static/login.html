@@ -426,15 +426,15 @@ a:hover { color: var(--kb-primary-700); }
           <ul class="kb-login-features">
             <li>
               <i data-lucide="check-circle-2" class="kb-login-feature-icon"></i>
-              <span>四段式流水线：清洗 → 分块 → QA → 标签</span>
+              <span>四段式流水线：清洗 → 分块 → QA → 智能打标</span>
             </li>
             <li>
               <i data-lucide="check-circle-2" class="kb-login-feature-icon"></i>
-              <span>LLM 深度质检，自动生成 QA 对</span>
+              <span>四维自动打标：受众、业务模块、知识类型、时效性</span>
             </li>
             <li>
               <i data-lucide="check-circle-2" class="kb-login-feature-icon"></i>
-              <span>断点可恢复，任务进度实时追踪</span>
+              <span>标签赋能 RAG：检索命中更准，知识可运营可追溯</span>
             </li>
           </ul>
         </div>
@@ -509,6 +509,9 @@ a:hover { color: var(--kb-primary-700); }
           <p class="kb-login-register">
             还没有账号？<a href="#" class="kb-login-register-link" data-dom-id="link-register" id="link-register">立即注册</a>
           </p>
+
+          <!-- 版权声明 -->
+          <p class="kb-login-copyright">© 2026 知序 KBRefiner</p>
         </div>
       </main>
     </div>
@@ -882,6 +885,13 @@ a:hover { color: var(--kb-primary-700); }
     }
     .kb-login-register-link:hover {
       color: var(--kb-primary-700);
+    }
+
+    .kb-login-copyright {
+      text-align: center;
+      margin-top: var(--kb-space-4);
+      font-size: 0.75rem;
+      color: var(--kb-neutral-400);
     }
 
     /* 图标尺寸强制约束 */

@@ -565,7 +565,8 @@ a:hover { color: var(--kb-primary-700); }
         }
         tbody.innerHTML = data.users.map(u => {
           const isSelf = currentUser && currentUser.id === u.id;
-          const canToggle = u.status === 'active' && !isSelf;
+          // 仅自身禁改（禁用/启用都放开，否则列表禁用后无法就地恢复）
+          const canToggle = !isSelf;
           return `
           <tr>
             <td class="kb-font-mono kb-text-muted">${esc(u.id)}</td>

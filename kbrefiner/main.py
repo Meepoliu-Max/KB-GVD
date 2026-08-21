@@ -38,6 +38,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.middleware("http")
+async def prevent_stale_static_cache(request, call_next):
+    """静态资源与 HTML 禁用强缓存。
+
+    页面 JS 与 kbrefiner.js 同源演进，若浏览器命中旧缓存
+    （如旧版 kbrefiner.js 未导出 Auth），页面会报 undefined。
+    no-cache 允许缓存但每次协商校验，兼顾性能与一致性。
+    """
+    resp = await call_next(request)
+    ctype = resp.headers.get("content-type", "")
+    if request.url.path.startswith("/static") or ctype.startswith("text/html"):
+        resp.headers["Cache-Control"] = "no-cache"
+    return resp
+
 # 注册 API 路由（业务 + 认证/管理后台）
 app.include_router(routes.router)
 app.include_router(auth_routes.router)

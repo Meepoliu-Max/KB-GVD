@@ -1,0 +1,1552 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系统设置 - KBRefiner 管理后台</title>
+    <style id="theme-vars">
+/* 知序 KBRefiner — 产品前端设计系统 */
+
+:root {
+  /* ===== 品牌主色阶（单一主色） ===== */
+  --kb-primary-50: #eff6ff;
+  --kb-primary-100: #dbeafe;
+  --kb-primary-200: #bfdbfe;
+  --kb-primary-300: #93c5fd;
+  --kb-primary-400: #60a5fa;
+  --kb-primary-500: #3b82f6;
+  --kb-primary-600: #2563eb;
+  --kb-primary-700: #1d4ed8;
+  --kb-primary-800: #1e40af;
+  --kb-primary-900: #1e3a8a;
+
+  /* ===== 中性色阶 ===== */
+  --kb-neutral-0: #ffffff;
+  --kb-neutral-50: #f8fafc;
+  --kb-neutral-100: #f1f5f9;
+  --kb-neutral-200: #e2e8f0;
+  --kb-neutral-300: #cbd5e1;
+  --kb-neutral-400: #94a3b8;
+  --kb-neutral-500: #64748b;
+  --kb-neutral-600: #475569;
+  --kb-neutral-700: #334155;
+  --kb-neutral-800: #1e293b;
+  --kb-neutral-900: #0f172a;
+
+  /* ===== 语义色（仅用于状态） ===== */
+  --kb-state-success: #10b981;
+  --kb-state-success-bg: #ecfdf5;
+  --kb-state-warning: #f59e0b;
+  --kb-state-warning-bg: #fffbeb;
+  --kb-state-error: #ef4444;
+  --kb-state-error-bg: #fef2f2;
+  --kb-state-info: #0ea5e9;
+  --kb-state-info-bg: #f0f9ff;
+
+  /* ===== 语义别名 ===== */
+  --kb-background: var(--kb-neutral-50);
+  --kb-foreground: var(--kb-neutral-900);
+  --kb-card: var(--kb-neutral-0);
+  --kb-card-foreground: var(--kb-neutral-900);
+  --kb-popover: var(--kb-neutral-0);
+  --kb-popover-foreground: var(--kb-neutral-900);
+  --kb-primary: var(--kb-primary-600);
+  --kb-primary-foreground: var(--kb-neutral-0);
+  --kb-muted: var(--kb-neutral-100);
+  --kb-muted-foreground: var(--kb-neutral-500);
+  --kb-border: var(--kb-neutral-200);
+  --kb-input: var(--kb-neutral-200);
+  --kb-ring: var(--kb-primary-300);
+
+  --kb-radius-small: 4px;
+  --kb-radius-medium: 8px;
+  --kb-radius-large: 12px;
+
+  /* ===== 字体系统 ===== */
+  --kb-font-sans: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --kb-font-mono: "GeistMono", "SF Mono", "Fira Code", ui-monospace, monospace;
+
+  /* ===== 阴影 ===== */
+  --kb-shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --kb-shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.05);
+  --kb-shadow-md: 0 4px 12px rgba(15, 23, 42, 0.05);
+  --kb-shadow-lg: 0 8px 24px rgba(15, 23, 42, 0.05);
+  --kb-shadow-float: 0 16px 48px rgba(15, 23, 42, 0.12);
+
+  /* ===== 间距 ===== */
+  --kb-space-1: 4px;
+  --kb-space-2: 8px;
+  --kb-space-3: 12px;
+  --kb-space-4: 16px;
+  --kb-space-5: 20px;
+  --kb-space-6: 24px;
+  --kb-space-8: 32px;
+  --kb-space-10: 40px;
+  --kb-space-12: 48px;
+
+  /* ===== 尺寸 ===== */
+  --kb-header-height: 64px;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--kb-font-sans);
+  background: var(--kb-background);
+  color: var(--kb-foreground);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  line-height: 1.3;
+  font-weight: 700;
+  color: var(--kb-foreground);
+}
+
+h1 { font-size: 1.875rem; }
+h2 { font-size: 1.5rem; }
+h3 { font-size: 1.25rem; }
+
+p { color: var(--kb-neutral-600); line-height: 1.7; }
+
+a { color: var(--kb-primary); text-decoration: none; }
+a:hover { color: var(--kb-primary-700); }
+
+.kb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--kb-space-2);
+  padding: 10px 18px;
+  border: 1px solid transparent;
+  border-radius: var(--kb-radius-medium);
+  font-family: var(--kb-font-sans);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.kb-btn-primary { background: var(--kb-primary); color: var(--kb-primary-foreground); }
+.kb-btn-primary:hover { background: var(--kb-primary-700); }
+.kb-btn-secondary { background: var(--kb-neutral-0); color: var(--kb-neutral-700); border-color: var(--kb-border); }
+.kb-btn-secondary:hover { background: var(--kb-neutral-50); border-color: var(--kb-neutral-300); }
+.kb-btn-ghost { background: transparent; color: var(--kb-neutral-600); }
+.kb-btn-ghost:hover { background: var(--kb-neutral-100); color: var(--kb-neutral-900); }
+.kb-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.kb-btn-sm { padding: 6px 12px; font-size: 0.8125rem; }
+
+.kb-card {
+  background: var(--kb-card);
+  border: 1px solid var(--kb-border);
+  border-radius: var(--kb-radius-large);
+  box-shadow: var(--kb-shadow-xs);
+}
+
+.kb-card-header {
+  padding: var(--kb-space-5) var(--kb-space-6);
+  border-bottom: 1px solid var(--kb-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--kb-space-4);
+}
+
+.kb-card-body { padding: var(--kb-space-6); }
+
+.kb-input,
+.kb-select {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--kb-input);
+  border-radius: var(--kb-radius-medium);
+  background: var(--kb-neutral-0);
+  color: var(--kb-foreground);
+  font-family: var(--kb-font-sans);
+  font-size: 0.875rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.kb-input:focus,
+.kb-select:focus {
+  outline: none;
+  border-color: var(--kb-primary-400);
+  box-shadow: 0 0 0 3px var(--kb-primary-100);
+}
+
+.kb-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.kb-tag-primary { background: var(--kb-primary-100); color: var(--kb-primary-700); }
+.kb-tag-success { background: var(--kb-state-success-bg); color: #047857; }
+.kb-tag-warning { background: var(--kb-state-warning-bg); color: #b45309; }
+.kb-tag-error { background: var(--kb-state-error-bg); color: #b91c1c; }
+.kb-tag-info { background: var(--kb-state-info-bg); color: #0369a1; }
+.kb-tag-muted { background: var(--kb-neutral-100); color: var(--kb-neutral-600); }
+
+.kb-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.kb-status::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.kb-status-pending::before { background: var(--kb-neutral-400); }
+.kb-status-running::before { background: var(--kb-state-info); }
+.kb-status-success::before { background: var(--kb-state-success); }
+.kb-status-warning::before { background: var(--kb-state-warning); }
+.kb-status-error::before { background: var(--kb-state-error); }
+
+.kb-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.kb-table th,
+.kb-table td {
+  padding: var(--kb-space-3) var(--kb-space-4);
+  text-align: left;
+  border-bottom: 1px solid var(--kb-border);
+}
+
+.kb-table th {
+  font-weight: 600;
+  color: var(--kb-neutral-600);
+  background: var(--kb-neutral-50);
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.kb-table tr:hover td { background: var(--kb-neutral-50); }
+
+.kb-progress {
+  width: 100%;
+  height: 8px;
+  background: var(--kb-neutral-200);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.kb-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--kb-primary-500), var(--kb-primary-600));
+  border-radius: 9999px;
+  transition: width 0.4s ease;
+}
+
+.kb-empty {
+  text-align: center;
+  padding: var(--kb-space-12) var(--kb-space-6);
+  color: var(--kb-neutral-500);
+}
+
+.kb-text-muted { color: var(--kb-neutral-500); }
+.kb-text-secondary { color: var(--kb-neutral-600); }
+.kb-text-primary { color: var(--kb-primary); }
+.kb-text-success { color: var(--kb-state-success); }
+.kb-text-warning { color: var(--kb-state-warning); }
+.kb-text-error { color: var(--kb-state-error); }
+.kb-font-semibold { font-weight: 600; }
+.kb-font-bold { font-weight: 700; }
+.kb-text-sm { font-size: 0.875rem; }
+.kb-text-xs { font-size: 0.75rem; }
+.kb-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.1/dist/index.global.js"></script>
+    <script src="https://unpkg.com/lucide@1.8.0/dist/umd/lucide.min.js"></script>
+    <style type="text/tailwindcss">
+  @theme inline {
+    --color-background: var(--kb-background);
+    --color-foreground: var(--kb-foreground);
+    --color-card: var(--kb-card);
+    --color-card-foreground: var(--kb-card-foreground);
+    --color-popover: var(--kb-popover);
+    --color-popover-foreground: var(--kb-popover-foreground);
+    --color-primary: var(--kb-primary);
+    --color-primary-foreground: var(--kb-primary-foreground);
+    --color-muted: var(--kb-muted);
+    --color-muted-foreground: var(--kb-muted-foreground);
+    --color-border: var(--kb-border);
+    --color-input: var(--kb-input);
+    --color-ring: var(--kb-ring);
+    --radius-sm: var(--kb-radius-small);
+    --radius-md: var(--kb-radius-medium);
+    --radius-lg: var(--kb-radius-large);
+  }
+  @layer base {
+    body { background: var(--kb-background); color: var(--kb-foreground); }
+    td, th { @apply break-words; word-break: break-all; word-break: auto-phrase; }
+    th { @apply whitespace-nowrap; }
+  }
+    </style>
+    <style id="semantic-token-fallback">
+      .bg-background { background-color: var(--kb-background); }
+      .text-background { color: var(--kb-background); }
+      .border-background { border-color: var(--kb-background); }
+      .bg-foreground { background-color: var(--kb-foreground); }
+      .text-foreground { color: var(--kb-foreground); }
+      .border-foreground { border-color: var(--kb-foreground); }
+      .bg-card { background-color: var(--kb-card); }
+      .text-card { color: var(--kb-card); }
+      .border-card { border-color: var(--kb-card); }
+      .bg-card-foreground { background-color: var(--kb-card-foreground); }
+      .text-card-foreground { color: var(--kb-card-foreground); }
+      .border-card-foreground { border-color: var(--kb-card-foreground); }
+      .bg-popover { background-color: var(--kb-popover); }
+      .text-popover { color: var(--kb-popover); }
+      .border-popover { border-color: var(--kb-popover); }
+      .bg-popover-foreground { background-color: var(--kb-popover-foreground); }
+      .text-popover-foreground { color: var(--kb-popover-foreground); }
+      .border-popover-foreground { border-color: var(--kb-popover-foreground); }
+      .bg-primary { background-color: var(--kb-primary); }
+      .text-primary { color: var(--kb-primary); }
+      .border-primary { border-color: var(--kb-primary); }
+      .bg-primary-foreground { background-color: var(--kb-primary-foreground); }
+      .text-primary-foreground { color: var(--kb-primary-foreground); }
+      .border-primary-foreground { border-color: var(--kb-primary-foreground); }
+      .bg-muted { background-color: var(--kb-muted); }
+      .text-muted { color: var(--kb-muted); }
+      .border-muted { border-color: var(--kb-muted); }
+      .bg-muted-foreground { background-color: var(--kb-muted-foreground); }
+      .text-muted-foreground { color: var(--kb-muted-foreground); }
+      .border-muted-foreground { border-color: var(--kb-muted-foreground); }
+      .bg-border { background-color: var(--kb-border); }
+      .text-border { color: var(--kb-border); }
+      .border-border { border-color: var(--kb-border); }
+      .bg-input { background-color: var(--kb-input); }
+      .text-input { color: var(--kb-input); }
+      .border-input { border-color: var(--kb-input); }
+      .bg-ring { background-color: var(--kb-ring); }
+      .text-ring { color: var(--kb-ring); }
+      .border-ring { border-color: var(--kb-ring); }
+    </style>
+
+    <style id="admin-layout">
+      /* 页面级扩展 token（不修改共享 theme-vars，保证全站一致） */
+      :root {
+        --kb-state-success-border: #a7f3d0;
+        --kb-state-success-text: #047857;
+        --kb-sidebar-width: 220px;
+        --kb-sidebar-collapsed: 64px;
+      }
+
+      /* ===== 整体壳层 ===== */
+      .kb-admin-shell {
+        display: flex;
+        min-height: 100vh;
+        background: var(--kb-background);
+      }
+
+      /* ===== 左侧边栏 ===== */
+      .kb-admin-sidebar {
+        width: var(--kb-sidebar-width);
+        flex-shrink: 0;
+        background: var(--kb-neutral-0);
+        border-right: 1px solid var(--kb-border);
+        display: flex;
+        flex-direction: column;
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        z-index: 30;
+      }
+      .kb-admin-sidebar-top {
+        padding: 20px 16px;
+        border-bottom: 1px solid var(--kb-border);
+        display: flex;
+        justify-content: flex-start;
+      }
+      .kb-admin-brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        text-decoration: none;
+      }
+      .kb-admin-brand-icon {
+        width: 32px;
+        height: 32px;
+        background: linear-gradient(135deg, var(--kb-primary-500), var(--kb-primary-700));
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        color: var(--kb-neutral-0);
+        font-size: 13px;
+        flex-shrink: 0;
+      }
+      .kb-admin-brand-text {
+        display: flex;
+        flex-direction: column;
+        line-height: 1.2;
+      }
+      .kb-admin-brand-name {
+        font-weight: 700;
+        font-size: 1rem;
+        color: var(--kb-neutral-900);
+      }
+      .kb-admin-brand-tag {
+        font-size: 0.75rem;
+        color: var(--kb-neutral-500);
+      }
+      .kb-admin-nav {
+        flex: 1;
+        padding: 12px 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        overflow-y: auto;
+      }
+      .kb-admin-nav-section {
+        font-size: 0.6875rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--kb-neutral-400);
+        padding: 12px 12px 6px;
+      }
+      .kb-admin-nav-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 12px;
+        border-radius: var(--kb-radius-medium);
+        color: var(--kb-neutral-600);
+        font-size: 0.875rem;
+        font-weight: 500;
+        text-decoration: none;
+        border-left: 3px solid transparent;
+        transition: background 0.15s ease, color 0.15s ease;
+        cursor: pointer;
+      }
+      .kb-admin-nav-item:hover {
+        background: var(--kb-neutral-100);
+        color: var(--kb-neutral-900);
+      }
+      .kb-admin-nav-item.active {
+        background: var(--kb-primary-50);
+        color: var(--kb-primary-700);
+        border-left-color: var(--kb-primary-600);
+        font-weight: 600;
+      }
+      .kb-admin-nav-item.active .kb-admin-nav-icon {
+        color: var(--kb-primary-600);
+      }
+      .kb-admin-nav-icon {
+        width: 18px;
+        height: 18px;
+        flex-shrink: 0;
+        color: var(--kb-neutral-500);
+      }
+      .kb-admin-nav-label {
+        white-space: nowrap;
+      }
+      .kb-admin-sidebar-bottom {
+        padding: 12px;
+        border-top: 1px solid var(--kb-border);
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .kb-admin-user {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px;
+      }
+      .kb-admin-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: var(--kb-primary-100);
+        color: var(--kb-primary-700);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.8125rem;
+        flex-shrink: 0;
+      }
+      .kb-admin-user-text {
+        display: flex;
+        flex-direction: column;
+        line-height: 1.2;
+        min-width: 0;
+      }
+      .kb-admin-user-name {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: var(--kb-neutral-800);
+      }
+      .kb-admin-user-role {
+        font-size: 0.6875rem;
+        color: var(--kb-neutral-500);
+      }
+      .kb-admin-logout {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 12px;
+        border-radius: var(--kb-radius-medium);
+        color: var(--kb-neutral-600);
+        font-size: 0.875rem;
+        font-weight: 500;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        width: 100%;
+        text-align: left;
+        font-family: var(--kb-font-sans);
+      }
+      .kb-admin-logout:hover {
+        background: var(--kb-state-error-bg);
+        color: var(--kb-state-error);
+      }
+      .kb-admin-logout:hover .kb-admin-nav-icon {
+        color: var(--kb-state-error);
+      }
+
+      /* ===== 主区域 ===== */
+      .kb-admin-main {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+      }
+      .kb-admin-topbar {
+        height: var(--kb-header-height);
+        background: var(--kb-neutral-0);
+        border-bottom: 1px solid var(--kb-border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 32px;
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        gap: 16px;
+      }
+      .kb-breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.875rem;
+        min-width: 0;
+      }
+      .kb-breadcrumb a {
+        color: var(--kb-neutral-500);
+        font-weight: 500;
+      }
+      .kb-breadcrumb a:hover {
+        color: var(--kb-primary-700);
+      }
+      .kb-breadcrumb-sep {
+        width: 14px;
+        height: 14px;
+        color: var(--kb-neutral-400);
+        flex-shrink: 0;
+      }
+      .kb-breadcrumb-current {
+        color: var(--kb-neutral-900);
+        font-weight: 600;
+      }
+      .kb-topbar-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-shrink: 0;
+      }
+      .kb-admin-content {
+        padding: 32px;
+        max-width: 1080px;
+        margin: 0 auto;
+        width: 100%;
+        flex: 1;
+      }
+      .kb-page-head {
+        margin-bottom: var(--kb-space-6);
+      }
+      .kb-page-head h1 {
+        font-size: 1.5rem;
+        margin-bottom: 4px;
+      }
+      .kb-page-head p {
+        font-size: 0.875rem;
+        color: var(--kb-neutral-500);
+      }
+
+      /* ===== 设置卡片堆叠 ===== */
+      .kb-settings-stack {
+        display: flex;
+        flex-direction: column;
+        gap: var(--kb-space-6);
+      }
+      .kb-settings-card-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .kb-settings-card-title h3 {
+        font-size: 1rem;
+      }
+      .kb-settings-card-icon {
+        width: 18px;
+        height: 18px;
+        color: var(--kb-primary-600);
+        flex-shrink: 0;
+      }
+
+      /* ===== 表单网格 ===== */
+      .kb-form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px 28px;
+      }
+      .kb-field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin-bottom: 0;
+      }
+      .kb-field-full {
+        grid-column: 1 / -1;
+      }
+      .kb-field-label {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: var(--kb-neutral-700);
+      }
+      .kb-field-hint {
+        font-size: 0.75rem;
+        color: var(--kb-neutral-500);
+        line-height: 1.5;
+      }
+
+      /* ===== 复合输入（input + 后缀 / input + select） ===== */
+      .kb-input-group {
+        display: flex;
+        align-items: stretch;
+      }
+      .kb-input-group .kb-input {
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+        flex: 1;
+        min-width: 0;
+      }
+      .kb-input-group .kb-select {
+        width: auto;
+        min-width: 96px;
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+        border-left: 0;
+      }
+      .kb-input-suffix {
+        display: flex;
+        align-items: center;
+        padding: 0 14px;
+        background: var(--kb-neutral-100);
+        border: 1px solid var(--kb-input);
+        border-left: 0;
+        border-radius: 0 var(--kb-radius-medium) var(--kb-radius-medium) 0;
+        font-size: 0.875rem;
+        color: var(--kb-neutral-600);
+        white-space: nowrap;
+      }
+      .kb-composite {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .kb-composite .kb-input {
+        width: 110px;
+        flex: none;
+      }
+      .kb-composite-text {
+        font-size: 0.875rem;
+        color: var(--kb-neutral-600);
+        white-space: nowrap;
+      }
+
+      /* ===== 内联复选框组 ===== */
+      .kb-checkbox-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+        padding-top: 4px;
+      }
+      .kb-checkbox-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--kb-neutral-700);
+        cursor: pointer;
+        user-select: none;
+      }
+      .kb-checkbox {
+        width: 16px;
+        height: 16px;
+        accent-color: var(--kb-primary-600);
+        cursor: pointer;
+        flex-shrink: 0;
+      }
+
+      /* ===== Toggle 开关 ===== */
+      .kb-toggle {
+        position: relative;
+        display: inline-block;
+        width: 42px;
+        height: 24px;
+        flex-shrink: 0;
+        cursor: pointer;
+      }
+      .kb-toggle-input {
+        position: absolute;
+        opacity: 0;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        cursor: pointer;
+        z-index: 2;
+      }
+      .kb-toggle-track {
+        position: absolute;
+        inset: 0;
+        background: var(--kb-neutral-300);
+        border-radius: 9999px;
+        transition: background 0.2s ease;
+      }
+      .kb-toggle-track::after {
+        content: "";
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 20px;
+        height: 20px;
+        background: var(--kb-neutral-0);
+        border-radius: 50%;
+        transition: transform 0.2s ease;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.25);
+      }
+      .kb-toggle-input:checked + .kb-toggle-track {
+        background: var(--kb-state-success);
+      }
+      .kb-toggle-input:checked + .kb-toggle-track::after {
+        transform: translateX(18px);
+      }
+      .kb-toggle-input:focus-visible + .kb-toggle-track {
+        box-shadow: 0 0 0 3px var(--kb-primary-100);
+      }
+
+      /* ===== Toggle 行（标题 + 描述 + 开关） ===== */
+      .kb-toggle-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 16px 0;
+        border-bottom: 1px solid var(--kb-border);
+      }
+      .kb-toggle-row:first-of-type {
+        padding-top: 0;
+      }
+      .kb-toggle-row:last-of-type {
+        padding-bottom: 0;
+        border-bottom: none;
+      }
+      .kb-toggle-text {
+        min-width: 0;
+      }
+      .kb-toggle-title {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--kb-neutral-800);
+        margin-bottom: 2px;
+      }
+      .kb-toggle-desc {
+        font-size: 0.8125rem;
+        color: var(--kb-neutral-500);
+        line-height: 1.5;
+      }
+
+      /* ===== Toast ===== */
+      .kb-toast {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 14px;
+        background: var(--kb-neutral-0);
+        border: 1px solid var(--kb-state-success-border);
+        border-left: 4px solid var(--kb-state-success);
+        border-radius: var(--kb-radius-medium);
+        box-shadow: var(--kb-shadow-lg);
+        max-width: 360px;
+        min-width: 240px;
+      }
+      .kb-toast[hidden] { display: none; }
+      .kb-toast-icon {
+        color: var(--kb-state-success-text);
+        width: 18px;
+        height: 18px;
+        flex-shrink: 0;
+      }
+      .kb-toast-message {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--kb-neutral-800);
+        flex: 1;
+        min-width: 0;
+      }
+      .kb-toast-close {
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        color: var(--kb-neutral-400);
+        display: flex;
+        align-items: center;
+        padding: 2px;
+        border-radius: 4px;
+        flex-shrink: 0;
+      }
+      .kb-toast-close svg {
+        width: 16px;
+        height: 16px;
+      }
+      .kb-toast-close:hover {
+        color: var(--kb-neutral-700);
+        background: var(--kb-neutral-100);
+      }
+
+      /* ===== Lucide 图标尺寸强制 ===== */
+      .kb-admin-nav-icon { width: 18px !important; height: 18px !important; }
+      .kb-settings-card-icon { width: 18px !important; height: 18px !important; }
+      .kb-breadcrumb-sep { width: 14px !important; height: 14px !important; }
+      .kb-toast-icon { width: 18px !important; height: 18px !important; }
+      .kb-toast-close svg { width: 16px !important; height: 16px !important; }
+      .kb-topbar-actions svg { width: 16px !important; height: 16px !important; }
+
+      /* ===== 响应式 ===== */
+      @media (max-width: 1024px) {
+        .kb-admin-sidebar {
+          width: var(--kb-sidebar-collapsed);
+        }
+        .kb-admin-brand-text,
+        .kb-admin-nav-label,
+        .kb-admin-user-text {
+          display: none;
+        }
+        .kb-admin-sidebar-top {
+          justify-content: center;
+          padding: 16px 8px;
+        }
+        .kb-admin-brand {
+          justify-content: center;
+          gap: 0;
+        }
+        .kb-admin-nav-item,
+        .kb-admin-logout {
+          justify-content: center;
+          padding: 12px 8px;
+          border-left: none;
+        }
+        .kb-admin-nav-item.active {
+          border-left: none;
+        }
+        .kb-admin-user {
+          justify-content: center;
+          padding: 0;
+        }
+        .kb-admin-content {
+          padding: 24px;
+        }
+      }
+      @media (max-width: 768px) {
+        .kb-admin-sidebar {
+          display: none;
+        }
+        .kb-admin-topbar {
+          padding: 0 16px;
+        }
+        .kb-admin-content {
+          padding: 16px;
+        }
+        .kb-form-grid {
+          grid-template-columns: 1fr;
+        }
+        .kb-toggle-row {
+          gap: 12px;
+        }
+        .kb-topbar-actions .kb-btn {
+          padding: 8px 12px;
+        }
+        .kb-toast {
+          left: 16px;
+          right: 16px;
+          top: 16px;
+          max-width: none;
+        }
+      }
+    </style>
+</head>
+<body class="min-h-screen font-sans antialiased">
+    <!-- 成功 Toast（保存成功后由 JS 显示） -->
+    <div class="kb-toast" role="status" id="toast-settings" hidden>
+      <i data-lucide="check-circle-2" class="kb-toast-icon"></i>
+      <span class="kb-toast-message" id="toast-message">设置已保存</span>
+      <button type="button" class="kb-toast-close" id="toast-close" aria-label="关闭">
+        <i data-lucide="x"></i>
+      </button>
+    </div>
+
+    <div class="kb-admin-shell">
+      <!-- 左侧边栏 -->
+      <aside class="kb-admin-sidebar">
+        <div class="kb-admin-sidebar-top">
+          <a class="kb-admin-brand" href="/admin/dashboard">
+            <div class="kb-admin-brand-icon">知序</div>
+            <div class="kb-admin-brand-text">
+              <span class="kb-admin-brand-name">KBRefiner</span>
+              <span class="kb-admin-brand-tag">管理后台</span>
+            </div>
+          </a>
+        </div>
+
+        <nav class="kb-admin-nav" aria-label="管理后台导航">
+          <div class="kb-admin-nav-section">运营管理</div>
+          <a class="kb-admin-nav-item" href="/admin/dashboard">
+            <i data-lucide="layout-dashboard" class="kb-admin-nav-icon"></i>
+            <span class="kb-admin-nav-label">仪表盘</span>
+          </a>
+          <a class="kb-admin-nav-item" href="/admin/users">
+            <i data-lucide="users" class="kb-admin-nav-icon"></i>
+            <span class="kb-admin-nav-label">用户管理</span>
+          </a>
+          <a class="kb-admin-nav-item" href="/admin/messages">
+            <i data-lucide="megaphone" class="kb-admin-nav-icon"></i>
+            <span class="kb-admin-nav-label">消息列表</span>
+          </a>
+          <a class="kb-admin-nav-item" href="/admin/access">
+            <i data-lucide="shield" class="kb-admin-nav-icon"></i>
+            <span class="kb-admin-nav-label">黑白名单</span>
+          </a>
+          <a class="kb-admin-nav-item active" href="/admin/settings" aria-current="page">
+            <i data-lucide="settings" class="kb-admin-nav-icon"></i>
+            <span class="kb-admin-nav-label">系统设置</span>
+          </a>
+        </nav>
+
+        <div class="kb-admin-sidebar-bottom">
+          <div class="kb-admin-user">
+            <div class="kb-admin-avatar" id="admin-avatar">管</div>
+            <div class="kb-admin-user-text">
+              <span class="kb-admin-user-name" id="admin-name">管理员</span>
+              <span class="kb-admin-user-role" id="admin-email">-</span>
+            </div>
+          </div>
+          <button class="kb-admin-logout" type="button" id="btn-logout">
+            <i data-lucide="log-out" class="kb-admin-nav-icon"></i>
+            <span class="kb-admin-nav-label">退出登录</span>
+          </button>
+        </div>
+      </aside>
+
+      <!-- 右侧主区域 -->
+      <div class="kb-admin-main">
+        <!-- 顶部栏 -->
+        <header class="kb-admin-topbar">
+          <nav class="kb-breadcrumb" aria-label="页面路径">
+            <a href="/admin/dashboard">管理后台</a>
+            <i data-lucide="chevron-right" class="kb-breadcrumb-sep"></i>
+            <span class="kb-breadcrumb-current">系统设置</span>
+          </nav>
+          <div class="kb-topbar-actions">
+            <button class="kb-btn kb-btn-secondary" type="button" id="btn-reset-settings">
+              <i data-lucide="rotate-ccw"></i>重置
+            </button>
+            <button class="kb-btn kb-btn-primary" type="button" id="btn-save-settings">
+              <i data-lucide="save"></i>保存设置
+            </button>
+          </div>
+        </header>
+
+        <main class="kb-admin-content">
+          <div class="kb-page-head">
+            <h1>系统设置</h1>
+            <p>配置用户配额、文件格式、通知规则与安全审计策略，所有更改将在保存后生效。</p>
+          </div>
+
+          <div class="kb-settings-stack">
+
+            <!-- Card 1: 用户配额 -->
+            <section class="kb-card kb-settings-card" aria-labelledby="card-quota-title">
+              <div class="kb-card-header">
+                <div class="kb-settings-card-title">
+                  <i data-lucide="gauge" class="kb-settings-card-icon"></i>
+                  <h3 id="card-quota-title">用户配额</h3>
+                </div>
+                <span class="kb-tag kb-tag-muted">资源限制</span>
+              </div>
+              <div class="kb-card-body">
+                <div class="kb-form-grid">
+                  <div class="kb-field">
+                    <label class="kb-field-label" for="quota-task-daily">每日任务数上限</label>
+                    <input id="quota-task-daily" type="number" class="kb-input" value="100" min="0" data-dom-id="quota-task-daily">
+                    <p class="kb-field-hint">单个用户每天最多创建的任务数</p>
+                  </div>
+                  <div class="kb-field">
+                    <label class="kb-field-label" for="quota-token-daily">每日 Token 消耗上限</label>
+                    <input id="quota-token-daily" type="number" class="kb-input" value="1000000" min="0" step="1000" data-dom-id="quota-token-daily">
+                    <p class="kb-field-hint">单个用户每天最多消耗的 Token 数</p>
+                  </div>
+                  <div class="kb-field">
+                    <label class="kb-field-label" for="quota-upload-daily">每日上传文档数上限</label>
+                    <input id="quota-upload-daily" type="number" class="kb-input" value="500" min="0" data-dom-id="quota-upload-daily">
+                    <p class="kb-field-hint">单个用户每天最多上传的原始文档数量</p>
+                  </div>
+                  <div class="kb-field">
+                    <label class="kb-field-label" for="quota-file-size">单文件大小上限 (MB)</label>
+                    <input id="quota-file-size" type="number" class="kb-input" value="50" min="1" data-dom-id="quota-file-size">
+                    <p class="kb-field-hint">单个上传文件的最大体积（MB）</p>
+                  </div>
+                  <div class="kb-field">
+                    <label class="kb-field-label" for="quota-batch-count">批量上传文件数上限</label>
+                    <input id="quota-batch-count" type="number" class="kb-input" value="20" min="1" data-dom-id="quota-batch-count">
+                    <p class="kb-field-hint">单次批量上传允许包含的文件数量</p>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- Card 2: 文件与格式 -->
+            <section class="kb-card kb-settings-card" aria-labelledby="card-format-title">
+              <div class="kb-card-header">
+                <div class="kb-settings-card-title">
+                  <i data-lucide="file-text" class="kb-settings-card-icon"></i>
+                  <h3 id="card-format-title">文件与格式</h3>
+                </div>
+                <span class="kb-tag kb-tag-muted">解析规则</span>
+              </div>
+              <div class="kb-card-body">
+                <div class="kb-form-grid">
+                  <div class="kb-field kb-field-full">
+                    <span class="kb-field-label">允许的文件类型</span>
+                    <div class="kb-checkbox-group">
+                      <label class="kb-checkbox-item">
+                        <input type="checkbox" class="kb-checkbox" checked data-dom-id="file-type-pdf">
+                        <span>PDF</span>
+                      </label>
+                      <label class="kb-checkbox-item">
+                        <input type="checkbox" class="kb-checkbox" checked data-dom-id="file-type-docx">
+                        <span>DOCX</span>
+                      </label>
+                      <label class="kb-checkbox-item">
+                        <input type="checkbox" class="kb-checkbox" data-dom-id="file-type-doc" disabled>
+                        <span style="color:var(--kb-neutral-400);">DOC（旧格式暂不支持）</span>
+                      </label>
+                      <label class="kb-checkbox-item">
+                        <input type="checkbox" class="kb-checkbox" checked data-dom-id="file-type-md">
+                        <span>MD</span>
+                      </label>
+                      <label class="kb-checkbox-item">
+                        <input type="checkbox" class="kb-checkbox" checked data-dom-id="file-type-txt">
+                        <span>TXT</span>
+                      </label>
+                    </div>
+                    <p class="kb-field-hint">仅勾选的文件类型可被流水线解析，未勾选的类型将在上传时被拦截。</p>
+                  </div>
+                  <div class="kb-field">
+                    <label class="kb-field-label" for="retain-file-days">文件保留天数</label>
+                    <div class="kb-input-group">
+                      <input id="retain-file-days" type="number" class="kb-input" value="30" min="1" data-dom-id="retain-file-days">
+                      <span class="kb-input-suffix">天</span>
+                    </div>
+                    <p class="kb-field-hint">原始上传文件在系统中保留的时长</p>
+                  </div>
+                  <div class="kb-field">
+                    <label class="kb-field-label" for="retain-result-days">结果保留天数</label>
+                    <div class="kb-input-group">
+                      <input id="retain-result-days" type="number" class="kb-input" value="90" min="1" data-dom-id="retain-result-days">
+                      <span class="kb-input-suffix">天</span>
+                    </div>
+                    <p class="kb-field-hint">质检结果与导出产物保留的时长</p>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- Card 3: 通知设置 -->
+            <section class="kb-card kb-settings-card" aria-labelledby="card-notify-title">
+              <div class="kb-card-header">
+                <div class="kb-settings-card-title">
+                  <i data-lucide="bell" class="kb-settings-card-icon"></i>
+                  <h3 id="card-notify-title">通知设置</h3>
+                </div>
+                <span class="kb-tag kb-tag-muted">消息推送</span>
+              </div>
+              <div class="kb-card-body">
+                <div class="kb-toggle-row">
+                  <div class="kb-toggle-text">
+                    <div class="kb-toggle-title">任务完成通知</div>
+                    <p class="kb-toggle-desc">任务处理完成后向用户发送通知</p>
+                  </div>
+                  <label class="kb-toggle">
+                    <input type="checkbox" class="kb-toggle-input" checked data-dom-id="notify-task-done">
+                    <span class="kb-toggle-track"></span>
+                  </label>
+                </div>
+                <div class="kb-toggle-row">
+                  <div class="kb-toggle-text">
+                    <div class="kb-toggle-title">任务失败通知</div>
+                    <p class="kb-toggle-desc">任务处理失败时向管理员发送告警</p>
+                  </div>
+                  <label class="kb-toggle">
+                    <input type="checkbox" class="kb-toggle-input" checked data-dom-id="notify-task-failed">
+                    <span class="kb-toggle-track"></span>
+                  </label>
+                </div>
+                <div class="kb-toggle-row">
+                  <div class="kb-toggle-text">
+                    <div class="kb-toggle-title">日报 / 周报</div>
+                    <p class="kb-toggle-desc">每日 / 每周向管理员发送运营数据摘要</p>
+                  </div>
+                  <label class="kb-toggle">
+                    <input type="checkbox" class="kb-toggle-input" data-dom-id="notify-report">
+                    <span class="kb-toggle-track"></span>
+                  </label>
+                </div>
+              </div>
+            </section>
+
+            <!-- Card A: LLM API Key 管理 -->
+            <section class="kb-card kb-settings-card" aria-labelledby="card-llm-key-title">
+              <div class="kb-card-header">
+                <div class="kb-settings-card-title">
+                  <i data-lucide="key" class="kb-settings-card-icon"></i>
+                  <h3 id="card-llm-key-title">LLM API Key 管理</h3>
+                </div>
+                <span class="kb-tag kb-tag-muted" id="llm-key-status">-</span>
+              </div>
+              <div class="kb-card-body">
+                <p class="kb-toggle-desc" style="margin-bottom:var(--kb-space-5);">配置用于 Clean / QA / Tag 阶段的 LLM API Key。仅需配置一个 Key，所有 LLM 调用将统一使用。</p>
+                <div class="kb-form-grid">
+                  <div class="kb-field">
+                    <label class="kb-field-label" for="llm-provider">API 供应商</label>
+                    <select id="llm-provider" class="kb-select" data-dom-id="llm-provider">
+                      <option value="deepseek" selected>DeepSeek</option>
+                      <option value="openai">OpenAI</option>
+                      <option value="qwen">通义千问</option>
+                      <option value="custom">自定义</option>
+                    </select>
+                  </div>
+                  <div class="kb-field">
+                    <label class="kb-field-label" for="llm-api-key">API Key</label>
+                    <div style="position:relative;display:flex;align-items:stretch;">
+                      <input id="llm-api-key" type="password" class="kb-input" placeholder="留空保持不变" style="padding-right:42px;" data-dom-id="llm-api-key">
+                      <button type="button" data-dom-id="btn-toggle-key-visibility" aria-label="显示或隐藏 API Key" style="position:absolute;right:1px;top:1px;bottom:1px;width:40px;display:inline-flex;align-items:center;justify-content:center;background:transparent;border:none;cursor:pointer;color:var(--kb-neutral-400);border-radius:0 var(--kb-radius-medium) var(--kb-radius-medium) 0;">
+                        <i data-lucide="eye" style="width:16px;height:16px;"></i>
+                      </button>
+                    </div>
+                    <p class="kb-field-hint" id="llm-key-hint">留空表示保持当前 Key 不变</p>
+                  </div>
+                  <div class="kb-field">
+                    <label class="kb-field-label" for="llm-base-url">API Base URL (可选)</label>
+                    <input id="llm-base-url" type="text" class="kb-input" placeholder="https://api.deepseek.com" data-dom-id="llm-base-url">
+                    <p class="kb-field-hint">留空则使用供应商默认地址</p>
+                  </div>
+                  <div class="kb-field">
+                    <label class="kb-field-label" for="llm-model">模型名称</label>
+                    <input id="llm-model" type="text" class="kb-input" value="deepseek-chat" data-dom-id="llm-model">
+                    <p class="kb-field-hint">用于 LLM 调用的模型标识</p>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- Card B: 前台访问控制 -->
+            <section class="kb-card kb-settings-card" aria-labelledby="card-access-control-title">
+              <div class="kb-card-header">
+                <div class="kb-settings-card-title">
+                  <i data-lucide="lock" class="kb-settings-card-icon"></i>
+                  <h3 id="card-access-control-title">前台访问控制</h3>
+                </div>
+                <span class="kb-tag kb-tag-muted">访问策略</span>
+              </div>
+              <div class="kb-card-body">
+                <div class="kb-toggle-row">
+                  <div class="kb-toggle-text">
+                    <div class="kb-toggle-title">前台页面需要登录</div>
+                    <p class="kb-toggle-desc">未登录用户将跳转到登录页，无法直接访问任务列表</p>
+                  </div>
+                  <label class="kb-toggle">
+                    <input type="checkbox" class="kb-toggle-input" checked data-dom-id="access-require-login">
+                    <span class="kb-toggle-track"></span>
+                  </label>
+                </div>
+                <div class="kb-toggle-row">
+                  <div class="kb-toggle-text">
+                    <div class="kb-toggle-title">允许用户注册</div>
+                    <p class="kb-toggle-desc">开启后，用户可通过邮箱+密码自助注册新账号</p>
+                  </div>
+                  <label class="kb-toggle">
+                    <input type="checkbox" class="kb-toggle-input" checked data-dom-id="access-allow-register">
+                    <span class="kb-toggle-track"></span>
+                  </label>
+                </div>
+              </div>
+            </section>
+
+            <!-- Card C: 上传文件路径配置 -->
+            <section class="kb-card kb-settings-card" aria-labelledby="card-upload-path-title">
+              <div class="kb-card-header">
+                <div class="kb-settings-card-title">
+                  <i data-lucide="folder" class="kb-settings-card-icon"></i>
+                  <h3 id="card-upload-path-title">上传文件路径配置</h3>
+                </div>
+                <span class="kb-tag kb-tag-muted" id="disk-usage-tag">存储路径</span>
+              </div>
+              <div class="kb-card-body">
+                <p class="kb-toggle-desc" style="margin-bottom:var(--kb-space-5);">配置用户上传文件的存储路径。<strong>路径修改保存后需重启服务生效。</strong></p>
+                <div class="kb-form-grid">
+                  <div class="kb-field kb-field-full">
+                    <label class="kb-field-label" for="upload-root">上传文件根目录</label>
+                    <input id="upload-root" type="text" class="kb-input" value="/data/kbrefiner/uploads" data-dom-id="upload-root">
+                    <p class="kb-field-hint">所有用户上传文件的根存储路径</p>
+                  </div>
+                  <div class="kb-field kb-field-full">
+                    <label class="kb-field-label" for="upload-results">结果输出目录</label>
+                    <input id="upload-results" type="text" class="kb-input" value="/data/kbrefiner/results" data-dom-id="upload-results">
+                    <p class="kb-field-hint">处理完成后的结果文件输出路径</p>
+                  </div>
+                  <div class="kb-field">
+                    <label class="kb-field-label" for="disk-max">最大磁盘占用 (GB)</label>
+                    <input id="disk-max" type="number" class="kb-input" value="500" min="0" data-dom-id="disk-max">
+                    <p class="kb-field-hint">上传目录允许占用的最大磁盘容量</p>
+                  </div>
+                  <div class="kb-field">
+                    <label class="kb-field-label" for="disk-warn">磁盘告警阈值 (%)</label>
+                    <input id="disk-warn" type="number" class="kb-input" value="80" min="0" max="100" data-dom-id="disk-warn">
+                    <p class="kb-field-hint">磁盘使用率达到该阈值时触发告警</p>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- Card 4: 安全与审计 -->
+            <section class="kb-card kb-settings-card" aria-labelledby="card-security-title">
+              <div class="kb-card-header">
+                <div class="kb-settings-card-title">
+                  <i data-lucide="shield-check" class="kb-settings-card-icon"></i>
+                  <h3 id="card-security-title">安全与审计</h3>
+                </div>
+                <span class="kb-tag kb-tag-muted">访问控制</span>
+              </div>
+              <div class="kb-card-body">
+                <div class="kb-form-grid">
+                  <div class="kb-field kb-field-full">
+                    <label class="kb-field-label">登录失败锁定</label>
+                    <div class="kb-composite">
+                      <input type="number" class="kb-input" value="5" min="1" data-dom-id="login-fail-count">
+                      <span class="kb-composite-text">次后锁定</span>
+                      <input type="number" class="kb-input" value="30" min="1" data-dom-id="login-lock-minutes">
+                      <span class="kb-composite-text">分钟</span>
+                    </div>
+                    <p class="kb-field-hint">连续登录失败达到阈值后锁定账号，锁定时长为第二项设置值。</p>
+                  </div>
+                  <div class="kb-field">
+                    <label class="kb-field-label" for="session-timeout">会话超时（分钟）</label>
+                    <input id="session-timeout" type="number" class="kb-input" value="30" min="1" data-dom-id="session-timeout">
+                    <p class="kb-field-hint">无操作超过该时长将自动登出当前会话</p>
+                  </div>
+                  <div class="kb-field kb-field-full">
+                    <div class="kb-toggle-row" style="border-bottom:none;padding-top:8px;padding-bottom:0;">
+                      <div class="kb-toggle-text">
+                        <div class="kb-toggle-title">启用操作审计日志</div>
+                        <p class="kb-toggle-desc">记录后台所有关键操作（用户变更、配置修改、数据导出等）</p>
+                      </div>
+                      <label class="kb-toggle">
+                        <input type="checkbox" class="kb-toggle-input" checked data-dom-id="audit-log-enabled">
+                        <span class="kb-toggle-track"></span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <script src="/static/js/kbrefiner.js"></script>
+    <script>
+      lucide.createIcons();
+
+      // 侧边栏移动端切换
+      (function () {
+        var sidebar = document.querySelector('.kb-admin-sidebar');
+        var overlay = document.querySelector('.kb-admin-overlay');
+        var menuBtn = document.querySelector('[data-dom-id="btn-admin-menu"]');
+        function toggle() {
+          if (sidebar) sidebar.classList.toggle('is-open');
+          if (overlay) overlay.classList.toggle('is-visible');
+        }
+        if (menuBtn) menuBtn.addEventListener('click', toggle);
+        if (overlay) overlay.addEventListener('click', toggle);
+      })();
+
+      // API Key 显示/隐藏切换
+      (function () {
+        var btn = document.querySelector('[data-dom-id="btn-toggle-key-visibility"]');
+        var input = document.querySelector('[data-dom-id="llm-api-key"]');
+        if (!btn || !input) return;
+        btn.addEventListener('click', function () {
+          var isPw = input.getAttribute('type') === 'password';
+          input.setAttribute('type', isPw ? 'text' : 'password');
+          btn.setAttribute('aria-label', isPw ? '隐藏 API Key' : '显示 API Key');
+          var oldIcon = btn.querySelector('svg') || btn.querySelector('[data-lucide]');
+          var newIcon = document.createElement('i');
+          newIcon.setAttribute('data-lucide', isPw ? 'eye-off' : 'eye');
+          newIcon.style.width = '16px';
+          newIcon.style.height = '16px';
+          if (oldIcon) oldIcon.replaceWith(newIcon);
+          lucide.createIcons();
+        });
+      })();
+
+      const $ = id => document.querySelector(`[data-dom-id="${id}"]`);
+      const { Settings } = KBRefiner;
+
+      // ===== Toast =====
+      let toastTimer = null;
+      function showToast(msg, ok = true) {
+        const toast = document.getElementById('toast-settings');
+        document.getElementById('toast-message').textContent = msg;
+        toast.hidden = false;
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => { toast.hidden = true; }, 2600);
+        lucide.createIcons();
+      }
+      document.getElementById('toast-close').addEventListener('click', () => {
+        document.getElementById('toast-settings').hidden = true;
+      });
+
+      // ===== 权限守卫 =====
+      let currentUser = null;
+      async function guard() {
+        const { user } = await KBRefiner.Auth.me();
+        if (!user || !['super_admin', 'admin'].includes(user.role)) {
+          window.location.href = '/admin/login';
+          return false;
+        }
+        currentUser = user;
+        document.getElementById('admin-name').textContent = user.username || '管理员';
+        document.getElementById('admin-email').textContent = user.email || '-';
+        document.getElementById('admin-avatar').textContent = (user.username || '管')[0];
+        // 系统设置仅超级管理员可改（PRD 7），普通管理员只读
+        if (user.role !== 'super_admin') {
+          document.querySelectorAll('[data-dom-id]').forEach(el => { el.disabled = true; });
+          document.getElementById('btn-save-settings').disabled = true;
+          document.getElementById('btn-reset-settings').disabled = true;
+          showToast('普通管理员仅可查看系统设置', false);
+        }
+        return true;
+      }
+
+      document.getElementById('btn-logout').addEventListener('click', async () => {
+        await KBRefiner.Auth.logout().catch(() => {});
+        window.location.href = '/admin/login';
+      });
+
+      // ===== 加载设置填充表单 =====
+      async function loadSettings() {
+        let cfg;
+        try {
+          cfg = await Settings.get();
+        } catch (e) {
+          showToast(e.message || '加载设置失败', false);
+          return;
+        }
+        // 配额
+        $('quota-task-daily').value = cfg.quotas.quota_task_daily;
+        $('quota-token-daily').value = cfg.quotas.quota_token_daily;
+        $('quota-upload-daily').value = cfg.quotas.quota_upload_daily;
+        $('quota-file-size').value = cfg.quotas.quota_file_size_mb;
+        $('quota-batch-count').value = cfg.quotas.quota_batch_count;
+        // 文件类型
+        const types = cfg.file.allowed_file_types || [];
+        $('file-type-pdf').checked = types.includes('pdf');
+        $('file-type-docx').checked = types.includes('docx');
+        $('file-type-md').checked = types.includes('md');
+        $('file-type-txt').checked = types.includes('txt');
+        $('retain-file-days').value = cfg.file.retain_file_days;
+        $('retain-result-days').value = cfg.file.retain_result_days;
+        // 通知
+        $('notify-task-done').checked = !!cfg.notify.notify_task_done;
+        $('notify-task-failed').checked = !!cfg.notify.notify_task_failed;
+        $('notify-report').checked = !!cfg.notify.notify_report;
+        // LLM
+        $('llm-provider').value = cfg.llm.llm_provider || 'deepseek';
+        $('llm-api-key').value = '';
+        $('llm-base-url').value = cfg.llm.llm_base_url || '';
+        $('llm-model').value = cfg.llm.llm_model || '';
+        document.getElementById('llm-key-status').textContent = cfg.llm.llm_key_set
+          ? `已配置${cfg.llm.llm_key_from_env ? '（.env）' : ''}`
+          : '未配置';
+        const keyHint = document.getElementById('llm-key-hint');
+        if (keyHint) keyHint.textContent = cfg.llm.llm_key_set
+          ? `当前 Key：${cfg.llm.llm_api_key_masked}，留空保持不变`
+          : '尚未配置 API Key，请输入';
+        // 访问控制（require_login 显示当前生效值：DB 覆盖 > .env）
+        $('access-require-login').checked = !!cfg.access.require_login_effective;
+        $('access-allow-register').checked = cfg.access.access_allow_register !== false;
+        // 存储（env 当前值）
+        $('upload-root').value = cfg.storage.upload_dir;
+        $('upload-results').value = cfg.storage.output_dir;
+        $('disk-max').value = cfg.storage.disk_max_gb;
+        $('disk-warn').value = cfg.storage.disk_warn_percent;
+        document.getElementById('disk-usage-tag').textContent = `已用 ${cfg.storage.disk_used_gb} GB`;
+        // 安全
+        $('login-fail-count').value = cfg.security.login_fail_limit;
+        $('login-lock-minutes').value = cfg.security.login_lock_minutes;
+        $('session-timeout').value = cfg.security.session_timeout_minutes;
+        $('audit-log-enabled').checked = !!cfg.security.audit_log_enabled;
+      }
+
+      // ===== 收集变更并保存（仅提交有改动的分组字段） =====
+      function collectPayload() {
+        const payload = {};
+        const num = v => { const n = parseInt(v, 10); if (Number.isNaN(n)) throw new Error('数值项必须为整数'); return n; };
+
+        const quotas = {
+          quota_task_daily: num($('quota-task-daily').value),
+          quota_token_daily: num($('quota-token-daily').value),
+          quota_upload_daily: num($('quota-upload-daily').value),
+          quota_file_size_mb: num($('quota-file-size').value),
+          quota_batch_count: num($('quota-batch-count').value),
+        };
+        if (Object.values(quotas).some(v => v < 0)) throw new Error('配额必须为非负整数');
+        payload.quotas = quotas;
+
+        const types = ['pdf', 'docx', 'md', 'txt'].filter(t => $(`file-type-${t}`).checked);
+        if (!types.length) throw new Error('至少保留一种文件类型');
+        payload.file = {
+          allowed_file_types: types,
+          retain_file_days: num($('retain-file-days').value),
+          retain_result_days: num($('retain-result-days').value),
+        };
+
+        payload.notify = {
+          notify_task_done: $('notify-task-done').checked,
+          notify_task_failed: $('notify-task-failed').checked,
+          notify_report: $('notify-report').checked,
+        };
+
+        const llm = {
+          llm_provider: $('llm-provider').value,
+          llm_base_url: $('llm-base-url').value.trim(),
+          llm_model: $('llm-model').value.trim(),
+        };
+        const key = $('llm-api-key').value.trim();
+        if (key) llm.llm_api_key = key;  // 留空 = 保持不变
+        payload.llm = llm;
+
+        payload.access = {
+          access_require_login: $('access-require-login').checked,
+          access_allow_register: $('access-allow-register').checked,
+        };
+
+        payload.storage = {
+          upload_dir: $('upload-root').value.trim(),
+          output_dir: $('upload-results').value.trim(),
+          disk_max_gb: Number($('disk-max').value),
+          disk_warn_percent: Number($('disk-warn').value),
+        };
+
+        payload.security = {
+          login_fail_limit: num($('login-fail-count').value),
+          login_lock_minutes: num($('login-lock-minutes').value),
+          session_timeout_minutes: num($('session-timeout').value),
+        };
+        return payload;
+      }
+
+      document.getElementById('btn-save-settings').addEventListener('click', async () => {
+        if (currentUser && currentUser.role !== 'super_admin') {
+          alert('仅超级管理员可修改系统设置');
+          return;
+        }
+        let payload;
+        try {
+          payload = collectPayload();
+        } catch (e) {
+          alert(e.message);
+          return;
+        }
+        const btn = document.getElementById('btn-save-settings');
+        btn.disabled = true;
+        btn.textContent = '保存中...';
+        try {
+          await Settings.update(payload);
+          await loadSettings();
+          showToast('设置已保存');
+        } catch (e) {
+          alert(e.message || '保存失败');
+        } finally {
+          btn.disabled = false;
+          btn.textContent = '保存设置';
+          lucide.createIcons();
+        }
+      });
+
+      document.getElementById('btn-reset-settings').addEventListener('click', async () => {
+        await loadSettings();
+        showToast('已恢复为当前生效配置');
+      });
+
+      // ===== 初始化 =====
+      (async () => {
+        if (await guard()) await loadSettings();
+      })();
+    </script>
+</body>
+</html>

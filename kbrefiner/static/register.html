@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>登录 - KBRefiner</title>
+    <title>注册 - KBRefiner</title>
     <style id="theme-vars">
 /* 知序 KBRefiner — 产品前端设计系统 */
 
@@ -449,65 +449,61 @@ a:hover { color: var(--kb-primary-700); }
         </div>
 
         <div class="kb-login-form-wrap">
-          <h1 id="login-title" class="kb-login-title">欢迎回来</h1>
-          <p class="kb-login-subtitle">登录以继续使用 KBRefiner</p>
+          <h1 id="login-title" class="kb-login-title">创建账号</h1>
+          <p class="kb-login-subtitle">注册以开始使用 KBRefiner</p>
 
           <div class="kb-login-card">
+            <!-- 用户名输入 -->
+            <div class="kb-login-field">
+              <label class="kb-login-label" for="reg-username">用户名</label>
+              <div class="kb-login-input-wrap">
+                <i data-lucide="user" class="kb-login-input-icon"></i>
+                <input id="reg-username" name="username" type="text" class="kb-input kb-login-input" placeholder="请输入用户名（2-32 字符）" autocomplete="username" maxlength="32">
+              </div>
+            </div>
+
             <!-- 邮箱输入 -->
             <div class="kb-login-field">
-              <label class="kb-login-label" for="login-email">邮箱</label>
+              <label class="kb-login-label" for="reg-email">邮箱</label>
               <div class="kb-login-input-wrap">
                 <i data-lucide="mail" class="kb-login-input-icon"></i>
-                <input id="login-email" name="email" type="email" class="kb-input kb-login-input" placeholder="请输入邮箱地址" autocomplete="email">
+                <input id="reg-email" name="email" type="email" class="kb-input kb-login-input" placeholder="请输入邮箱地址" autocomplete="email">
               </div>
             </div>
 
             <!-- 密码输入 -->
             <div class="kb-login-field">
-              <label class="kb-login-label" for="login-password">密码</label>
+              <label class="kb-login-label" for="reg-password">密码</label>
               <div class="kb-login-input-wrap">
                 <i data-lucide="lock" class="kb-login-input-icon"></i>
-                <input id="login-password" name="password" type="password" class="kb-input kb-login-input" placeholder="请输入密码" autocomplete="current-password">
+                <input id="reg-password" name="password" type="password" class="kb-input kb-login-input" placeholder="请输入密码（至少 6 位）" autocomplete="new-password">
               </div>
             </div>
 
-            <!-- 记住我 + 忘记密码 -->
-            <div class="kb-login-options">
-              <label class="kb-login-remember">
-                <input type="checkbox" class="kb-login-checkbox">
-                <span>记住我</span>
-              </label>
-              <a href="#" class="kb-login-forgot" id="link-forgot">忘记密码?</a>
+            <!-- 确认密码 -->
+            <div class="kb-login-field">
+              <label class="kb-login-label" for="reg-password2">确认密码</label>
+              <div class="kb-login-input-wrap">
+                <i data-lucide="lock" class="kb-login-input-icon"></i>
+                <input id="reg-password2" name="password2" type="password" class="kb-input kb-login-input" placeholder="请再次输入密码" autocomplete="new-password">
+              </div>
             </div>
 
-            <!-- 主登录按钮 -->
-            <button class="kb-btn kb-btn-primary kb-login-btn" type="submit" data-dom-id="btn-login" id="btn-login">
-              <span id="btn-login-text">登录</span>
+            <!-- 主注册按钮 -->
+            <button class="kb-btn kb-btn-primary kb-login-btn" type="submit" id="btn-register">
+              <span id="btn-register-text">注册</span>
             </button>
 
-            <!-- 错误提示（默认隐藏，登录失败时显示） -->
+            <!-- 错误提示（默认隐藏） -->
             <div class="kb-login-alert" role="alert" id="login-error" style="display:none;">
               <i data-lucide="alert-circle" class="kb-login-alert-icon"></i>
-              <span id="login-error-text">邮箱或密码错误，请重试。</span>
+              <span id="login-error-text">注册失败，请重试。</span>
             </div>
-
-            <!-- 分隔线 -->
-            <div class="kb-login-divider">
-              <span class="kb-login-divider-line"></span>
-              <span class="kb-login-divider-text">或</span>
-              <span class="kb-login-divider-line"></span>
-            </div>
-
-            <!-- 飞书登录按钮 -->
-            <button class="kb-btn kb-btn-secondary kb-login-feishu" type="button" data-dom-id="btn-feishu-login" id="btn-feishu-login">
-              <i data-lucide="message-square" class="kb-login-feishu-icon"></i>
-              <span>使用飞书登录</span>
-            </button>
           </div>
 
-          <!-- 注册引导 -->
+          <!-- 登录引导 -->
           <p class="kb-login-register">
-            还没有账号？<a href="/register" class="kb-login-register-link" id="link-register">立即注册</a>
+            已有账号？<a href="/login" class="kb-login-register-link">返回登录</a>
           </p>
 
           <!-- 版权声明 -->
@@ -528,41 +524,56 @@ a:hover { color: var(--kb-primary-700); }
         errBox.style.display = 'flex';
       }
 
-      function soon(e, msg) {
-        e.preventDefault();
-        showError(msg || '该功能暂未开放，请联系管理员创建账号');
-      }
-      document.getElementById('link-forgot').addEventListener('click',
-        e => soon(e, '暂不支持自助找回密码，请联系管理员重置'));
-      document.getElementById('btn-feishu-login').addEventListener('click',
-        e => soon(e, '飞书登录暂未开通，请使用邮箱登录'));
-
-      async function doLogin() {
-        const email = document.getElementById('login-email').value.trim();
-        const password = document.getElementById('login-password').value;
-        if (!email || !password) {
-          showError('请输入邮箱和密码');
+      async function doRegister() {
+        const username = document.getElementById('reg-username').value.trim();
+        const email = document.getElementById('reg-email').value.trim();
+        const password = document.getElementById('reg-password').value;
+        const password2 = document.getElementById('reg-password2').value;
+        if (!username || username.length < 2) {
+          showError('请输入至少 2 个字符的用户名');
           return;
         }
-        const btn = document.getElementById('btn-login');
-        const btnText = document.getElementById('btn-login-text');
+        if (!email) {
+          showError('请输入邮箱地址');
+          return;
+        }
+        if (password.length < 6) {
+          showError('密码至少 6 位');
+          return;
+        }
+        if (password !== password2) {
+          showError('两次输入的密码不一致');
+          return;
+        }
+        const btn = document.getElementById('btn-register');
+        const btnText = document.getElementById('btn-register-text');
         btn.disabled = true;
-        btnText.textContent = '登录中...';
+        btnText.textContent = '注册中...';
         errBox.style.display = 'none';
         try {
+          const resp = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, email, password }),
+          });
+          if (!resp.ok) {
+            const err = await resp.json().catch(() => ({}));
+            throw new Error(err.detail || `注册失败 (${resp.status})`);
+          }
+          // 注册成功后自动登录
           await KBRefiner.Auth.login(email, password);
           window.location.href = '/task-list';
         } catch (e) {
-          showError(e.message || '登录失败，请重试');
+          showError(e.message || '注册失败，请重试');
         } finally {
           btn.disabled = false;
-          btnText.textContent = '登录';
+          btnText.textContent = '注册';
         }
       }
 
-      document.getElementById('btn-login').addEventListener('click', doLogin);
-      document.getElementById('login-password').addEventListener('keydown', e => {
-        if (e.key === 'Enter') doLogin();
+      document.getElementById('btn-register').addEventListener('click', doRegister);
+      document.getElementById('reg-password2').addEventListener('keydown', e => {
+        if (e.key === 'Enter') doRegister();
       });
 
       // 已登录用户直接进入任务列表

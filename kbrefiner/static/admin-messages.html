@@ -1,0 +1,1344 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>消息列表 · KBRefiner 管理后台</title>
+    <style id="theme-vars">
+/* 知序 KBRefiner — 产品前端设计系统 */
+
+:root {
+  /* ===== 品牌主色阶（单一主色） ===== */
+  --kb-primary-50: #eff6ff;
+  --kb-primary-100: #dbeafe;
+  --kb-primary-200: #bfdbfe;
+  --kb-primary-300: #93c5fd;
+  --kb-primary-400: #60a5fa;
+  --kb-primary-500: #3b82f6;
+  --kb-primary-600: #2563eb;
+  --kb-primary-700: #1d4ed8;
+  --kb-primary-800: #1e40af;
+  --kb-primary-900: #1e3a8a;
+
+  /* ===== 中性色阶 ===== */
+  --kb-neutral-0: #ffffff;
+  --kb-neutral-50: #f8fafc;
+  --kb-neutral-100: #f1f5f9;
+  --kb-neutral-200: #e2e8f0;
+  --kb-neutral-300: #cbd5e1;
+  --kb-neutral-400: #94a3b8;
+  --kb-neutral-500: #64748b;
+  --kb-neutral-600: #475569;
+  --kb-neutral-700: #334155;
+  --kb-neutral-800: #1e293b;
+  --kb-neutral-900: #0f172a;
+
+  /* ===== 语义色（仅用于状态） ===== */
+  --kb-state-success: #10b981;
+  --kb-state-success-bg: #ecfdf5;
+  --kb-state-warning: #f59e0b;
+  --kb-state-warning-bg: #fffbeb;
+  --kb-state-error: #ef4444;
+  --kb-state-error-bg: #fef2f2;
+  --kb-state-info: #0ea5e9;
+  --kb-state-info-bg: #f0f9ff;
+
+  /* ===== 语义状态边框/文字（管理后台新增） ===== */
+  --kb-state-success-border: #a7f3d0;
+  --kb-state-success-text: #047857;
+  --kb-state-warning-border: #fde68a;
+  --kb-state-warning-text: #b45309;
+  --kb-state-error-border: #fecaca;
+  --kb-state-error-text: #b91c1c;
+  --kb-state-info-border: #bae6fd;
+  --kb-state-info-text: #0369a1;
+
+  /* ===== 语义别名 ===== */
+  --kb-background: var(--kb-neutral-50);
+  --kb-foreground: var(--kb-neutral-900);
+  --kb-card: var(--kb-neutral-0);
+  --kb-card-foreground: var(--kb-neutral-900);
+  --kb-popover: var(--kb-neutral-0);
+  --kb-popover-foreground: var(--kb-neutral-900);
+  --kb-primary: var(--kb-primary-600);
+  --kb-primary-foreground: var(--kb-neutral-0);
+  --kb-muted: var(--kb-neutral-100);
+  --kb-muted-foreground: var(--kb-neutral-500);
+  --kb-border: var(--kb-neutral-200);
+  --kb-input: var(--kb-neutral-200);
+  --kb-ring: var(--kb-primary-300);
+
+  --kb-radius-small: 4px;
+  --kb-radius-medium: 8px;
+  --kb-radius-large: 12px;
+
+  /* ===== 字体系统 ===== */
+  --kb-font-sans: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --kb-font-mono: "GeistMono", "SF Mono", "Fira Code", ui-monospace, monospace;
+
+  /* ===== 阴影 ===== */
+  --kb-shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --kb-shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.05);
+  --kb-shadow-md: 0 4px 12px rgba(15, 23, 42, 0.05);
+  --kb-shadow-lg: 0 8px 24px rgba(15, 23, 42, 0.05);
+  --kb-shadow-float: 0 16px 48px rgba(15, 23, 42, 0.12);
+
+  /* ===== 间距 ===== */
+  --kb-space-1: 4px;
+  --kb-space-2: 8px;
+  --kb-space-3: 12px;
+  --kb-space-4: 16px;
+  --kb-space-5: 20px;
+  --kb-space-6: 24px;
+  --kb-space-8: 32px;
+  --kb-space-10: 40px;
+  --kb-space-12: 48px;
+
+  /* ===== 尺寸 ===== */
+  --kb-header-height: 64px;
+  --kb-sidebar-width: 220px;
+  --kb-sidebar-collapsed: 64px;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--kb-font-sans);
+  background: var(--kb-background);
+  color: var(--kb-foreground);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  line-height: 1.3;
+  font-weight: 700;
+  color: var(--kb-foreground);
+}
+
+h1 { font-size: 1.875rem; }
+h2 { font-size: 1.5rem; }
+h3 { font-size: 1.25rem; }
+
+p { color: var(--kb-neutral-600); line-height: 1.7; }
+
+a { color: var(--kb-primary); text-decoration: none; }
+a:hover { color: var(--kb-primary-700); }
+
+.kb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--kb-space-2);
+  padding: 10px 18px;
+  border: 1px solid transparent;
+  border-radius: var(--kb-radius-medium);
+  font-family: var(--kb-font-sans);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.kb-btn-primary { background: var(--kb-primary); color: var(--kb-primary-foreground); }
+.kb-btn-primary:hover { background: var(--kb-primary-700); }
+.kb-btn-secondary { background: var(--kb-neutral-0); color: var(--kb-neutral-700); border-color: var(--kb-border); }
+.kb-btn-secondary:hover { background: var(--kb-neutral-50); border-color: var(--kb-neutral-300); }
+.kb-btn-ghost { background: transparent; color: var(--kb-neutral-600); }
+.kb-btn-ghost:hover { background: var(--kb-neutral-100); color: var(--kb-neutral-900); }
+.kb-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.kb-btn-sm { padding: 6px 12px; font-size: 0.8125rem; }
+
+.kb-card {
+  background: var(--kb-card);
+  border: 1px solid var(--kb-border);
+  border-radius: var(--kb-radius-large);
+  box-shadow: var(--kb-shadow-xs);
+}
+
+.kb-card-header {
+  padding: var(--kb-space-5) var(--kb-space-6);
+  border-bottom: 1px solid var(--kb-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--kb-space-4);
+}
+
+.kb-card-body { padding: var(--kb-space-6); }
+
+.kb-input,
+.kb-select {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--kb-input);
+  border-radius: var(--kb-radius-medium);
+  background: var(--kb-neutral-0);
+  color: var(--kb-foreground);
+  font-family: var(--kb-font-sans);
+  font-size: 0.875rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.kb-input:focus,
+.kb-select:focus {
+  outline: none;
+  border-color: var(--kb-primary-400);
+  box-shadow: 0 0 0 3px var(--kb-primary-100);
+}
+
+.kb-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.kb-tag-primary { background: var(--kb-primary-100); color: var(--kb-primary-700); }
+.kb-tag-success { background: var(--kb-state-success-bg); color: #047857; }
+.kb-tag-warning { background: var(--kb-state-warning-bg); color: #b45309; }
+.kb-tag-error { background: var(--kb-state-error-bg); color: #b91c1c; }
+.kb-tag-info { background: var(--kb-state-info-bg); color: #0369a1; }
+.kb-tag-muted { background: var(--kb-neutral-100); color: var(--kb-neutral-600); }
+
+.kb-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.kb-status::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.kb-status-pending::before { background: var(--kb-neutral-400); }
+.kb-status-running::before { background: var(--kb-state-info); }
+.kb-status-success::before { background: var(--kb-state-success); }
+.kb-status-warning::before { background: var(--kb-state-warning); }
+.kb-status-error::before { background: var(--kb-state-error); }
+
+.kb-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.kb-table th,
+.kb-table td {
+  padding: var(--kb-space-3) var(--kb-space-4);
+  text-align: left;
+  border-bottom: 1px solid var(--kb-border);
+}
+
+.kb-table th {
+  font-weight: 600;
+  color: var(--kb-neutral-600);
+  background: var(--kb-neutral-50);
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.kb-table tr:hover td { background: var(--kb-neutral-50); }
+
+.kb-progress {
+  width: 100%;
+  height: 8px;
+  background: var(--kb-neutral-200);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.kb-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--kb-primary-500), var(--kb-primary-600));
+  border-radius: 9999px;
+  transition: width 0.4s ease;
+}
+
+.kb-empty {
+  text-align: center;
+  padding: var(--kb-space-12) var(--kb-space-6);
+  color: var(--kb-neutral-500);
+}
+
+.kb-text-muted { color: var(--kb-neutral-500); }
+.kb-text-secondary { color: var(--kb-neutral-600); }
+.kb-text-primary { color: var(--kb-primary); }
+.kb-text-success { color: var(--kb-state-success); }
+.kb-text-warning { color: var(--kb-state-warning); }
+.kb-text-error { color: var(--kb-state-error); }
+.kb-font-semibold { font-weight: 600; }
+.kb-font-bold { font-weight: 700; }
+.kb-text-sm { font-size: 0.875rem; }
+.kb-text-xs { font-size: 0.75rem; }
+.kb-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.1/dist/index.global.js"></script>
+    <script src="https://unpkg.com/lucide@1.8.0/dist/umd/lucide.min.js"></script>
+    <style type="text/tailwindcss">
+  @theme inline {
+    --color-background: var(--kb-background);
+    --color-foreground: var(--kb-foreground);
+    --color-card: var(--kb-card);
+    --color-card-foreground: var(--kb-card-foreground);
+    --color-popover: var(--kb-popover);
+    --color-popover-foreground: var(--kb-popover-foreground);
+    --color-primary: var(--kb-primary);
+    --color-primary-foreground: var(--kb-primary-foreground);
+    --color-muted: var(--kb-muted);
+    --color-muted-foreground: var(--kb-muted-foreground);
+    --color-border: var(--kb-border);
+    --color-input: var(--kb-input);
+    --color-ring: var(--kb-ring);
+    --radius-sm: var(--kb-radius-small);
+    --radius-md: var(--kb-radius-medium);
+    --radius-lg: var(--kb-radius-large);
+  }
+  @layer base {
+    body { background: var(--kb-background); color: var(--kb-foreground); }
+    td, th { @apply break-words; word-break: break-all; word-break: auto-phrase; }
+    th { @apply whitespace-nowrap; }
+  }
+    </style>
+    <style id="semantic-token-fallback">
+      .bg-background { background-color: var(--kb-background); }
+      .text-background { color: var(--kb-background); }
+      .border-background { border-color: var(--kb-background); }
+      .bg-foreground { background-color: var(--kb-foreground); }
+      .text-foreground { color: var(--kb-foreground); }
+      .border-foreground { border-color: var(--kb-foreground); }
+      .bg-card { background-color: var(--kb-card); }
+      .text-card { color: var(--kb-card); }
+      .border-card { border-color: var(--kb-card); }
+      .bg-card-foreground { background-color: var(--kb-card-foreground); }
+      .text-card-foreground { color: var(--kb-card-foreground); }
+      .border-card-foreground { border-color: var(--kb-card-foreground); }
+      .bg-popover { background-color: var(--kb-popover); }
+      .text-popover { color: var(--kb-popover); }
+      .border-popover { border-color: var(--kb-popover); }
+      .bg-popover-foreground { background-color: var(--kb-popover-foreground); }
+      .text-popover-foreground { color: var(--kb-popover-foreground); }
+      .border-popover-foreground { border-color: var(--kb-popover-foreground); }
+      .bg-primary { background-color: var(--kb-primary); }
+      .text-primary { color: var(--kb-primary); }
+      .border-primary { border-color: var(--kb-primary); }
+      .bg-primary-foreground { background-color: var(--kb-primary-foreground); }
+      .text-primary-foreground { color: var(--kb-primary-foreground); }
+      .border-primary-foreground { border-color: var(--kb-primary-foreground); }
+      .bg-muted { background-color: var(--kb-muted); }
+      .text-muted { color: var(--kb-muted); }
+      .border-muted { border-color: var(--kb-muted); }
+      .bg-muted-foreground { background-color: var(--kb-muted-foreground); }
+      .text-muted-foreground { color: var(--kb-muted-foreground); }
+      .border-muted-foreground { border-color: var(--kb-muted-foreground); }
+      .bg-border { background-color: var(--kb-border); }
+      .text-border { color: var(--kb-border); }
+      .border-border { border-color: var(--kb-border); }
+      .bg-input { background-color: var(--kb-input); }
+      .text-input { color: var(--kb-input); }
+      .border-input { border-color: var(--kb-input); }
+      .bg-ring { background-color: var(--kb-ring); }
+      .text-ring { color: var(--kb-ring); }
+      .border-ring { border-color: var(--kb-ring); }
+    </style>
+</head>
+<body class="min-h-screen font-sans antialiased">
+    <div class="kb-admin-shell">
+      <!-- 侧边栏 -->
+      <aside class="kb-admin-sidebar" id="adminSidebar" aria-label="管理后台导航">
+        <div class="kb-sidebar-head">
+          <div class="kb-sidebar-logo">知</div>
+          <div class="kb-sidebar-brand-text">
+            <span class="kb-sidebar-brand-name">KBRefiner</span>
+            <span class="kb-sidebar-brand-sub">管理后台</span>
+          </div>
+        </div>
+
+        <nav class="kb-sidebar-nav">
+          <a class="kb-sidebar-nav-item" href="/admin/dashboard" data-dom-id="nav-dashboard">
+            <i data-lucide="layout-dashboard" class="kb-sidebar-nav-icon"></i>
+            <span class="kb-sidebar-nav-label">仪表盘</span>
+          </a>
+          <a class="kb-sidebar-nav-item" href="/admin/users" data-dom-id="nav-users">
+            <i data-lucide="users" class="kb-sidebar-nav-icon"></i>
+            <span class="kb-sidebar-nav-label">用户管理</span>
+          </a>
+          <a class="kb-sidebar-nav-item is-active" href="/admin/messages" data-dom-id="nav-messages" aria-current="page">
+            <i data-lucide="megaphone" class="kb-sidebar-nav-icon"></i>
+            <span class="kb-sidebar-nav-label">消息列表</span>
+          </a>
+          <a class="kb-sidebar-nav-item" href="/admin/access" data-dom-id="nav-access">
+            <i data-lucide="shield" class="kb-sidebar-nav-icon"></i>
+            <span class="kb-sidebar-nav-label">黑白名单</span>
+          </a>
+          <a class="kb-sidebar-nav-item" href="/admin/settings" data-dom-id="nav-settings">
+            <i data-lucide="settings" class="kb-sidebar-nav-icon"></i>
+            <span class="kb-sidebar-nav-label">系统设置</span>
+          </a>
+        </nav>
+
+        <div class="kb-sidebar-foot">
+          <div class="kb-sidebar-user">
+            <div class="kb-sidebar-avatar" id="admin-avatar">管</div>
+            <div class="kb-sidebar-user-text">
+              <span class="kb-sidebar-user-name" id="admin-name">管理员</span>
+              <span class="kb-sidebar-user-mail" id="admin-email">-</span>
+            </div>
+          </div>
+          <a class="kb-sidebar-logout" href="#" id="btn-logout">
+            <i data-lucide="log-out" class="kb-sidebar-nav-icon"></i>
+            <span class="kb-sidebar-nav-label">退出登录</span>
+          </a>
+        </div>
+      </aside>
+      <div class="kb-admin-overlay" id="adminOverlay"></div>
+
+      <!-- 主内容区 -->
+      <div class="kb-admin-main">
+        <!-- 顶部栏 -->
+        <header class="kb-admin-topbar">
+          <div class="kb-admin-topbar-left">
+            <button class="kb-admin-hamburger" type="button" aria-label="打开导航" data-dom-id="btn-admin-menu">
+              <i data-lucide="menu"></i>
+            </button>
+            <nav class="kb-breadcrumb" aria-label="面包屑">
+              <span class="kb-breadcrumb-item">管理后台</span>
+              <i data-lucide="chevron-right" class="kb-breadcrumb-sep"></i>
+              <span class="kb-breadcrumb-item is-current">消息列表</span>
+            </nav>
+          </div>
+          <div class="kb-admin-topbar-right">
+            <button class="kb-btn kb-btn-primary kb-btn-sm" type="button" id="btn-new-message">
+              <i data-lucide="plus" style="width:16px;height:16px;"></i>新建消息
+            </button>
+          </div>
+        </header>
+
+        <!-- 内容主体 -->
+        <main class="kb-admin-content">
+          <section class="kb-card kb-message-card" aria-label="消息列表">
+            <div class="kb-card-header kb-message-header">
+              <div class="kb-message-title-wrap">
+                <h3 class="kb-message-title">消息列表</h3>
+                <span class="kb-tag kb-tag-muted" id="messages-total">共 0 条</span>
+              </div>
+              <div class="kb-filter-bar">
+                <select class="kb-select kb-filter-select" aria-label="消息类型" id="filter-type">
+                  <option value="">全部类型</option>
+                  <option value="system">系统通知</option>
+                  <option value="task">任务通知</option>
+                  <option value="maintenance">维护公告</option>
+                  <option value="security">安全告警</option>
+                </select>
+                <select class="kb-select kb-filter-select" aria-label="状态" id="filter-status">
+                  <option value="">全部状态</option>
+                  <option value="sent">已发送</option>
+                  <option value="draft">草稿</option>
+                  <option value="scheduled">已定时</option>
+                  <option value="revoked">已撤回</option>
+                </select>
+                <div class="kb-search-wrap">
+                  <i data-lucide="search" class="kb-search-icon"></i>
+                  <input type="text" class="kb-input kb-search-input" placeholder="搜索消息标题..." aria-label="搜索消息标题" id="input-message-search">
+                </div>
+              </div>
+            </div>
+
+            <div class="kb-card-body kb-message-table-wrap">
+              <table class="kb-table kb-message-table">
+                <thead>
+                  <tr>
+                    <th style="width:34%">消息标题</th>
+                    <th style="width:110px">类型</th>
+                    <th style="width:96px">状态</th>
+                    <th style="width:150px">目标用户</th>
+                    <th style="width:150px">发送时间</th>
+                    <th style="width:200px">操作</th>
+                  </tr>
+                </thead>
+                <tbody id="messages-tbody">
+                  <tr><td colspan="6" class="kb-text-muted" style="text-align:center;padding:40px;">加载中...</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- 分页（前端分页，每页 10 条） -->
+            <div class="kb-message-pagination">
+              <span class="kb-page-info" id="page-info">共 0 条 · 每页 10 条</span>
+              <div class="kb-page-group" id="page-group"></div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <!-- 新建/编辑消息模态框 -->
+    <div class="kb-modal-mask" id="modal-edit" hidden>
+      <div class="kb-modal" role="dialog" aria-modal="true" aria-labelledby="modal-edit-title">
+        <div class="kb-modal-head">
+          <h3 class="kb-modal-title" id="modal-edit-title">新建消息</h3>
+          <button class="kb-modal-close" type="button" data-close>&times;</button>
+        </div>
+        <div class="kb-modal-body">
+          <div class="kb-field">
+            <label class="kb-field-label" for="msg-title">消息标题</label>
+            <input type="text" class="kb-input" id="msg-title" maxlength="200" placeholder="请输入消息标题">
+          </div>
+          <div class="kb-field">
+            <label class="kb-field-label" for="msg-content">消息内容</label>
+            <textarea class="kb-input" id="msg-content" rows="5" maxlength="5000" placeholder="请输入消息内容" style="resize:vertical;"></textarea>
+          </div>
+          <div class="kb-form-grid">
+            <div class="kb-field">
+              <label class="kb-field-label" for="msg-type">消息类型</label>
+              <select class="kb-select" id="msg-type">
+                <option value="system">系统通知</option>
+                <option value="task">任务通知</option>
+                <option value="maintenance">维护公告</option>
+                <option value="security">安全告警</option>
+              </select>
+            </div>
+            <div class="kb-field">
+              <label class="kb-field-label" for="msg-send-mode">发送方式</label>
+              <select class="kb-select" id="msg-send-mode">
+                <option value="draft">存为草稿</option>
+                <option value="now">立即发送</option>
+                <option value="scheduled">定时发送</option>
+              </select>
+            </div>
+          </div>
+          <div class="kb-field" id="field-scheduled" style="display:none;">
+            <label class="kb-field-label" for="msg-scheduled-at">定时发送时间</label>
+            <input type="datetime-local" class="kb-input" id="msg-scheduled-at">
+            <p class="kb-field-hint">到达该时间后消息自动对目标用户可见</p>
+          </div>
+          <div class="kb-field">
+            <label class="kb-field-label" for="msg-target">目标用户</label>
+            <select class="kb-select" id="msg-target">
+              <option value="all">全部用户</option>
+              <option value="custom">指定用户（输入用户 ID，逗号分隔）</option>
+            </select>
+            <input type="text" class="kb-input" id="msg-target-ids" placeholder="user_id1, user_id2" style="display:none;margin-top:8px;">
+          </div>
+        </div>
+        <div class="kb-modal-foot">
+          <button class="kb-btn kb-btn-secondary" type="button" data-close>取消</button>
+          <button class="kb-btn kb-btn-primary" type="button" id="btn-submit-message">保存</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 查看消息详情模态框 -->
+    <div class="kb-modal-mask" id="modal-view" hidden>
+      <div class="kb-modal" role="dialog" aria-modal="true" aria-labelledby="modal-view-title">
+        <div class="kb-modal-head">
+          <h3 class="kb-modal-title" id="modal-view-title">消息详情</h3>
+          <button class="kb-modal-close" type="button" data-close>&times;</button>
+        </div>
+        <div class="kb-modal-body" id="view-body"></div>
+        <div class="kb-modal-foot">
+          <button class="kb-btn kb-btn-secondary" type="button" data-close>关闭</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="/static/js/kbrefiner.js"></script>
+    <script>
+      lucide.createIcons();
+
+      // 侧边栏移动端切换
+      (function () {
+        var menuBtn = document.querySelector('[data-dom-id="btn-admin-menu"]');
+        var sidebar = document.getElementById('adminSidebar');
+        var overlay = document.getElementById('adminOverlay');
+        function toggle() {
+          sidebar.classList.toggle('is-open');
+          overlay.classList.toggle('is-visible');
+        }
+        if (menuBtn) menuBtn.addEventListener('click', toggle);
+        if (overlay) overlay.addEventListener('click', toggle);
+      })();
+
+      const esc = KBRefiner.escapeHtml;
+      const { Messages } = KBRefiner;
+
+      const TYPE_TAG = {
+        system: '<span class="kb-tag kb-tag-info">系统通知</span>',
+        task: '<span class="kb-tag kb-tag-primary">任务通知</span>',
+        maintenance: '<span class="kb-tag kb-tag-warning">维护公告</span>',
+        security: '<span class="kb-tag kb-tag-error">安全告警</span>',
+      };
+      const STATUS_TAG = {
+        sent: '<span class="kb-status kb-status-success">已发送</span>',
+        draft: '<span class="kb-status kb-status-pending">草稿</span>',
+        scheduled: '<span class="kb-status kb-status-running">已定时</span>',
+        revoked: '<span class="kb-status kb-status-error">已撤回</span>',
+      };
+      const fmtTime = ts => {
+        if (!ts) return '—';
+        const d = new Date(ts * 1000);
+        const p = x => String(x).padStart(2, '0');
+        return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+      };
+
+      // ===== 权限守卫 =====
+      async function guard() {
+        const { user } = await KBRefiner.Auth.me();
+        if (!user || !['super_admin', 'admin'].includes(user.role)) {
+          window.location.href = '/admin/login';
+          return false;
+        }
+        document.getElementById('admin-name').textContent = user.username || '管理员';
+        document.getElementById('admin-email').textContent = user.email || '-';
+        document.getElementById('admin-avatar').textContent = (user.username || '管')[0];
+        return true;
+      }
+
+      document.getElementById('btn-logout').addEventListener('click', async e => {
+        e.preventDefault();
+        await KBRefiner.Auth.logout().catch(() => {});
+        window.location.href = '/admin/login';
+      });
+
+      // ===== 列表加载与渲染（前端分页） =====
+      const PAGE_SIZE = 10;
+      let currentPage = 1;
+      let allMsgs = [];  // 最近一次列表缓存（查看/编辑复用）
+
+      async function loadMessages() {
+        const tbody = document.getElementById('messages-tbody');
+        let data;
+        try {
+          data = await Messages.list({
+            type: document.getElementById('filter-type').value,
+            status: document.getElementById('filter-status').value,
+            search: document.getElementById('input-message-search').value.trim(),
+          });
+        } catch (e) {
+          tbody.innerHTML = `<tr><td colspan="6" class="kb-text-muted" style="text-align:center;padding:40px;">${esc(e.message)}</td></tr>`;
+          return;
+        }
+        const all = data.messages || [];
+        allMsgs = all;
+        document.getElementById('messages-total').textContent = `共 ${data.total} 条`;
+        renderPage(all);
+        renderPager(all);
+      }
+
+      function renderPage(all) {
+        const tbody = document.getElementById('messages-tbody');
+        const totalPages = Math.max(1, Math.ceil(all.length / PAGE_SIZE));
+        if (currentPage > totalPages) currentPage = totalPages;
+        const rows = all.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+        if (!rows.length) {
+          tbody.innerHTML = '<tr><td colspan="6" class="kb-text-muted" style="text-align:center;padding:40px;">暂无消息</td></tr>';
+          return;
+        }
+        tbody.innerHTML = rows.map(m => {
+          // 目标用户展示
+          let target;
+          if (m.target_display === '全部用户') {
+            target = `<span class="kb-msg-target-all"><i data-lucide="users" class="kb-msg-target-icon"></i>全部用户</span>`;
+          } else {
+            const name = String(m.target_display || '-');
+            target = `<span class="kb-font-semibold">${esc(name)}</span>`;
+          }
+          // 按状态给操作按钮
+          let actions = [`<button class="kb-btn kb-btn-ghost kb-btn-sm" type="button" data-act="view" data-id="${esc(m.id)}">查看</button>`];
+          if (m.status === 'draft') {
+            actions.push(`<button class="kb-btn kb-btn-ghost kb-btn-sm" type="button" data-act="send" data-id="${esc(m.id)}">发送</button>`);
+            actions.push(`<button class="kb-btn kb-btn-ghost kb-btn-sm" type="button" data-act="edit" data-id="${esc(m.id)}">编辑</button>`);
+            actions.push(`<button class="kb-btn kb-btn-ghost kb-btn-sm kb-text-error" type="button" data-act="delete" data-id="${esc(m.id)}">删除</button>`);
+          } else if (m.status === 'scheduled') {
+            actions.push(`<button class="kb-btn kb-btn-ghost kb-btn-sm kb-text-error" type="button" data-act="cancel" data-id="${esc(m.id)}">取消定时</button>`);
+          } else if (m.status === 'sent') {
+            actions.push(`<button class="kb-btn kb-btn-ghost kb-btn-sm kb-text-error" type="button" data-act="revoke" data-id="${esc(m.id)}">撤回</button>`);
+          }
+          return `
+          <tr>
+            <td><div class="kb-msg-title kb-truncate" title="${esc(m.title)}">${esc(m.title)}</div></td>
+            <td>${TYPE_TAG[m.type] || esc(m.type)}</td>
+            <td>${STATUS_TAG[m.status] || esc(m.status)}</td>
+            <td>${target}</td>
+            <td class="kb-text-muted kb-text-sm">${fmtTime(m.status === 'scheduled' ? m.scheduled_at : m.sent_at)}${m.status === 'scheduled' ? '（定时）' : ''}</td>
+            <td><div class="kb-msg-actions">${actions.join('')}</div></td>
+          </tr>`;
+        }).join('');
+        lucide.createIcons();
+      }
+
+      function renderPager(all) {
+        const totalPages = Math.max(1, Math.ceil(all.length / PAGE_SIZE));
+        document.getElementById('page-info').textContent = `共 ${all.length} 条 · 每页 ${PAGE_SIZE} 条`;
+        const group = document.getElementById('page-group');
+        if (totalPages <= 1) { group.innerHTML = ''; return; }
+        let html = `<button class="kb-page-btn" type="button" data-page="${currentPage - 1}" ${currentPage === 1 ? 'disabled' : ''} aria-label="上一页"><i data-lucide="chevron-left"></i></button>`;
+        for (let i = 1; i <= totalPages; i++) {
+          html += `<button class="kb-page-btn ${i === currentPage ? 'is-active' : ''}" type="button" data-page="${i}">${i}</button>`;
+        }
+        html += `<button class="kb-page-btn" type="button" data-page="${currentPage + 1}" ${currentPage === totalPages ? 'disabled' : ''} aria-label="下一页"><i data-lucide="chevron-right"></i></button>`;
+        group.innerHTML = html;
+        lucide.createIcons();
+      }
+
+      document.getElementById('page-group').addEventListener('click', e => {
+        const btn = e.target.closest('button[data-page]');
+        if (!btn || btn.disabled) return;
+        currentPage = Number(btn.dataset.page);
+        loadMessages();
+      });
+
+      // ===== 行操作（事件委托） =====
+      document.getElementById('messages-tbody').addEventListener('click', async e => {
+        const btn = e.target.closest('button[data-act]');
+        if (!btn) return;
+        const { act, id } = btn.dataset;
+        try {
+          if (act === 'view') {
+            showView(id);
+          } else if (act === 'send') {
+            if (!confirm('确认立即发送该消息？')) return;
+            await Messages.send(id);
+          } else if (act === 'revoke') {
+            if (!confirm('撤回后用户端将不再展示该消息，确认撤回？')) return;
+            await Messages.revoke(id);
+          } else if (act === 'cancel') {
+            if (!confirm('取消定时后消息将转为草稿，确认取消？')) return;
+            await Messages.cancelSchedule(id);
+          } else if (act === 'delete') {
+            if (!confirm('删除后不可恢复，确认删除？')) return;
+            await Messages.remove(id);
+          } else if (act === 'edit') {
+            openEdit(id);
+            return;
+          }
+          if (act !== 'view') await loadMessages();
+        } catch (err) {
+          alert(err.message || '操作失败');
+        }
+      });
+
+      // ===== 查看详情 =====
+      function showView(id) {
+        const body = document.getElementById('view-body');
+        const m = allMsgs.find(x => x.id === id);
+        if (!m) { alert('消息不存在'); return; }
+          body.innerHTML = `
+            <div style="margin-bottom:12px;">
+              <div class="kb-font-semibold" style="font-size:1.05rem;">${esc(m.title)}</div>
+              <div class="kb-text-muted kb-text-sm" style="margin-top:4px;">${TYPE_TAG[m.type] || esc(m.type)} · ${STATUS_TAG[m.status] || esc(m.status)} · 目标：${esc(m.target_display)}</div>
+              <div class="kb-text-muted kb-text-sm" style="margin-top:2px;">创建：${fmtTime(m.created_at)}${m.sent_at ? ' · 发送：' + fmtTime(m.sent_at) : ''}${m.scheduled_at ? ' · 定时：' + fmtTime(m.scheduled_at) : ''}</div>
+            </div>
+            <div style="white-space:pre-wrap;word-break:break-word;color:var(--kb-neutral-700);line-height:1.7;">${esc(m.content) || '<span class="kb-text-muted">（无内容）</span>'}</div>`;
+        openModal('modal-view');
+      }
+
+      // ===== 新建 / 编辑 =====
+      let editingId = null;
+
+      function openModal(id) { document.getElementById(id).hidden = false; }
+      function closeModal(id) { document.getElementById(id).hidden = true; }
+
+      function resetForm() {
+        editingId = null;
+        document.getElementById('modal-edit-title').textContent = '新建消息';
+        document.getElementById('msg-title').value = '';
+        document.getElementById('msg-content').value = '';
+        document.getElementById('msg-type').value = 'system';
+        document.getElementById('msg-send-mode').value = 'draft';
+        document.getElementById('msg-scheduled-at').value = '';
+        document.getElementById('msg-target').value = 'all';
+        document.getElementById('msg-target-ids').value = '';
+        document.getElementById('msg-target-ids').style.display = 'none';
+        document.getElementById('field-scheduled').style.display = 'none';
+      }
+
+      document.getElementById('btn-new-message').addEventListener('click', () => {
+        resetForm();
+        openModal('modal-edit');
+      });
+
+      function openEdit(id) {
+        const m = allMsgs.find(x => x.id === id);
+        if (!m) { alert('消息不存在'); return; }
+        if (m.status !== 'draft') { alert('仅草稿可编辑'); return; }
+          resetForm();
+          editingId = id;
+          document.getElementById('modal-edit-title').textContent = '编辑消息';
+          document.getElementById('msg-title').value = m.title;
+          document.getElementById('msg-content').value = m.content || '';
+          document.getElementById('msg-type').value = m.type;
+          document.getElementById('msg-target').value = m.target_users === 'all' ? 'all' : 'custom';
+          if (m.target_users !== 'all') {
+            document.getElementById('msg-target-ids').style.display = '';
+            document.getElementById('msg-target-ids').value = (m.target_users || []).join(', ');
+          }
+        openModal('modal-edit');
+      }
+
+      document.getElementById('msg-send-mode').addEventListener('change', e => {
+        document.getElementById('field-scheduled').style.display = e.target.value === 'scheduled' ? '' : 'none';
+      });
+      document.getElementById('msg-target').addEventListener('change', e => {
+        document.getElementById('msg-target-ids').style.display = e.target.value === 'custom' ? '' : 'none';
+      });
+
+      document.getElementById('btn-submit-message').addEventListener('click', async () => {
+        const title = document.getElementById('msg-title').value.trim();
+        if (!title) { alert('请输入消息标题'); return; }
+        const mode = document.getElementById('msg-send-mode').value;
+        const targetSel = document.getElementById('msg-target').value;
+        let target = 'all';
+        if (targetSel === 'custom') {
+          const ids = document.getElementById('msg-target-ids').value.split(',').map(s => s.trim()).filter(Boolean);
+          if (!ids.length) { alert('请输入至少一个用户 ID'); return; }
+          target = ids;
+        }
+        let scheduledAt = null;
+        if (mode === 'scheduled') {
+          const v = document.getElementById('msg-scheduled-at').value;
+          if (!v) { alert('请选择定时发送时间'); return; }
+          scheduledAt = Math.floor(new Date(v).getTime() / 1000);
+          if (scheduledAt <= Date.now() / 1000) { alert('定时时间必须晚于当前时间'); return; }
+        }
+        const payload = {
+          title,
+          content: document.getElementById('msg-content').value,
+          type: document.getElementById('msg-type').value,
+          target_users: target,
+        };
+        try {
+          if (editingId) {
+            await Messages.update(editingId, payload);
+          } else {
+            payload.send_now = mode === 'now';
+            payload.scheduled_at = scheduledAt;
+            await Messages.create(payload);
+          }
+          closeModal('modal-edit');
+          await loadMessages();
+        } catch (err) {
+          alert(err.message || '保存失败');
+        }
+      });
+
+      // 模态框关闭
+      document.querySelectorAll('.kb-modal-mask').forEach(mask => {
+        mask.addEventListener('click', e => {
+          if (e.target === mask || e.target.closest('[data-close]')) mask.hidden = true;
+        });
+      });
+
+      // 筛选联动
+      let searchTimer = null;
+      document.getElementById('input-message-search').addEventListener('input', () => {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => { currentPage = 1; loadMessages(); }, 300);
+      });
+      document.getElementById('filter-type').addEventListener('change', () => { currentPage = 1; loadMessages(); });
+      document.getElementById('filter-status').addEventListener('change', () => { currentPage = 1; loadMessages(); });
+
+      // ===== 初始化 =====
+      (async () => {
+        if (await guard()) await loadMessages();
+      })();
+    </script>
+
+    <style id="critical-layout">
+    /* ===== 后台整体布局 ===== */
+    .kb-admin-shell {
+      display: grid;
+      grid-template-columns: var(--kb-sidebar-width) 1fr;
+      min-height: 100vh;
+    }
+
+    /* ===== 侧边栏 ===== */
+    .kb-admin-sidebar {
+      background: var(--kb-neutral-0);
+      border-right: 1px solid var(--kb-border);
+      display: flex;
+      flex-direction: column;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      z-index: 30;
+    }
+    .kb-sidebar-head {
+      display: flex;
+      align-items: center;
+      gap: var(--kb-space-3);
+      padding: var(--kb-space-5) var(--kb-space-5);
+      border-bottom: 1px solid var(--kb-border);
+      min-height: var(--kb-header-height);
+    }
+    .kb-sidebar-logo {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--kb-radius-medium);
+      background: linear-gradient(135deg, var(--kb-primary-500), var(--kb-primary-700));
+      color: var(--kb-neutral-0);
+      font-weight: 700;
+      font-size: 0.875rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .kb-sidebar-brand-text {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.25;
+      min-width: 0;
+    }
+    .kb-sidebar-brand-name {
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--kb-neutral-900);
+    }
+    .kb-sidebar-brand-sub {
+      font-size: 0.75rem;
+      color: var(--kb-neutral-500);
+    }
+
+    .kb-sidebar-nav {
+      flex: 1;
+      padding: var(--kb-space-4) var(--kb-space-3);
+      display: flex;
+      flex-direction: column;
+      gap: var(--kb-space-1);
+      overflow-y: auto;
+    }
+    .kb-sidebar-nav-item,
+    .kb-sidebar-logout {
+      display: flex;
+      align-items: center;
+      gap: var(--kb-space-3);
+      padding: 10px 12px;
+      border-radius: var(--kb-radius-medium);
+      color: var(--kb-neutral-600);
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: background 0.15s ease, color 0.15s ease;
+      position: relative;
+      text-decoration: none;
+    }
+    .kb-sidebar-nav-item:hover,
+    .kb-sidebar-logout:hover {
+      background: var(--kb-neutral-100);
+      color: var(--kb-neutral-900);
+    }
+    .kb-sidebar-nav-icon {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+    }
+    .kb-sidebar-nav-label {
+      white-space: nowrap;
+    }
+    .kb-sidebar-nav-item.is-active {
+      background: var(--kb-primary-50);
+      color: var(--kb-primary-700);
+      font-weight: 600;
+    }
+    .kb-sidebar-nav-item.is-active::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 8px;
+      bottom: 8px;
+      width: 3px;
+      border-radius: 0 3px 3px 0;
+      background: var(--kb-primary-600);
+    }
+
+    .kb-sidebar-foot {
+      border-top: 1px solid var(--kb-border);
+      padding: var(--kb-space-4) var(--kb-space-3);
+      display: flex;
+      flex-direction: column;
+      gap: var(--kb-space-2);
+    }
+    .kb-sidebar-user {
+      display: flex;
+      align-items: center;
+      gap: var(--kb-space-3);
+      padding: 8px 12px;
+      border-radius: var(--kb-radius-medium);
+    }
+    .kb-sidebar-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--kb-primary-500), var(--kb-primary-700));
+      color: var(--kb-neutral-0);
+      font-weight: 700;
+      font-size: 0.875rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .kb-sidebar-user-text {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.3;
+      min-width: 0;
+    }
+    .kb-sidebar-user-name {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--kb-neutral-900);
+    }
+    .kb-sidebar-user-mail {
+      font-size: 0.75rem;
+      color: var(--kb-neutral-500);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .kb-sidebar-logout {
+      color: var(--kb-neutral-500);
+    }
+    .kb-sidebar-logout:hover {
+      color: var(--kb-state-error);
+      background: var(--kb-state-error-bg);
+    }
+
+    .kb-admin-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.45);
+      z-index: 25;
+    }
+    .kb-admin-overlay.is-visible { display: block; }
+
+    /* ===== 主区域 ===== */
+    .kb-admin-main {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      min-height: 100vh;
+    }
+
+    /* 顶部栏 */
+    .kb-admin-topbar {
+      height: var(--kb-header-height);
+      background: var(--kb-neutral-0);
+      border-bottom: 1px solid var(--kb-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 var(--kb-space-6);
+      gap: var(--kb-space-4);
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+    .kb-admin-topbar-left {
+      display: flex;
+      align-items: center;
+      gap: var(--kb-space-4);
+      min-width: 0;
+    }
+    .kb-admin-topbar-right {
+      display: flex;
+      align-items: center;
+      gap: var(--kb-space-3);
+      flex-shrink: 0;
+    }
+    .kb-admin-hamburger {
+      display: none;
+      width: 36px;
+      height: 36px;
+      border-radius: var(--kb-radius-medium);
+      border: 1px solid var(--kb-border);
+      background: var(--kb-neutral-0);
+      color: var(--kb-neutral-600);
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    .kb-admin-hamburger:hover { background: var(--kb-neutral-100); }
+    .kb-admin-hamburger svg { width: 18px; height: 18px; }
+
+    .kb-breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: var(--kb-space-2);
+      font-size: 0.875rem;
+    }
+    .kb-breadcrumb-item { color: var(--kb-neutral-500); }
+    .kb-breadcrumb-item.is-current { color: var(--kb-neutral-900); font-weight: 600; }
+    .kb-breadcrumb-sep { width: 14px; height: 14px; color: var(--kb-neutral-400); }
+
+    .kb-btn-icon { width: 14px; height: 14px; }
+
+    /* 内容主体 */
+    .kb-admin-content {
+      flex: 1;
+      padding: var(--kb-space-6);
+      display: flex;
+      flex-direction: column;
+      gap: var(--kb-space-6);
+    }
+
+    /* ===== 消息列表卡片 ===== */
+    .kb-message-card { display: flex; flex-direction: column; }
+    .kb-message-header {
+      flex-wrap: wrap;
+      gap: var(--kb-space-4);
+      align-items: center;
+    }
+    .kb-message-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: var(--kb-space-3);
+      min-width: 0;
+    }
+    .kb-message-title {
+      font-size: 1.0625rem;
+      font-weight: 700;
+      color: var(--kb-neutral-900);
+    }
+
+    /* 筛选条 */
+    .kb-filter-bar {
+      display: flex;
+      align-items: center;
+      gap: var(--kb-space-3);
+      flex-wrap: wrap;
+    }
+    .kb-filter-select {
+      width: auto;
+      min-width: 132px;
+      padding-right: 32px;
+    }
+    .kb-search-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .kb-search-icon {
+      position: absolute;
+      left: 12px;
+      width: 16px;
+      height: 16px;
+      color: var(--kb-neutral-400);
+      pointer-events: none;
+    }
+    .kb-search-input {
+      width: 240px;
+      padding-left: 36px;
+    }
+
+    /* 消息表格 */
+    .kb-message-table-wrap { overflow-x: auto; padding: 0; }
+    .kb-message-table { min-width: 880px; }
+    .kb-message-table td { vertical-align: middle; }
+    .kb-message-table tbody tr:last-child td { border-bottom: none; }
+    .kb-msg-title {
+      font-weight: 600;
+      color: var(--kb-neutral-900);
+      max-width: 360px;
+    }
+    .kb-msg-actions {
+      display: flex;
+      align-items: center;
+      gap: var(--kb-space-1);
+      flex-wrap: wrap;
+    }
+    .kb-msg-target-all {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--kb-neutral-500);
+      font-size: 0.8125rem;
+    }
+    .kb-msg-target-icon { width: 14px; height: 14px; }
+    .kb-msg-target-user {
+      display: flex;
+      align-items: center;
+      gap: var(--kb-space-2);
+    }
+    .kb-msg-target-avatar {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: var(--kb-primary-100);
+      color: var(--kb-primary-700);
+      font-weight: 700;
+      font-size: 0.6875rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    /* 分页 */
+    .kb-message-pagination {
+      padding: var(--kb-space-4) var(--kb-space-6);
+      border-top: 1px solid var(--kb-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--kb-space-4);
+      flex-wrap: wrap;
+    }
+    .kb-page-info {
+      font-size: 0.8125rem;
+      color: var(--kb-neutral-500);
+    }
+    .kb-page-group {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--kb-space-1);
+    }
+    .kb-page-btn {
+      min-width: 32px;
+      height: 32px;
+      padding: 0 var(--kb-space-2);
+      border: 1px solid var(--kb-border);
+      background: var(--kb-neutral-0);
+      color: var(--kb-neutral-600);
+      border-radius: var(--kb-radius-medium);
+      font-family: var(--kb-font-sans);
+      font-size: 0.8125rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+    }
+    .kb-page-btn svg { width: 16px; height: 16px; }
+    .kb-page-btn:hover:not(:disabled):not(.is-active) {
+      border-color: var(--kb-primary-400);
+      color: var(--kb-primary-700);
+      background: var(--kb-primary-50);
+    }
+    .kb-page-btn.is-active {
+      background: var(--kb-primary);
+      border-color: var(--kb-primary);
+      color: var(--kb-primary-foreground);
+    }
+    .kb-page-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .kb-search-icon { width: 16px !important; height: 16px !important; }
+    .kb-sidebar-nav-icon,
+    .kb-sidebar-logout .kb-sidebar-nav-icon { width: 18px !important; height: 18px !important; }
+    .kb-admin-hamburger svg { width: 18px !important; height: 18px !important; }
+    .kb-breadcrumb-sep { width: 14px !important; height: 14px !important; }
+    .kb-msg-target-icon { width: 14px !important; height: 14px !important; }
+
+    /* ===== 响应式 ===== */
+    @media (max-width: 1024px) {
+      :root { --kb-sidebar-width: var(--kb-sidebar-collapsed); }
+      .kb-sidebar-brand-text,
+      .kb-sidebar-nav-label,
+      .kb-sidebar-user-text,
+      .kb-sidebar-logout .kb-sidebar-nav-label { display: none; }
+      .kb-sidebar-head { justify-content: center; padding: var(--kb-space-4) var(--kb-space-2); }
+      .kb-sidebar-nav-item,
+      .kb-sidebar-logout { justify-content: center; padding: 12px 8px; }
+      .kb-sidebar-user { justify-content: center; padding: 8px 4px; }
+      .kb-admin-content { padding: var(--kb-space-5); }
+      .kb-filter-bar { width: 100%; }
+      .kb-filter-select { flex: 1; min-width: 120px; }
+      .kb-search-input { width: 100%; flex: 1; min-width: 160px; }
+    }
+
+    @media (max-width: 768px) {
+      .kb-admin-shell { grid-template-columns: 1fr; }
+      .kb-admin-sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 240px;
+        transform: translateX(-100%);
+        transition: transform 0.25s ease;
+        box-shadow: var(--kb-shadow-float);
+      }
+      .kb-admin-sidebar.is-open { transform: translateX(0); }
+      .kb-sidebar-brand-text,
+      .kb-sidebar-nav-label,
+      .kb-sidebar-user-text,
+      .kb-sidebar-logout .kb-sidebar-nav-label { display: block; }
+      .kb-sidebar-head { justify-content: flex-start; padding: var(--kb-space-5); }
+      .kb-sidebar-nav-item,
+      .kb-sidebar-logout { justify-content: flex-start; padding: 10px 12px; }
+      .kb-sidebar-user { justify-content: flex-start; padding: 8px 12px; }
+      .kb-admin-hamburger { display: inline-flex; }
+      .kb-admin-topbar { padding: 0 var(--kb-space-4); }
+      .kb-admin-content { padding: var(--kb-space-4); gap: var(--kb-space-4); }
+      .kb-breadcrumb-item:first-child { display: none; }
+      .kb-message-header { flex-direction: column; align-items: stretch; }
+      .kb-message-title-wrap { justify-content: space-between; }
+      .kb-message-pagination { justify-content: center; }
+      .kb-page-info { width: 100%; text-align: center; }
+    }
+
+    /* ===== 模态框 ===== */
+    .kb-modal-mask {
+      position: fixed; inset: 0; z-index: 1000;
+      background: rgba(15, 23, 42, 0.45);
+      display: flex; align-items: center; justify-content: center;
+      padding: var(--kb-space-4);
+    }
+    .kb-modal-mask[hidden] { display: none; }
+    .kb-modal {
+      background: var(--kb-card); border-radius: var(--kb-radius-large);
+      box-shadow: var(--kb-shadow-float); width: 100%; max-width: 560px;
+      max-height: 90vh; display: flex; flex-direction: column;
+    }
+    .kb-modal-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: var(--kb-space-5) var(--kb-space-6);
+      border-bottom: 1px solid var(--kb-border);
+    }
+    .kb-modal-title { font-size: 1.05rem; font-weight: 600; }
+    .kb-modal-close {
+      background: none; border: none; font-size: 1.4rem; line-height: 1;
+      cursor: pointer; color: var(--kb-neutral-400); padding: 4px;
+    }
+    .kb-modal-close:hover { color: var(--kb-neutral-700); }
+    .kb-modal-body { padding: var(--kb-space-6); overflow-y: auto; }
+    .kb-modal-foot {
+      display: flex; justify-content: flex-end; gap: var(--kb-space-3);
+      padding: var(--kb-space-4) var(--kb-space-6);
+      border-top: 1px solid var(--kb-border);
+    }
+    .kb-modal .kb-field { margin-bottom: var(--kb-space-4); }
+    .kb-modal .kb-form-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: var(--kb-space-4);
+    }
+    </style>
+</body>
+</html>

@@ -175,6 +175,126 @@ const KBRefiner = (() => {
     },
   };
 
+  // ===== 消息管理 =====
+  const Messages = {
+    async _json(resp, action) {
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.detail || `${action}失败 (${resp.status})`);
+      }
+      return resp.json();
+    },
+
+    /** 管理端消息列表（type/status/search 筛选） */
+    async list(params = {}) {
+      const qs = new URLSearchParams(
+        Object.entries(params).filter(([, v]) => v !== '' && v != null)
+      ).toString();
+      return this._json(await fetch(`/api/admin/messages${qs ? `?${qs}` : ''}`), '获取消息列表');
+    },
+
+    /** 创建消息（send_now 立即发送 / scheduled_at 定时 / 否则草稿） */
+    async create(payload) {
+      return this._json(await fetch('/api/admin/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      }), '创建消息');
+    },
+
+    /** 编辑草稿 */
+    async update(id, payload) {
+      return this._json(await fetch(`/api/admin/messages/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      }), '编辑消息');
+    },
+
+    async send(id) {
+      return this._json(await fetch(`/api/admin/messages/${id}/send`, { method: 'POST' }), '发送消息');
+    },
+
+    async revoke(id) {
+      return this._json(await fetch(`/api/admin/messages/${id}/revoke`, { method: 'POST' }), '撤回消息');
+    },
+
+    async cancelSchedule(id) {
+      return this._json(await fetch(`/api/admin/messages/${id}/cancel`, { method: 'POST' }), '取消定时');
+    },
+
+    async remove(id) {
+      return this._json(await fetch(`/api/admin/messages/${id}`, { method: 'DELETE' }), '删除消息');
+    },
+
+    /** 用户端：当前可见的已发送消息 */
+    async mine(limit = 10) {
+      return this._json(await fetch(`/api/messages?limit=${limit}`), '获取消息');
+    },
+  };
+
+  // ===== 黑白名单 =====
+  const Access = {
+    async _json(resp, action) {
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.detail || `${action}失败 (${resp.status})`);
+      }
+      return resp.json();
+    },
+
+    /** 全量规则 + 开关状态 */
+    async get() {
+      return this._json(await fetch('/api/admin/access'), '获取访问规则');
+    },
+
+    /** 启用/停用某类校验（仅超级管理员） */
+    async toggle(type, enabled) {
+      return this._json(await fetch('/api/admin/access/toggle', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, enabled }),
+      }), '切换开关');
+    },
+
+    /** 添加规则（type: ip_whitelist / domain_whitelist / user_blacklist） */
+    async addRule(type, value, note = '') {
+      return this._json(await fetch('/api/admin/access/rules', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, value, note }),
+      }), '添加规则');
+    },
+
+    async removeRule(ruleId) {
+      return this._json(await fetch(`/api/admin/access/rules/${ruleId}`, { method: 'DELETE' }), '删除规则');
+    },
+  };
+
+  // ===== 系统设置 =====
+  const Settings = {
+    async _json(resp, action) {
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.detail || `${action}失败 (${resp.status})`);
+      }
+      return resp.json();
+    },
+
+    async get() {
+      return this._json(await fetch('/api/admin/settings'), '获取系统设置');
+    },
+
+    /** 部分更新：仅提交需要变更的分组 */
+    async update(payload) {
+      return this._json(await fetch('/api/admin/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      }), '保存设置');
+    },
+  };
+
   // ===== WebSocket 管理 =====
   class WSClient {
     constructor(taskId) {
@@ -401,6 +521,9 @@ const KBRefiner = (() => {
     API,
     Auth,
     Admin,
+    Messages,
+    Access,
+    Settings,
     WSClient,
     escapeHtml,
     formatBytes,

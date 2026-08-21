@@ -373,13 +373,13 @@ a:hover { color: var(--kb-primary-700); }
           <a class="kb-admin-nav-item is-active" href="/admin/users" data-dom-id="nav-users" aria-current="page">
             <i data-lucide="users"></i><span>用户管理</span>
           </a>
-          <a class="kb-admin-nav-item" href="#" data-dom-id="nav-messages">
+          <a class="kb-admin-nav-item" href="/admin/messages" data-dom-id="nav-messages">
             <i data-lucide="megaphone"></i><span>消息列表</span>
           </a>
-          <a class="kb-admin-nav-item" href="#" data-dom-id="nav-access">
+          <a class="kb-admin-nav-item" href="/admin/access" data-dom-id="nav-access">
             <i data-lucide="shield"></i><span>黑白名单</span>
           </a>
-          <a class="kb-admin-nav-item" href="#" data-dom-id="nav-settings">
+          <a class="kb-admin-nav-item" href="/admin/settings" data-dom-id="nav-settings">
             <i data-lucide="settings"></i><span>系统设置</span>
           </a>
         </nav>
@@ -507,14 +507,6 @@ a:hover { color: var(--kb-primary-700); }
       document.getElementById('btn-logout').addEventListener('click', async () => {
         await KBRefiner.Auth.logout().catch(() => {});
         window.location.href = '/admin/login';
-      });
-
-      ['nav-messages', 'nav-access', 'nav-settings'].forEach(id => {
-        const el = document.querySelector(`[data-dom-id="${id}"]`);
-        if (el) el.addEventListener('click', e => {
-          e.preventDefault();
-          alert('该模块规划中，尚未开放');
-        });
       });
 
       // ===== 提交添加用户 =====

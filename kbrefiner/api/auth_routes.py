@@ -31,9 +31,16 @@ from pydantic import BaseModel, Field
 
 from kbrefiner.auth import TOKEN_COOKIE, create_token
 from kbrefiner.config import get_settings
-from kbrefiner.db import TaskStore, UserStore
+from kbrefiner.db import AccessStore, TaskStore, UserStore
 
-from .deps import get_current_user, get_task_store, get_user_store, require_admin
+from .deps import (
+    get_access_store,
+    get_current_user,
+    get_settings_store,
+    get_task_store,
+    get_user_store,
+    require_admin,
+)
 
 router = APIRouter(prefix="/api", tags=["认证与管理后台"])
 
@@ -70,6 +77,14 @@ class PasswordResetRequest(BaseModel):
     new_password: str = Field(min_length=6, max_length=128)
 
 
+class RegisterRequest(BaseModel):
+    """自助注册（角色固定 user，无需传角色字段）。"""
+
+    username: str = Field(min_length=2, max_length=50)
+    email: str = Field(min_length=3, max_length=254)
+    password: str = Field(min_length=6, max_length=128)
+
+
 # =====================================================================
 # 内部工具
 # =====================================================================
@@ -79,6 +94,28 @@ def _validate_email(email: str) -> str:
     if "@" not in email or email.startswith("@") or email.endswith("@"):
         raise HTTPException(status_code=400, detail=f"邮箱格式不正确: {email}")
     return email
+
+
+def _check_email_access(email: str, *, check_domain: bool) -> None:
+    """邮箱相关的访问控制执法（黑名单始终生效；域名白名单按开关）。
+
+    - 用户黑名单：命中直接 403（登录 / 注册 / 管理员创建用户）
+    - 域名白名单：启用时非白名单域名禁止注册/创建
+    """
+    access_store = get_access_store()
+    settings_store = get_settings_store()
+
+    blacklist = access_store.values("user_blacklist")
+    if AccessStore.is_blacklisted(email, blacklist):
+        raise HTTPException(status_code=403, detail="该账号已被列入黑名单，禁止访问")
+
+    if check_domain and settings_store.get("access_domain_whitelist_enabled"):
+        domains = access_store.values("domain_whitelist")
+        if not AccessStore.domain_allowed(email, domains):
+            raise HTTPException(
+                status_code=403,
+                detail="邮箱域名不在白名单内，请联系管理员",
+            )
 
 
 def _can_operate(operator: dict, target: dict) -> None:
@@ -122,10 +159,28 @@ async def login(
 
     成功：设置 HttpOnly Cookie（浏览器页面用）并返回 token（API 客户端用）。
     失败：401（邮箱/密码错误或账号被禁用，不区分提示以防枚举）。
+    连续失败锁定：达到阈值后账号锁定 N 分钟（配置见系统设置）。
+    用户黑名单：命中返回 403。
     """
-    user = user_store.verify_login(body.email, body.password)
+    email = body.email.strip().lower()
+    _check_email_access(email, check_domain=False)
+
+    settings_store = get_settings_store()
+    fail_limit = int(settings_store.get("login_fail_limit") or 5)
+    lock_minutes = int(settings_store.get("login_lock_minutes") or 30)
+
+    remaining = user_store.lock_remaining(email)
+    if remaining > 0:
+        minutes = max(1, int(remaining // 60 + 1))
+        raise HTTPException(
+            status_code=401, detail=f"登录失败次数过多，账号已锁定，请 {minutes} 分钟后再试"
+        )
+
+    user = user_store.verify_login(email, body.password)
     if not user:
+        user_store.record_login_failure(email, fail_limit, lock_minutes)
         raise HTTPException(status_code=401, detail="邮箱或密码错误，或账号已被禁用")
+    user_store.clear_login_failures(user["id"])
 
     token = create_token(user["id"], user["role"])
     settings = get_settings()
@@ -138,6 +193,35 @@ async def login(
         samesite="lax",
     )
     return {"token": token, "user": user}
+
+
+@router.post("/auth/register", status_code=201)
+async def register(
+    body: RegisterRequest,
+    user_store: UserStore = Depends(get_user_store),
+):
+    """用户自助注册（邮箱 + 密码，角色固定 user）。
+
+    受系统设置控制：
+    - access_allow_register=false 时关闭注册（403）
+    - 域名白名单启用时仅白名单域名可注册
+    - 用户黑名单始终拒绝
+    """
+    settings_store = get_settings_store()
+    if not settings_store.get("access_allow_register", True):
+        raise HTTPException(status_code=403, detail="当前未开放自助注册，请联系管理员")
+
+    email = _validate_email(body.email)
+    _check_email_access(email, check_domain=True)
+
+    try:
+        user = user_store.create(
+            email=email, username=body.username.strip(),
+            password=body.password, role="user", status="active",
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+    return user
 
 
 @router.post("/auth/logout")
@@ -261,6 +345,8 @@ async def create_user(
         raise HTTPException(status_code=403, detail="仅超级管理员可创建超级管理员")
 
     email = _validate_email(body.email)
+    # 黑名单始终拒绝；域名白名单启用时校验（PRD 9.6.4）
+    _check_email_access(email, check_domain=True)
     try:
         user = user_store.create(
             email=email, username=body.username.strip(),

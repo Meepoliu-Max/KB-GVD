@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>用户管理 · KBRefiner 管理后台</title>
+    <title>黑白名单 · KBRefiner 管理后台</title>
     <style id="theme-vars">
 /* 知序 KBRefiner — 产品前端设计系统 */
 
@@ -370,13 +370,13 @@ a:hover { color: var(--kb-primary-700); }
           <a class="kb-admin-nav-item" href="/admin/dashboard" data-dom-id="nav-dashboard">
             <i data-lucide="layout-dashboard"></i><span>仪表盘</span>
           </a>
-          <a class="kb-admin-nav-item is-active" href="/admin/users" data-dom-id="nav-users" aria-current="page">
+          <a class="kb-admin-nav-item" href="/admin/users" data-dom-id="nav-users">
             <i data-lucide="users"></i><span>用户管理</span>
           </a>
           <a class="kb-admin-nav-item" href="/admin/messages" data-dom-id="nav-messages">
             <i data-lucide="megaphone"></i><span>消息列表</span>
           </a>
-          <a class="kb-admin-nav-item" href="/admin/access" data-dom-id="nav-access">
+          <a class="kb-admin-nav-item is-active" href="/admin/access" data-dom-id="nav-access" aria-current="page">
             <i data-lucide="shield"></i><span>黑白名单</span>
           </a>
           <a class="kb-admin-nav-item" href="/admin/settings" data-dom-id="nav-settings">
@@ -404,77 +404,176 @@ a:hover { color: var(--kb-primary-700); }
               <i data-lucide="menu"></i>
             </button>
             <nav class="kb-admin-breadcrumb" aria-label="面包屑">
-              <a href="/admin/dashboard">管理后台</a>
+              <a href="admin-dashboard.html">管理后台</a>
               <i data-lucide="chevron-right" class="kb-breadcrumb-sep"></i>
-              <span class="kb-admin-breadcrumb-current">用户管理</span>
+              <span class="kb-admin-breadcrumb-current">黑白名单</span>
             </nav>
           </div>
           <div class="kb-admin-topbar-right">
-            <a class="kb-btn kb-btn-primary kb-btn-sm" href="/admin/users/new" data-dom-id="btn-add-user">
-              <i data-lucide="user-plus" style="width:16px;height:16px;"></i>添加用户
-            </a>
+            <button class="kb-btn kb-btn-primary kb-btn-sm" type="button" data-dom-id="btn-add-rule" id="btn-add-rule">
+              <i data-lucide="plus" style="width:16px;height:16px;"></i>添加规则
+            </button>
           </div>
         </header>
 
         <main class="kb-admin-content">
-          <!-- 用户列表卡片 -->
-          <section class="kb-card kb-user-list-card">
-            <div class="kb-card-header kb-filter-header">
-              <h3>用户列表</h3>
-              <div class="kb-filters">
-                <label class="kb-filter-item">
-                  <span class="kb-filter-label">角色</span>
-                  <select class="kb-select kb-filter-select" id="filter-role" aria-label="按角色筛选">
-                    <option value="">全部角色</option>
-                    <option value="super_admin">超级管理员</option>
-                    <option value="admin">管理员</option>
-                    <option value="user">普通用户</option>
-                  </select>
-                </label>
-                <label class="kb-filter-item">
-                  <span class="kb-filter-label">状态</span>
-                  <select class="kb-select kb-filter-select" id="filter-status" aria-label="按状态筛选">
-                    <option value="">全部状态</option>
-                    <option value="active">启用</option>
-                    <option value="disabled">禁用</option>
-                  </select>
-                </label>
-                <div class="kb-search-wrap">
-                  <i data-lucide="search" class="kb-search-icon"></i>
-                  <input type="text" class="kb-input kb-search-input" placeholder="搜索用户名 / 邮箱..." aria-label="搜索用户名或邮箱" data-dom-id="input-user-search" id="input-user-search">
-                </div>
-              </div>
+          <!-- 访问优先级提示 -->
+          <div class="kb-alert kb-alert-info" role="note">
+            <i data-lucide="info" class="kb-alert-icon"></i>
+            <div class="kb-alert-content">
+              <span class="kb-alert-title">访问优先级</span>
+              <span class="kb-alert-desc">用户黑名单 &gt; IP 白名单 &gt; 邮箱域名白名单。命中高优先级规则时，低优先级规则不再生效。</span>
             </div>
+          </div>
 
-            <div class="kb-card-body kb-user-table-wrap">
-              <table class="kb-table kb-user-table">
+          <!-- Section 1: IP 白名单 -->
+          <section class="kb-card kb-access-card">
+            <div class="kb-card-header kb-access-header">
+              <div class="kb-access-title-wrap">
+                <div class="kb-access-title-left">
+                  <i data-lucide="globe" class="kb-access-title-icon"></i>
+                  <h3>IP 白名单</h3>
+                </div>
+                <span class="kb-tag kb-tag-muted" id="ip-count">0 条规则</span>
+              </div>
+              <label class="kb-toggle">
+                <input type="checkbox" id="toggle-ip-whitelist">
+                <span class="kb-toggle-track"></span>
+                <span class="kb-toggle-label">启用 IP 白名单校验</span>
+              </label>
+            </div>
+            <div class="kb-card-body kb-access-table-wrap">
+              <table class="kb-table kb-access-table">
                 <thead>
                   <tr>
-                    <th>用户ID</th>
-                    <th>用户名</th>
-                    <th>邮箱</th>
-                    <th>角色</th>
-                    <th>状态</th>
-                    <th>任务数</th>
-                    <th>上传文档数</th>
-                    <th>Token 消耗</th>
-                    <th>注册时间</th>
-                    <th>最后活跃</th>
+                    <th>IP 地址</th>
+                    <th>类型</th>
+                    <th>备注</th>
+                    <th>添加时间</th>
                     <th>操作</th>
                   </tr>
                 </thead>
-                <tbody id="users-tbody">
-                  <tr><td colspan="11" class="kb-text-muted" style="text-align:center;padding:40px;">加载中...</td></tr>
+                <tbody id="ip-tbody">
+                  <tr><td colspan="5" class="kb-text-muted" style="text-align:center;padding:32px;">加载中...</td></tr>
                 </tbody>
               </table>
             </div>
+            <div class="kb-access-card-foot">
+              <button class="kb-btn kb-btn-secondary kb-btn-sm" type="button" id="btn-add-ip">
+                <i data-lucide="plus" style="width:14px;height:14px;"></i>添加 IP
+              </button>
+            </div>
+          </section>
 
-            <!-- 分页（第一版不分页，仅展示总数） -->
-            <div class="kb-pagination">
-              <span class="kb-pagination-info">共 <strong id="users-total">0</strong> 条记录</span>
+          <!-- Section 2: 邮箱域名白名单 -->
+          <section class="kb-card kb-access-card">
+            <div class="kb-card-header kb-access-header">
+              <div class="kb-access-title-wrap">
+                <div class="kb-access-title-left">
+                  <i data-lucide="at-sign" class="kb-access-title-icon"></i>
+                  <h3>邮箱域名白名单</h3>
+                </div>
+                <span class="kb-tag kb-tag-muted" id="domain-count">0 条规则</span>
+              </div>
+              <label class="kb-toggle">
+                <input type="checkbox" id="toggle-domain-whitelist">
+                <span class="kb-toggle-track"></span>
+                <span class="kb-toggle-label">启用域名白名单</span>
+              </label>
+            </div>
+            <div class="kb-card-body kb-access-table-wrap">
+              <table class="kb-table kb-access-table">
+                <thead>
+                  <tr>
+                    <th>域名</th>
+                    <th>备注</th>
+                    <th>添加时间</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="domain-tbody">
+                  <tr><td colspan="4" class="kb-text-muted" style="text-align:center;padding:32px;">加载中...</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="kb-access-card-foot">
+              <button class="kb-btn kb-btn-secondary kb-btn-sm" type="button" id="btn-add-domain">
+                <i data-lucide="plus" style="width:14px;height:14px;"></i>添加域名
+              </button>
+            </div>
+          </section>
+
+          <!-- Section 3: 用户黑名单 -->
+          <section class="kb-card kb-access-card">
+            <div class="kb-card-header kb-access-header">
+              <div class="kb-access-title-wrap">
+                <div class="kb-access-title-left">
+                  <i data-lucide="user-x" class="kb-access-title-icon"></i>
+                  <h3>用户黑名单</h3>
+                </div>
+                <span class="kb-tag kb-tag-error" id="blacklist-count">0 名用户</span>
+              </div>
+              <div class="kb-search-wrap">
+                <i data-lucide="search" class="kb-search-icon"></i>
+                <input type="text" class="kb-input kb-search-input" placeholder="搜索用户名 / 邮箱..." aria-label="搜索黑名单用户" id="input-blocklist-search">
+              </div>
+            </div>
+            <div class="kb-card-body kb-access-table-wrap">
+              <table class="kb-table kb-access-table">
+                <thead>
+                  <tr>
+                    <th>用户名</th>
+                    <th>邮箱</th>
+                    <th>加入原因</th>
+                    <th>加入时间</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="blacklist-tbody">
+                  <tr><td colspan="5" class="kb-text-muted" style="text-align:center;padding:32px;">加载中...</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="kb-access-card-foot">
+              <button class="kb-btn kb-btn-secondary kb-btn-sm" type="button" id="btn-add-blacklist">
+                <i data-lucide="plus" style="width:14px;height:14px;"></i>加入黑名单
+              </button>
             </div>
           </section>
         </main>
+      </div>
+    </div>
+
+    <!-- 添加规则模态框 -->
+    <div class="kb-modal-mask" id="modal-rule" hidden>
+      <div class="kb-modal" role="dialog" aria-modal="true" aria-labelledby="modal-rule-title">
+        <div class="kb-modal-head">
+          <h3 class="kb-modal-title" id="modal-rule-title">添加规则</h3>
+          <button class="kb-modal-close" type="button" data-close>&times;</button>
+        </div>
+        <div class="kb-modal-body">
+          <div class="kb-field">
+            <label class="kb-field-label" for="rule-type">规则类型</label>
+            <select class="kb-select" id="rule-type">
+              <option value="ip_whitelist">IP 白名单</option>
+              <option value="domain_whitelist">邮箱域名白名单</option>
+              <option value="user_blacklist">用户黑名单</option>
+            </select>
+          </div>
+          <div class="kb-field">
+            <label class="kb-field-label" for="rule-value" id="rule-value-label">IP 地址 / 网段</label>
+            <input type="text" class="kb-input" id="rule-value" placeholder="如 192.168.1.0/24" maxlength="100">
+            <p class="kb-field-hint" id="rule-value-hint">支持单 IP（10.0.0.1）与 CIDR 网段（192.168.1.0/24）；本机回环始终放行</p>
+          </div>
+          <div class="kb-field">
+            <label class="kb-field-label" for="rule-note">备注（可选）</label>
+            <input type="text" class="kb-input" id="rule-note" placeholder="如 公司内网办公网段" maxlength="200">
+          </div>
+        </div>
+        <div class="kb-modal-foot">
+          <button class="kb-btn kb-btn-secondary" type="button" data-close>取消</button>
+          <button class="kb-btn kb-btn-primary" type="button" id="btn-submit-rule">添加</button>
+        </div>
       </div>
     </div>
 
@@ -496,23 +595,13 @@ a:hover { color: var(--kb-primary-700); }
       })();
 
       const esc = KBRefiner.escapeHtml;
-      const fmtToken = n => {
-        n = Number(n || 0);
-        if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
-        if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
-        return String(n);
-      };
-      const fmtDate = ts => {
+      const { Access } = KBRefiner;
+
+      const fmtTime = ts => {
         if (!ts) return '-';
         const d = new Date(ts * 1000);
         const p = x => String(x).padStart(2, '0');
-        return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-      };
-
-      const ROLE_TAG = {
-        super_admin: '<span class="kb-tag kb-tag-primary">超级管理员</span>',
-        admin: '<span class="kb-tag kb-tag-info">管理员</span>',
-        user: '<span class="kb-tag kb-tag-muted">普通用户</span>',
+        return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
       };
 
       // ===== 权限守卫 =====
@@ -527,6 +616,11 @@ a:hover { color: var(--kb-primary-700); }
         document.getElementById('admin-name').textContent = user.username || '管理员';
         document.getElementById('admin-email').textContent = user.email || '-';
         document.getElementById('admin-avatar').textContent = (user.username || '管')[0];
+        // 开关仅超级管理员可操作
+        if (user.role !== 'super_admin') {
+          document.getElementById('toggle-ip-whitelist').disabled = true;
+          document.getElementById('toggle-domain-whitelist').disabled = true;
+        }
         return true;
       }
 
@@ -535,90 +629,167 @@ a:hover { color: var(--kb-primary-700); }
         window.location.href = '/admin/login';
       });
 
-      // ===== 用户列表 =====
-      async function loadUsers() {
-        const tbody = document.getElementById('users-tbody');
-        const params = {
-          search: document.getElementById('input-user-search').value.trim(),
-          role: document.getElementById('filter-role').value,
-          status: document.getElementById('filter-status').value,
-        };
+      // ===== 数据加载与渲染 =====
+      let blacklistRules = [];  // 缓存用于前端搜索过滤
+
+      async function loadAll() {
         let data;
         try {
-          data = await KBRefiner.Admin.listUsers(params);
+          data = await Access.get();
         } catch (e) {
-          tbody.innerHTML = `<tr><td colspan="11" class="kb-text-muted" style="text-align:center;padding:40px;">${esc(e.message)}</td></tr>`;
+          const msg = esc(e.message);
+          for (const id of ['ip-tbody', 'domain-tbody', 'blacklist-tbody']) {
+            document.getElementById(id).innerHTML = `<tr><td colspan="5" class="kb-text-muted" style="text-align:center;padding:32px;">${msg}</td></tr>`;
+          }
           return;
         }
-        document.getElementById('users-total').textContent = data.total;
-        if (!data.users.length) {
-          tbody.innerHTML = '<tr><td colspan="11" class="kb-text-muted" style="text-align:center;padding:40px;">没有符合条件的用户</td></tr>';
-          return;
-        }
-        tbody.innerHTML = data.users.map(u => {
-          const isSelf = currentUser && currentUser.id === u.id;
-          // 仅自身禁改（禁用/启用都放开，否则列表禁用后无法就地恢复）
-          const canToggle = !isSelf;
-          return `
+
+        // IP 白名单
+        const ipRules = data.ip_whitelist.rules || [];
+        document.getElementById('ip-count').textContent = `${ipRules.length} 条规则`;
+        document.getElementById('ip-tbody').innerHTML = ipRules.length ? ipRules.map(r => `
           <tr>
-            <td class="kb-font-mono kb-text-muted">${esc(u.id)}</td>
-            <td class="kb-font-semibold">${esc(u.username || '-')}${isSelf ? ' <span class="kb-tag kb-tag-muted">我</span>' : ''}</td>
-            <td class="kb-text-secondary">${esc(u.email)}</td>
-            <td>${ROLE_TAG[u.role] || esc(u.role)}</td>
-            <td>${u.status === 'active'
-              ? '<span class="kb-status kb-status-success">启用</span>'
-              : '<span class="kb-status kb-status-error">禁用</span>'}</td>
-            <td>${Number(u.task_count || 0)}</td>
-            <td>${Number(u.upload_count || 0)}</td>
-            <td>${fmtToken(u.token_consumed)}</td>
-            <td class="kb-text-muted">${fmtDate(u.created_at)}</td>
-            <td class="kb-text-muted">${fmtDate(u.last_active_at)}</td>
-            <td>
-              <div class="kb-row-actions">
-                <a class="kb-btn kb-btn-ghost kb-btn-sm" href="/admin/users/${encodeURIComponent(u.id)}">查看</a>
-                <button class="kb-btn kb-btn-ghost kb-btn-sm" type="button" data-act="toggle" data-id="${esc(u.id)}" data-status="${esc(u.status)}" data-name="${esc(u.username || u.email)}" ${canToggle ? '' : 'disabled'}>${u.status === 'active' ? '禁用' : '启用'}</button>
-                <button class="kb-btn kb-btn-ghost kb-btn-sm" type="button" data-act="reset" data-id="${esc(u.id)}" data-name="${esc(u.username || u.email)}">重置密码</button>
-              </div>
-            </td>
-          </tr>`;
-        }).join('');
+            <td class="kb-font-mono kb-font-semibold">${esc(r.value)}</td>
+            <td>${r.value.includes('/') ? '<span class="kb-tag kb-tag-info">CIDR</span>' : '<span class="kb-tag kb-tag-primary">IPv4</span>'}</td>
+            <td class="kb-text-secondary">${esc(r.note || '-')}</td>
+            <td class="kb-text-muted">${fmtTime(r.created_at)}</td>
+            <td><button class="kb-btn kb-btn-ghost kb-btn-sm kb-text-error" type="button" data-del="${esc(r.id)}" data-name="${esc(r.value)}">删除</button></td>
+          </tr>`).join('')
+          : '<tr><td colspan="5" class="kb-text-muted" style="text-align:center;padding:32px;">暂无规则，白名单未启用时不影响访问</td></tr>';
+
+        // 域名白名单
+        const domainRules = data.domain_whitelist.rules || [];
+        document.getElementById('domain-count').textContent = `${domainRules.length} 条规则`;
+        document.getElementById('domain-tbody').innerHTML = domainRules.length ? domainRules.map(r => `
+          <tr>
+            <td class="kb-font-mono kb-font-semibold">${esc(r.value)}</td>
+            <td class="kb-text-secondary">${esc(r.note || '-')}</td>
+            <td class="kb-text-muted">${fmtTime(r.created_at)}</td>
+            <td><button class="kb-btn kb-btn-ghost kb-btn-sm kb-text-error" type="button" data-del="${esc(r.id)}" data-name="${esc(r.value)}">删除</button></td>
+          </tr>`).join('')
+          : '<tr><td colspan="4" class="kb-text-muted" style="text-align:center;padding:32px;">暂无规则</td></tr>';
+
+        // 黑名单（缓存 + 搜索过滤）
+        blacklistRules = data.user_blacklist.rules || [];
+        renderBlacklist();
+
+        // 开关状态
+        document.getElementById('toggle-ip-whitelist').checked = !!data.ip_whitelist.enabled;
+        document.getElementById('toggle-domain-whitelist').checked = !!data.domain_whitelist.enabled;
+        lucide.createIcons();
       }
 
-      // 行操作（事件委托）
-      document.getElementById('users-tbody').addEventListener('click', async e => {
-        const btn = e.target.closest('button[data-act]');
-        if (!btn || btn.disabled) return;
-        const { act, id, status, name } = btn.dataset;
+      function renderBlacklist() {
+        const kw = document.getElementById('input-blocklist-search').value.trim().toLowerCase();
+        const rules = blacklistRules.filter(r =>
+          !kw || r.value.toLowerCase().includes(kw) || (r.username || '').toLowerCase().includes(kw)
+        );
+        document.getElementById('blacklist-count').textContent = `${blacklistRules.length} 名用户`;
+        document.getElementById('blacklist-tbody').innerHTML = rules.length ? rules.map(r => `
+          <tr>
+            <td class="kb-font-semibold">${esc(r.username || r.value.split('@')[0])}</td>
+            <td class="kb-text-secondary">${esc(r.value)}</td>
+            <td class="kb-text-secondary">${esc(r.note || '-')}</td>
+            <td class="kb-text-muted">${fmtTime(r.created_at)}</td>
+            <td><button class="kb-btn kb-btn-ghost kb-btn-sm" type="button" data-del="${esc(r.id)}" data-name="${esc(r.value)}">移出黑名单</button></td>
+          </tr>`).join('')
+          : `<tr><td colspan="5" class="kb-text-muted" style="text-align:center;padding:32px;">${kw ? '没有匹配的用户' : '黑名单为空'}</td></tr>`;
+      }
+
+      document.getElementById('input-blocklist-search').addEventListener('input', renderBlacklist);
+
+      // ===== 删除规则（事件委托） =====
+      document.querySelector('.kb-admin-content').addEventListener('click', async e => {
+        const btn = e.target.closest('button[data-del]');
+        if (!btn) return;
+        const { del, name } = btn.dataset;
+        if (!confirm(`确认移除「${name}」？`)) return;
         try {
-          if (act === 'toggle') {
-            const next = status === 'active' ? 'disabled' : 'active';
-            if (!confirm(`确认${next === 'disabled' ? '禁用' : '启用'}用户「${name}」？`)) return;
-            await KBRefiner.Admin.updateUser(id, { status: next });
-          } else if (act === 'reset') {
-            const pwd = prompt(`为用户「${name}」设置新密码（至少 6 位）：`);
-            if (!pwd) return;
-            if (pwd.length < 6) { alert('密码至少 6 位'); return; }
-            await KBRefiner.Admin.resetPassword(id, pwd);
-            alert('密码已重置');
-          }
-          await loadUsers();
+          await Access.removeRule(del);
+          await loadAll();
         } catch (err) {
-          alert(err.message || '操作失败');
+          alert(err.message || '删除失败');
         }
       });
 
-      // 筛选联动
-      let searchTimer = null;
-      document.getElementById('input-user-search').addEventListener('input', () => {
-        clearTimeout(searchTimer);
-        searchTimer = setTimeout(loadUsers, 300);
+      // ===== 开关（仅超级管理员） =====
+      async function bindToggle(id, type) {
+        document.getElementById(id).addEventListener('change', async e => {
+          if (!currentUser || currentUser.role !== 'super_admin') {
+            e.target.checked = !e.target.checked;
+            alert('仅超级管理员可修改访问开关');
+            return;
+          }
+          const enabled = e.target.checked;
+          if (enabled && type === 'ip_whitelist') {
+            const rules = document.getElementById('ip-tbody').querySelectorAll('button[data-del]');
+            if (!rules.length && !confirm('白名单为空，启用后所有非本机 IP 将无法访问管理 API 与上传。确认启用？')) {
+              e.target.checked = false;
+              return;
+            }
+          }
+          try {
+            await Access.toggle(type, enabled);
+          } catch (err) {
+            e.target.checked = !enabled;
+            alert(err.message || '操作失败');
+          }
+        });
+      }
+      bindToggle('toggle-ip-whitelist', 'ip_whitelist');
+      bindToggle('toggle-domain-whitelist', 'domain_whitelist');
+
+      // ===== 添加规则模态框 =====
+      const RULE_META = {
+        ip_whitelist: { label: 'IP 地址 / 网段', ph: '如 192.168.1.0/24', hint: '支持单 IP（10.0.0.1）与 CIDR 网段（192.168.1.0/24）；本机回环始终放行' },
+        domain_whitelist: { label: '邮箱域名', ph: '如 company.com', hint: '仅该域名后缀的邮箱可注册（启用后生效）' },
+        user_blacklist: { label: '用户邮箱', ph: '如 someone@spam.com', hint: '黑名单邮箱无法登录与注册（始终生效）' },
+      };
+
+      function openRuleModal(type) {
+        document.getElementById('rule-type').value = type;
+        syncRuleFields();
+        document.getElementById('rule-value').value = '';
+        document.getElementById('rule-note').value = '';
+        document.getElementById('modal-rule').hidden = false;
+        document.getElementById('rule-value').focus();
+      }
+
+      function syncRuleFields() {
+        const meta = RULE_META[document.getElementById('rule-type').value];
+        document.getElementById('rule-value-label').textContent = meta.label;
+        document.getElementById('rule-value').placeholder = meta.ph;
+        document.getElementById('rule-value-hint').textContent = meta.hint;
+      }
+
+      document.getElementById('btn-add-rule').addEventListener('click', () => openRuleModal('ip_whitelist'));
+      document.getElementById('btn-add-ip').addEventListener('click', () => openRuleModal('ip_whitelist'));
+      document.getElementById('btn-add-domain').addEventListener('click', () => openRuleModal('domain_whitelist'));
+      document.getElementById('btn-add-blacklist').addEventListener('click', () => openRuleModal('user_blacklist'));
+      document.getElementById('rule-type').addEventListener('change', syncRuleFields);
+
+      document.getElementById('btn-submit-rule').addEventListener('click', async () => {
+        const type = document.getElementById('rule-type').value;
+        const value = document.getElementById('rule-value').value.trim();
+        const note = document.getElementById('rule-note').value.trim();
+        if (!value) { alert('请输入规则内容'); return; }
+        try {
+          await Access.addRule(type, value, note);
+          document.getElementById('modal-rule').hidden = true;
+          await loadAll();
+        } catch (err) {
+          alert(err.message || '添加失败');
+        }
       });
-      document.getElementById('filter-role').addEventListener('change', loadUsers);
-      document.getElementById('filter-status').addEventListener('change', loadUsers);
+
+      document.getElementById('modal-rule').addEventListener('click', e => {
+        const mask = document.getElementById('modal-rule');
+        if (e.target === mask || e.target.closest('[data-close]')) mask.hidden = true;
+      });
 
       // ===== 初始化 =====
       (async () => {
-        if (await guard()) await loadUsers();
+        if (await guard()) await loadAll();
       })();
     </script>
 
@@ -758,130 +929,84 @@ a:hover { color: var(--kb-primary-700); }
     .kb-breadcrumb-sep { width: 14px; height: 14px; color: var(--kb-neutral-300); }
     .kb-admin-breadcrumb-current { color: var(--kb-neutral-900); font-weight: 600; }
 
-    .kb-admin-content { padding: var(--kb-space-8); flex: 1; }
+    .kb-admin-content { padding: var(--kb-space-8); flex: 1; display: flex; flex-direction: column; gap: var(--kb-space-6); }
 
-    /* 筛选区 */
-    .kb-filter-header { flex-wrap: wrap; gap: var(--kb-space-4); }
-    .kb-filters { display: flex; align-items: center; gap: var(--kb-space-4); flex-wrap: wrap; }
-    .kb-filter-item { display: flex; align-items: center; gap: var(--kb-space-2); }
-    .kb-filter-label { font-size: 0.8125rem; font-weight: 600; color: var(--kb-neutral-600); white-space: nowrap; }
-    .kb-filter-select { width: auto; min-width: 132px; }
+    /* 提示横幅 */
+    .kb-alert {
+      display: flex; align-items: flex-start; gap: var(--kb-space-3);
+      padding: var(--kb-space-4) var(--kb-space-5);
+      border-radius: var(--kb-radius-large);
+      border: 1px solid;
+    }
+    .kb-alert-info {
+      background: var(--kb-state-info-bg);
+      border-color: color-mix(in srgb, var(--kb-state-info) 35%, var(--kb-state-info-bg));
+    }
+    .kb-alert-icon { width: 20px; height: 20px; color: var(--kb-state-info); flex-shrink: 0; margin-top: 1px; }
+    .kb-alert-content { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .kb-alert-title { font-size: 0.875rem; font-weight: 700; color: var(--kb-neutral-900); }
+    .kb-alert-desc { font-size: 0.8125rem; color: var(--kb-neutral-700); line-height: 1.6; }
+
+    /* 访问卡片 */
+    .kb-access-header { flex-wrap: wrap; gap: var(--kb-space-4); }
+    .kb-access-title-wrap { display: flex; align-items: center; gap: var(--kb-space-3); min-width: 0; }
+    .kb-access-title-left { display: flex; align-items: center; gap: var(--kb-space-3); min-width: 0; }
+    .kb-access-title-icon { width: 18px; height: 18px; color: var(--kb-primary); flex-shrink: 0; }
+    .kb-access-title-left h3 { font-size: 1.0625rem; }
+
+    .kb-access-table-wrap { overflow-x: auto; padding: 0; }
+    .kb-access-table { min-width: 560px; }
+    .kb-access-table td { vertical-align: middle; }
+    .kb-font-mono { font-family: var(--kb-font-mono); }
+
+    .kb-access-card-foot {
+      padding: var(--kb-space-4) var(--kb-space-6);
+      border-top: 1px solid var(--kb-border);
+      display: flex; gap: var(--kb-space-3);
+    }
+
+    /* 搜索框 */
     .kb-search-wrap { position: relative; display: flex; align-items: center; }
     .kb-search-icon { position: absolute; left: 12px; width: 16px; height: 16px; color: var(--kb-neutral-400); pointer-events: none; }
-    .kb-search-input { padding-left: 36px; width: 260px; }
+    .kb-search-input { padding-left: 36px; width: 240px; }
 
-    /* 用户表 */
-    .kb-user-table-wrap { overflow-x: auto; padding: 0; }
-    .kb-user-table { min-width: 1180px; }
-    .kb-user-table td { vertical-align: middle; }
-    .kb-font-mono { font-family: var(--kb-font-mono); }
-    .kb-row-actions { display: inline-flex; align-items: center; gap: var(--kb-space-1); flex-wrap: nowrap; }
-
-    /* 自定义禁用状态（复用中性色 token） */
-    .kb-status-disabled::before { background: var(--kb-neutral-400); }
-    .kb-status-disabled { color: var(--kb-neutral-500); }
-
-    /* 分页 */
-    .kb-pagination {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: var(--kb-space-4) var(--kb-space-6);
-      border-top: 1px solid var(--kb-border);
-      gap: var(--kb-space-4);
-      flex-wrap: wrap;
+    /* 开关 */
+    .kb-toggle {
+      display: inline-flex; align-items: center; gap: var(--kb-space-3);
+      cursor: pointer; user-select: none;
     }
-    .kb-pagination-info { font-size: 0.8125rem; color: var(--kb-neutral-500); }
-    .kb-pagination-info strong { color: var(--kb-neutral-900); font-weight: 700; }
-    .kb-pagination-pages { display: flex; align-items: center; gap: var(--kb-space-1); }
-    .kb-page-btn {
-      min-width: 32px; height: 32px; padding: 0 8px;
-      border: 1px solid var(--kb-border); background: var(--kb-neutral-0);
-      border-radius: var(--kb-radius-medium);
-      font-size: 0.8125rem; font-weight: 600; color: var(--kb-neutral-600);
-      cursor: pointer;
-      display: inline-flex; align-items: center; justify-content: center;
-      transition: all 0.15s ease;
+    .kb-toggle input {
+      position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none;
     }
-    .kb-page-btn:hover:not(:disabled):not(.is-active) { background: var(--kb-neutral-50); border-color: var(--kb-neutral-300); color: var(--kb-neutral-900); }
-    .kb-page-btn.is-active { background: var(--kb-primary); border-color: var(--kb-primary); color: var(--kb-primary-foreground); }
-    .kb-page-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-    .kb-pagination-ellipsis { color: var(--kb-neutral-400); padding: 0 4px; }
-
-    /* 用户详情抽屉 */
-    .kb-drawer-overlay {
-      position: fixed; inset: 0;
-      background: rgba(15, 23, 42, 0.45);
-      z-index: 60;
-      display: flex; justify-content: flex-end;
-      backdrop-filter: blur(2px);
+    .kb-toggle-track {
+      position: relative;
+      width: 40px; height: 22px;
+      background: var(--kb-neutral-300);
+      border-radius: 9999px;
+      transition: background 0.2s ease;
+      flex-shrink: 0;
     }
-    .kb-drawer-overlay.is-hidden { display: none; }
-    .kb-drawer {
-      width: 460px; max-width: 92vw; height: 100%;
+    .kb-toggle-track::after {
+      content: "";
+      position: absolute;
+      top: 2px; left: 2px;
+      width: 18px; height: 18px;
       background: var(--kb-neutral-0);
-      box-shadow: var(--kb-shadow-float);
-      display: flex; flex-direction: column; overflow: hidden;
+      border-radius: 50%;
+      box-shadow: var(--kb-shadow-sm);
+      transition: transform 0.2s ease;
     }
-    .kb-drawer-head {
-      padding: var(--kb-space-5) var(--kb-space-6);
-      border-bottom: 1px solid var(--kb-border);
-      display: flex; align-items: flex-start; justify-content: space-between; gap: var(--kb-space-4);
-    }
-    .kb-drawer-head-left { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-    .kb-drawer-head h3 { font-size: 1.125rem; }
-    .kb-drawer-sub { font-size: 0.8125rem; color: var(--kb-neutral-500); }
-    .kb-drawer-close {
-      background: transparent; border: none; cursor: pointer;
-      color: var(--kb-neutral-500); padding: 6px; border-radius: var(--kb-radius-medium);
-      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-    }
-    .kb-drawer-close i { width: 20px; height: 20px; }
-    .kb-drawer-close:hover { background: var(--kb-neutral-100); color: var(--kb-neutral-900); }
-
-    .kb-drawer-body { flex: 1; overflow-y: auto; padding: var(--kb-space-6); }
-    .kb-drawer-section { margin-bottom: var(--kb-space-8); }
-    .kb-drawer-section:last-child { margin-bottom: 0; }
-    .kb-drawer-section-title {
-      font-size: 0.8125rem; font-weight: 700; color: var(--kb-neutral-500);
-      text-transform: uppercase; letter-spacing: 0.04em;
-      margin-bottom: var(--kb-space-4);
-    }
-
-    .kb-info-grid {
-      display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--kb-space-4);
-    }
-    .kb-info-item { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-    .kb-info-item dt { font-size: 0.75rem; color: var(--kb-neutral-500); }
-    .kb-info-item dd { font-size: 0.875rem; color: var(--kb-neutral-900); }
-
-    .kb-mini-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--kb-space-3); }
-    .kb-mini-stat {
-      background: var(--kb-neutral-50); border: 1px solid var(--kb-border);
-      border-radius: var(--kb-radius-medium); padding: var(--kb-space-4);
-    }
-    .kb-mini-stat-value { font-size: 1.375rem; font-weight: 700; color: var(--kb-neutral-900); line-height: 1.2; }
-    .kb-mini-stat-label { font-size: 0.75rem; color: var(--kb-neutral-500); margin-top: 2px; }
-
-    .kb-recent-list { list-style: none; display: flex; flex-direction: column; }
-    .kb-recent-task {
-      display: flex; align-items: center; justify-content: space-between; gap: var(--kb-space-3);
-      padding: var(--kb-space-3) 0; border-bottom: 1px solid var(--kb-border);
-    }
-    .kb-recent-task:last-child { border-bottom: none; }
-    .kb-recent-task-name { display: flex; align-items: center; gap: var(--kb-space-2); min-width: 0; font-size: 0.875rem; color: var(--kb-neutral-700); }
-    .kb-recent-task-icon { width: 16px; height: 16px; color: var(--kb-primary); flex-shrink: 0; }
-
-    .kb-drawer-foot {
-      padding: var(--kb-space-4) var(--kb-space-6);
-      border-top: 1px solid var(--kb-border);
-      display: flex; justify-content: flex-end; gap: var(--kb-space-3);
-    }
+    .kb-toggle input:checked + .kb-toggle-track { background: var(--kb-primary); }
+    .kb-toggle input:checked + .kb-toggle-track::after { transform: translateX(18px); }
+    .kb-toggle input:focus-visible + .kb-toggle-track { box-shadow: 0 0 0 3px var(--kb-primary-100); }
+    .kb-toggle-label { font-size: 0.8125rem; font-weight: 600; color: var(--kb-neutral-600); white-space: nowrap; }
 
     .kb-search-icon { width: 16px !important; height: 16px !important; }
     .kb-admin-nav-item i,
     .kb-admin-sidebar-logout i { width: 18px !important; height: 18px !important; }
     .kb-admin-menu-btn i { width: 18px !important; height: 18px !important; }
-    .kb-drawer-close i { width: 20px !important; height: 20px !important; }
-    .kb-recent-task-icon { width: 16px !important; height: 16px !important; }
+    .kb-alert-icon { width: 20px !important; height: 20px !important; }
+    .kb-access-title-icon { width: 18px !important; height: 18px !important; }
     .kb-breadcrumb-sep { width: 14px !important; height: 14px !important; }
 
     @media (max-width: 1024px) {
@@ -898,19 +1023,44 @@ a:hover { color: var(--kb-primary-700); }
     }
     @media (max-width: 768px) {
       .kb-admin-topbar { padding: 0 var(--kb-space-4); }
-      .kb-admin-content { padding: var(--kb-space-4); }
-      .kb-filter-header { flex-direction: column; align-items: stretch; }
-      .kb-filters { width: 100%; }
-      .kb-filter-item { width: 100%; }
-      .kb-filter-select { width: 100%; }
+      .kb-admin-content { padding: var(--kb-space-4); gap: var(--kb-space-4); }
+      .kb-access-header { flex-direction: column; align-items: flex-start; }
       .kb-search-wrap { width: 100%; }
       .kb-search-input { width: 100%; }
-      .kb-pagination { flex-direction: column; align-items: stretch; }
-      .kb-pagination-pages { justify-content: center; }
-      .kb-info-grid { grid-template-columns: 1fr; }
-      .kb-mini-stats { grid-template-columns: repeat(2, 1fr); }
-      .kb-drawer { width: 100%; max-width: 100vw; }
+      .kb-toggle { width: 100%; }
     }
+
+    /* ===== 模态框 ===== */
+    .kb-modal-mask {
+      position: fixed; inset: 0; z-index: 1000;
+      background: rgba(15, 23, 42, 0.45);
+      display: flex; align-items: center; justify-content: center;
+      padding: var(--kb-space-4);
+    }
+    .kb-modal-mask[hidden] { display: none; }
+    .kb-modal {
+      background: var(--kb-card); border-radius: var(--kb-radius-large);
+      box-shadow: var(--kb-shadow-float); width: 100%; max-width: 480px;
+      max-height: 90vh; display: flex; flex-direction: column;
+    }
+    .kb-modal-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: var(--kb-space-5) var(--kb-space-6);
+      border-bottom: 1px solid var(--kb-border);
+    }
+    .kb-modal-title { font-size: 1.05rem; font-weight: 600; }
+    .kb-modal-close {
+      background: none; border: none; font-size: 1.4rem; line-height: 1;
+      cursor: pointer; color: var(--kb-neutral-400); padding: 4px;
+    }
+    .kb-modal-close:hover { color: var(--kb-neutral-700); }
+    .kb-modal-body { padding: var(--kb-space-6); overflow-y: auto; }
+    .kb-modal-foot {
+      display: flex; justify-content: flex-end; gap: var(--kb-space-3);
+      padding: var(--kb-space-4) var(--kb-space-6);
+      border-top: 1px solid var(--kb-border);
+    }
+    .kb-modal .kb-field { margin-bottom: var(--kb-space-4); }
     </style>
 </body>
 </html>

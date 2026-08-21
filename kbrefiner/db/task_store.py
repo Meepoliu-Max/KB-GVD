@@ -197,6 +197,26 @@ class TaskStore:
             for r in rows
         ]
 
+    def daily_user_stats(self, user_id: str) -> dict[str, int]:
+        """某用户今日（本地时区）任务数 / 上传文档数 / Token 消耗（配额执法用）。"""
+        now = time.localtime()
+        today_start = time.mktime(
+            time.struct_time((now.tm_year, now.tm_mon, now.tm_mday, 0, 0, 0, 0, 0, -1))
+        )
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT COUNT(*) AS task_count, "
+                "SUM(CASE WHEN file_size > 0 THEN 1 ELSE 0 END) AS upload_count, "
+                "COALESCE(SUM(token_consumed), 0) AS token_total "
+                "FROM tasks WHERE user_id = ? AND created_at >= ?",
+                (user_id, today_start),
+            ).fetchone()
+        return {
+            "task_count": int(row["task_count"] or 0),
+            "upload_count": int(row["upload_count"] or 0),
+            "token_total": int(row["token_total"] or 0),
+        }
+
     # ===== Mapping 兼容接口（供路由层 dict 式调用） =====
 
     def __getitem__(self, task_id: str) -> dict[str, Any]:

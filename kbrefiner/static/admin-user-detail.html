@@ -387,15 +387,15 @@ a:hover { color: var(--kb-primary-700); }
             <i data-lucide="users" class="kb-sidebar-nav-icon"></i>
             <span class="kb-sidebar-nav-label">用户管理</span>
           </a>
-          <a class="kb-sidebar-nav-item" href="#" data-dom-id="nav-messages">
+          <a class="kb-sidebar-nav-item" href="/admin/messages" data-dom-id="nav-messages">
             <i data-lucide="megaphone" class="kb-sidebar-nav-icon"></i>
             <span class="kb-sidebar-nav-label">消息列表</span>
           </a>
-          <a class="kb-sidebar-nav-item" href="#" data-dom-id="nav-access">
+          <a class="kb-sidebar-nav-item" href="/admin/access" data-dom-id="nav-access">
             <i data-lucide="shield" class="kb-sidebar-nav-icon"></i>
             <span class="kb-sidebar-nav-label">黑白名单</span>
           </a>
-          <a class="kb-sidebar-nav-item" href="#" data-dom-id="nav-settings">
+          <a class="kb-sidebar-nav-item" href="/admin/settings" data-dom-id="nav-settings">
             <i data-lucide="settings" class="kb-sidebar-nav-icon"></i>
             <span class="kb-sidebar-nav-label">系统设置</span>
           </a>
@@ -659,14 +659,6 @@ a:hover { color: var(--kb-primary-700); }
         e.preventDefault();
         await KBRefiner.Auth.logout().catch(() => {});
         window.location.href = '/admin/login';
-      });
-
-      ['nav-messages', 'nav-access', 'nav-settings'].forEach(id => {
-        const el = document.querySelector(`[data-dom-id="${id}"]`);
-        if (el) el.addEventListener('click', e => {
-          e.preventDefault();
-          alert('该模块规划中，尚未开放');
-        });
       });
 
       async function loadDetail() {

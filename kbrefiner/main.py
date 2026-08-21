@@ -8,7 +8,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from kbrefiner.api import auth_routes, deps, routes
+from kbrefiner.api import (
+    access_routes,
+    auth_routes,
+    deps,
+    message_routes,
+    routes,
+    settings_routes,
+)
 from kbrefiner.auth import TOKEN_COOKIE, decode_token
 from kbrefiner.config import get_settings
 
@@ -53,9 +60,12 @@ async def prevent_stale_static_cache(request, call_next):
         resp.headers["Cache-Control"] = "no-cache"
     return resp
 
-# 注册 API 路由（业务 + 认证/管理后台）
+# 注册 API 路由（业务 + 认证/管理后台 + 消息/黑白名单/系统设置）
 app.include_router(routes.router)
 app.include_router(auth_routes.router)
+app.include_router(message_routes.router)
+app.include_router(access_routes.router)
+app.include_router(settings_routes.router)
 
 # 挂载静态文件（前端界面）
 static_dir = Path(__file__).resolve().parent / "static"
@@ -121,6 +131,12 @@ async def login_page():
     return FileResponse(static_dir / "login.html")
 
 
+@app.get("/register")
+async def register_page():
+    """前台注册页（无需鉴权，是否开放由后端注册开关控制）。"""
+    return FileResponse(static_dir / "register.html")
+
+
 # ===== 管理后台页面（/admin/login 之外的页面均要求管理员身份） =====
 
 
@@ -162,10 +178,34 @@ async def admin_user_detail_page(request: Request, user_id: str):
     return FileResponse(static_dir / "admin-user-detail.html")
 
 
+@app.get("/admin/messages")
+async def admin_messages_page(request: Request):
+    resp = _guard_admin_page(request)
+    if resp:
+        return resp
+    return FileResponse(static_dir / "admin-messages.html")
+
+
+@app.get("/admin/access")
+async def admin_access_page(request: Request):
+    resp = _guard_admin_page(request)
+    if resp:
+        return resp
+    return FileResponse(static_dir / "admin-access.html")
+
+
+@app.get("/admin/settings")
+async def admin_settings_page(request: Request):
+    resp = _guard_admin_page(request)
+    if resp:
+        return resp
+    return FileResponse(static_dir / "admin-settings.html")
+
+
 @app.get("/{page}")
 async def static_page(request: Request, page: str):
     """提供设计系统页面（require_login 开启时未登录跳登录页）。"""
-    if settings.require_login and not _page_user(request):
+    if deps.require_login_enabled() and not _page_user(request):
         return RedirectResponse(url="/login", status_code=302)
     filename = _PAGE_MAP.get(page)
     if filename is None:

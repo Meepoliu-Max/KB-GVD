@@ -49,9 +49,19 @@ class UserStore:
                     role TEXT DEFAULT 'user',
                     status TEXT DEFAULT 'active',
                     created_at REAL,
-                    last_active_at REAL
+                    last_active_at REAL,
+                    failed_attempts INTEGER DEFAULT 0,
+                    locked_until REAL
                 )
             """)
+            # 兼容旧表：缺失列时自动补齐（登录锁定功能）
+            columns = {r[1] for r in self._conn.execute("PRAGMA table_info(users)")}
+            if "failed_attempts" not in columns:
+                self._conn.execute(
+                    "ALTER TABLE users ADD COLUMN failed_attempts INTEGER DEFAULT 0"
+                )
+            if "locked_until" not in columns:
+                self._conn.execute("ALTER TABLE users ADD COLUMN locked_until REAL")
             self._conn.commit()
 
     # ===== 写操作 =====
@@ -190,6 +200,57 @@ class UserStore:
             return None
         self.touch_last_active(uid)
         return self.get(uid)
+
+    # ===== 登录失败锁定（连续 N 次失败锁 M 分钟，配置见 SettingsStore） =====
+
+    def lock_remaining(self, email: str) -> float:
+        """账号剩余锁定秒数，未锁定返回 0。"""
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT locked_until FROM users WHERE email = ?",
+                (email.strip().lower(),),
+            ).fetchone()
+        if not row or not row["locked_until"]:
+            return 0.0
+        return max(0.0, row["locked_until"] - time.time())
+
+    def record_login_failure(
+        self, email: str, fail_limit: int, lock_minutes: int
+    ) -> bool:
+        """记录一次登录失败；达到阈值时锁定并返回 True。
+
+        邮箱不存在时静默忽略（不暴露账号是否存在）。
+        """
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT id, failed_attempts FROM users WHERE email = ?",
+                (email.strip().lower(),),
+            ).fetchone()
+            if not row:
+                return False
+            attempts = int(row["failed_attempts"] or 0) + 1
+            locked = attempts >= max(1, fail_limit)
+            if locked:
+                self._conn.execute(
+                    "UPDATE users SET failed_attempts = ?, locked_until = ? WHERE id = ?",
+                    (attempts, time.time() + max(1, lock_minutes) * 60, row["id"]),
+                )
+            else:
+                self._conn.execute(
+                    "UPDATE users SET failed_attempts = ? WHERE id = ?",
+                    (attempts, row["id"]),
+                )
+            self._conn.commit()
+        return locked
+
+    def clear_login_failures(self, user_id: str) -> None:
+        """登录成功后清空失败计数与锁定。"""
+        with self._lock:
+            self._conn.execute(
+                "UPDATE users SET failed_attempts = 0, locked_until = NULL WHERE id = ?",
+                (user_id,),
+            )
+            self._conn.commit()
 
     def list_all(
         self,

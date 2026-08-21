@@ -19,7 +19,7 @@ import uuid
 from pathlib import Path
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, WebSocket, WebSocketDisconnect
 
 from kbrefiner.config import Settings, get_settings
 from kbrefiner.core.llm import DeepSeekClient
@@ -27,7 +27,13 @@ from kbrefiner.core.pipeline import Pipeline, PipelineConfig
 from kbrefiner.core.sensitive import SensitiveDetector
 from kbrefiner.db import TaskStore
 
-from .deps import get_current_user, get_llm_client, get_sensitive_detector
+from .deps import (
+    check_ip_allowed,
+    get_current_user,
+    get_llm_client,
+    get_sensitive_detector,
+    get_settings_store,
+)
 from .ws_manager import make_progress_callback, manager, push_error, push_result
 
 logger = logging.getLogger(__name__)
@@ -156,32 +162,48 @@ async def _run_pipeline_background(
 @router.post("/upload")
 async def upload_file(
     file: UploadFile,
+    request: Request,
     settings: Settings = Depends(get_settings),
     current_user: Optional[dict] = Depends(get_current_user),
 ):
-    """上传文档文件，支持 PDF / DOCX / PPTX / XLSX / 图片 / Markdown / TXT 格式。
+    """上传文档文件（类型 / 大小 / 用户配额 / IP 白名单四重校验）。
 
-    开放模式（require_login=False）匿名可上传，user_id 为 NULL；
+    开放模式（require_login=False）匿名可上传，user_id 为 NULL（配额不限制匿名）；
     强制登录模式由依赖层保证已登录。
 
     Returns:
         {"file_id": "abc123", "filename": "policy.pdf", "size": 12345}
     """
-    # 验证文件类型
-    allowed_extensions = {".pdf", ".docx", ".pptx", ".xlsx", ".png", ".jpg", ".jpeg", ".bmp", ".md", ".markdown", ".txt"}
+    # IP 白名单（启用时；回环始终放行）
+    check_ip_allowed(request)
+
+    settings_store = get_settings_store()
+
+    # 文件类型：后台"允许的文件类型"设置（默认保持历史行为全量开放）
+    allowed_types = {str(t).lower().lstrip(".") for t in settings_store.get("allowed_file_types") or []}
+    allowed_extensions = {f".{t}" for t in allowed_types} | {".markdown"}
     ext = Path(file.filename or "").suffix.lower()
     if ext not in allowed_extensions:
         raise HTTPException(
             status_code=400,
-            detail=f"不支持的文件类型: {ext}。支持: {', '.join(sorted(allowed_extensions))}",
+            detail=f"不支持的文件类型: {ext}。当前允许: {', '.join(sorted(allowed_extensions))}",
         )
 
-    # 检查文件大小
-    if file.size and file.size > settings.max_upload_size_mb * 1024 * 1024:
+    # 文件大小：后台配额覆盖 .env
+    max_mb = int(settings_store.get("quota_file_size_mb") or settings.max_upload_size_mb)
+    if file.size and file.size > max_mb * 1024 * 1024:
         raise HTTPException(
             status_code=400,
-            detail=f"文件大小超过限制（{settings.max_upload_size_mb}MB）",
+            detail=f"文件大小超过限制（{max_mb}MB）",
         )
+
+    # 用户配额（仅登录用户；匿名开放模式不限制）
+    if current_user:
+        stats = _task_store.daily_user_stats(current_user["id"])
+        if stats["task_count"] >= int(settings_store.get("quota_task_daily") or 0):
+            raise HTTPException(status_code=429, detail="已达今日任务数上限，请明天再试")
+        if stats["upload_count"] >= int(settings_store.get("quota_upload_daily") or 0):
+            raise HTTPException(status_code=429, detail="已达今日上传文档数上限，请明天再试")
 
     # 保存到 upload_dir
     file_id = _make_task_id()
@@ -214,13 +236,15 @@ async def upload_file(
 @router.post("/process")
 async def process_document(
     file_id: str,
+    request: Request,
     async_mode: bool = False,
     filename: Optional[str] = None,
     settings: Settings = Depends(get_settings),
     llm_client: DeepSeekClient = Depends(get_llm_client),
     detector: SensitiveDetector = Depends(get_sensitive_detector),
+    current_user: Optional[dict] = Depends(get_current_user),
 ):
-    """发起文档处理。
+    """发起文档处理（IP 白名单 + 用户 Token 配额校验）。
 
     用文档解析器解析 → 4 阶流水线 → 输出最终 JSON。
     两种模式：
@@ -236,6 +260,16 @@ async def process_document(
         同步: {"task_id": "...", "status": "completed", "result": {...}}
         异步: {"task_id": "...", "status": "processing"}
     """
+    # IP 白名单（启用时；回环始终放行）
+    check_ip_allowed(request)
+
+    # Token 日配额：已消耗达到上限则拒绝发起新任务（匿名开放模式不限制）
+    if current_user:
+        settings_store = get_settings_store()
+        stats = _task_store.daily_user_stats(current_user["id"])
+        if stats["token_total"] >= int(settings_store.get("quota_token_daily") or 0):
+            raise HTTPException(status_code=429, detail="已达今日 Token 消耗上限，请明天再试")
+
     # 查找文件
     upload_dir = Path(settings.upload_dir)
     candidates = list(upload_dir.glob(f"{file_id}.*"))

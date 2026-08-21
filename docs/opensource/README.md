@@ -97,6 +97,8 @@ docker compose up -d
 
 ## 性能调优与权衡
 
+> 下表中的分段/并行参数**不读 .env**，修改位置与代码示例见 [CONFIGURATION.md 的自助调整指引](./CONFIGURATION.md#自助调整指引b--c-层参数修改位置)——Web 部署改 `routes.py` 两处 `PipelineConfig` 构造，SDK 用户直接构造 `Pipeline` 传参，新任务即生效。
+
 ### 实测基线（800KB PDF，DeepSeek-chat，2026-08）
 
 | 优化状态 | 总耗时 |

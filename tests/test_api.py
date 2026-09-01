@@ -543,5 +543,66 @@ class TestExportFilename(unittest.TestCase):
         self.assertIn('filename="kbrefiner_task_exp2_json.json"', disposition)
 
 
+class TestReportPage(unittest.TestCase):
+    """质检报告独立页 /report 测试。"""
+
+    def setUp(self):
+        self.temp_dir = TemporaryDirectory()
+        self.client = _create_test_client(self.temp_dir.name)
+
+    def tearDown(self):
+        _restore_task_store()
+        self.temp_dir.cleanup()
+        app.dependency_overrides.clear()
+
+    def _write_final(self, task_id: str):
+        task_dir = Path(self.temp_dir.name) / "outputs" / task_id
+        task_dir.mkdir(parents=True, exist_ok=True)
+        (task_dir / "final.json").write_text(
+            _make_mock_pipeline_output().model_dump_json(indent=2), encoding="utf-8"
+        )
+
+    def test_report_page_renders(self):
+        """/report 路由返回报告页 HTML。"""
+        resp = self.client.get("/report")
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("质检报告", resp.text)
+        self.assertIn("renderPipelineResult", resp.text)
+
+    def test_report_data_via_result_api(self):
+        """报告页依赖 /api/result/{task_id}，结果须可正常返回。"""
+        self._write_final("task_rep1")
+        routes._task_store["task_rep1"] = {
+            "status": "completed",
+            "filename": "手册.pdf",
+        }
+
+        resp = self.client.get("/api/result/task_rep1")
+        self.assertEqual(resp.status_code, 200)
+        result = resp.json()
+        self.assertEqual(result["document_info"]["total_chunks"], 2)
+        self.assertEqual(result["document_info"]["total_qa_pairs"], 3)
+        self.assertEqual(len(result["knowledge_atoms"]), 1)
+
+    def test_report_metadata_from_status_and_tasks(self):
+        """报告页侧栏元数据来源：/api/status 与 /api/tasks 均可读。"""
+        self._write_final("task_rep2")
+        routes._task_store["task_rep2"] = {
+            "status": "completed",
+            "filename": "手册.pdf",
+            "token_consumed": 1234,
+            "created_at": 1700000000,
+            "updated_at": 1700000100,
+        }
+
+        status = self.client.get("/api/status/task_rep2").json()
+        self.assertEqual(status["status"], "completed")
+        self.assertEqual(status["filename"], "手册.pdf")
+
+        tasks = self.client.get("/api/tasks").json()
+        t = next(x for x in tasks["tasks"] if x["task_id"] == "task_rep2")
+        self.assertEqual(t["token_consumed"], 1234)
+
+
 if __name__ == "__main__":
     unittest.main()

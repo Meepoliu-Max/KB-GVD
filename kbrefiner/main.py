@@ -81,6 +81,7 @@ _PAGE_MAP: dict[str, str] = {
     "task-new": "task-new.html",
     "task-cancel": "task-cancel.html",
     "task-completed": "task-completed.html",
+    "report": "report.html",
     "patterns": "patterns.html",
 }
 

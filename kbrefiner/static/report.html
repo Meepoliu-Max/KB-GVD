@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>知序 KBRefiner - 质检报告</title>
+    <style id="theme-vars">
+/* 知序 KBRefiner — 产品前端设计系统 */
+:root {
+  --kb-primary-50: #eff6ff;
+  --kb-primary-100: #dbeafe;
+  --kb-primary-200: #bfdbfe;
+  --kb-primary-300: #93c5fd;
+  --kb-primary-400: #60a5fa;
+  --kb-primary-500: #3b82f6;
+  --kb-primary-600: #2563eb;
+  --kb-primary-700: #1d4ed8;
+  --kb-primary-800: #1e40af;
+  --kb-primary-900: #1e3a8a;
+
+  --kb-neutral-0: #ffffff;
+  --kb-neutral-50: #f8fafc;
+  --kb-neutral-100: #f1f5f9;
+  --kb-neutral-200: #e2e8f0;
+  --kb-neutral-300: #cbd5e1;
+  --kb-neutral-400: #94a3b8;
+  --kb-neutral-500: #64748b;
+  --kb-neutral-600: #475569;
+  --kb-neutral-700: #334155;
+  --kb-neutral-800: #1e293b;
+  --kb-neutral-900: #0f172a;
+
+  --kb-state-success: #10b981;
+  --kb-state-success-bg: #ecfdf5;
+  --kb-state-warning: #f59e0b;
+  --kb-state-warning-bg: #fffbeb;
+  --kb-state-error: #ef4444;
+  --kb-state-error-bg: #fef2f2;
+  --kb-state-info: #0ea5e9;
+  --kb-state-info-bg: #f0f9ff;
+
+  --kb-background: var(--kb-neutral-50);
+  --kb-foreground: var(--kb-neutral-900);
+  --kb-card: var(--kb-neutral-0);
+  --kb-card-foreground: var(--kb-neutral-900);
+  --kb-popover: var(--kb-neutral-0);
+  --kb-popover-foreground: var(--kb-neutral-900);
+  --kb-primary: var(--kb-primary-600);
+  --kb-primary-foreground: var(--kb-neutral-0);
+  --kb-muted: var(--kb-neutral-100);
+  --kb-muted-foreground: var(--kb-neutral-500);
+  --kb-border: var(--kb-neutral-200);
+  --kb-input: var(--kb-neutral-200);
+  --kb-ring: var(--kb-primary-300);
+
+  --kb-radius-small: 4px;
+  --kb-radius-medium: 8px;
+  --kb-radius-large: 12px;
+
+  --kb-font-sans: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --kb-font-mono: "GeistMono", "SF Mono", "Fira Code", ui-monospace, monospace;
+
+  --kb-shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --kb-shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.05);
+  --kb-shadow-md: 0 4px 12px rgba(15, 23, 42, 0.05);
+  --kb-shadow-lg: 0 8px 24px rgba(15, 23, 42, 0.05);
+  --kb-shadow-float: 0 16px 48px rgba(15, 23, 42, 0.12);
+
+  --kb-space-1: 4px;
+  --kb-space-2: 8px;
+  --kb-space-3: 12px;
+  --kb-space-4: 16px;
+  --kb-space-5: 20px;
+  --kb-space-6: 24px;
+  --kb-space-8: 32px;
+  --kb-space-10: 40px;
+  --kb-space-12: 48px;
+
+  --kb-header-height: 64px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; scroll-behavior: smooth; }
+body {
+  font-family: var(--kb-font-sans);
+  background: var(--kb-background);
+  color: var(--kb-foreground);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3, h4, h5, h6 { line-height: 1.3; font-weight: 700; color: var(--kb-foreground); }
+h2 { font-size: 1.5rem; }
+h3 { font-size: 1.25rem; }
+p { color: var(--kb-neutral-600); line-height: 1.7; }
+a { color: var(--kb-primary); text-decoration: none; }
+a:hover { color: var(--kb-primary-700); }
+
+.kb-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--kb-space-2);
+  padding: 10px 18px; border: 1px solid transparent; border-radius: var(--kb-radius-medium);
+  font-family: var(--kb-font-sans); font-size: 0.875rem; font-weight: 600; cursor: pointer;
+  transition: all 0.2s ease; white-space: nowrap;
+}
+.kb-btn-primary { background: var(--kb-primary); color: var(--kb-primary-foreground); }
+.kb-btn-primary:hover { background: var(--kb-primary-700); }
+.kb-btn-secondary { background: var(--kb-neutral-0); color: var(--kb-neutral-700); border-color: var(--kb-border); }
+.kb-btn-secondary:hover { background: var(--kb-neutral-50); border-color: var(--kb-neutral-300); }
+.kb-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.kb-btn-sm { padding: 6px 12px; font-size: 0.8125rem; }
+
+.kb-card {
+  background: var(--kb-card); border: 1px solid var(--kb-border);
+  border-radius: var(--kb-radius-large); box-shadow: var(--kb-shadow-xs);
+}
+.kb-card-header {
+  padding: var(--kb-space-5) var(--kb-space-6); border-bottom: 1px solid var(--kb-border);
+  display: flex; align-items: center; justify-content: space-between; gap: var(--kb-space-4);
+}
+.kb-card-body { padding: var(--kb-space-6); }
+
+.kb-tag {
+  display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px;
+  border-radius: 9999px; font-size: 0.75rem; font-weight: 600; line-height: 1;
+}
+.kb-tag-success { background: var(--kb-state-success-bg); color: #047857; }
+.kb-tag-warning { background: var(--kb-state-warning-bg); color: #b45309; }
+.kb-tag-error { background: var(--kb-state-error-bg); color: #b91c1c; }
+.kb-tag-info { background: var(--kb-state-info-bg); color: #0369a1; }
+
+.kb-text-muted { color: var(--kb-neutral-500); }
+.kb-text-secondary { color: var(--kb-neutral-600); }
+.kb-text-success { color: var(--kb-state-success); }
+.kb-text-warning { color: var(--kb-state-warning); }
+.kb-text-error { color: var(--kb-state-error); }
+.kb-font-semibold { font-weight: 600; }
+.kb-text-sm { font-size: 0.875rem; }
+.kb-text-xs { font-size: 0.75rem; }
+.kb-truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.kb-empty { text-align: center; padding: var(--kb-space-12) var(--kb-space-6); color: var(--kb-neutral-500); }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.1/dist/index.global.js"></script>
+    <script src="https://unpkg.com/lucide@1.8.0/dist/umd/lucide.min.js"></script>
+    <style type="text/tailwindcss">
+  @theme inline {
+    --color-background: var(--kb-background);
+    --color-foreground: var(--kb-foreground);
+    --color-card: var(--kb-card);
+    --color-card-foreground: var(--kb-card-foreground);
+    --color-popover: var(--kb-popover);
+    --color-popover-foreground: var(--kb-popover-foreground);
+    --color-primary: var(--kb-primary);
+    --color-primary-foreground: var(--kb-primary-foreground);
+    --color-muted: var(--kb-muted);
+    --color-muted-foreground: var(--kb-muted-foreground);
+    --color-border: var(--kb-border);
+    --color-input: var(--kb-input);
+    --color-ring: var(--kb-ring);
+    --radius-sm: var(--kb-radius-small);
+    --radius-md: var(--kb-radius-medium);
+    --radius-lg: var(--kb-radius-large);
+  }
+  @layer base { body { background: var(--kb-background); color: var(--kb-foreground); } }
+    </style>
+</head>
+<body class="min-h-screen font-sans antialiased">
+    <div class="kb-app">
+      <header class="kb-top-header">
+        <div class="kb-top-header-left">
+          <a class="kb-top-brand" href="/task-list">
+            <div class="kb-top-brand-icon">知序</div>
+            <div class="kb-top-brand-text">
+              <span class="kb-top-brand-name">KBRefiner</span>
+              <span class="kb-top-brand-tag">RAG 知识库质检车间</span>
+            </div>
+          </a>
+          <a class="kb-top-back" data-dom-id="btn-back" href="/task-list">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            返回
+          </a>
+        </div>
+        <div class="kb-top-header-right">
+          <button class="kb-btn kb-btn-secondary kb-btn-sm" data-dom-id="btn-download" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            下载结果
+          </button>
+        </div>
+      </header>
+
+      <main class="kb-main">
+        <div class="kb-content">
+          <div class="kb-report-header">
+            <div class="kb-report-title-wrap">
+              <h2 class="kb-report-title">质检报告</h2>
+              <p class="kb-report-subtitle" data-dom-id="report-subtitle">加载中...</p>
+            </div>
+            <span class="kb-tag kb-tag-success" data-dom-id="report-badge">已完成</span>
+          </div>
+
+          <div class="kb-report-layout">
+            <div class="kb-report-main">
+              <div class="kb-card">
+                <div class="kb-card-header">
+                  <h3>详细结果</h3>
+                </div>
+                <div class="kb-card-body" data-dom-id="report-body">
+                  <div class="kb-empty">正在加载报告...</div>
+                </div>
+              </div>
+            </div>
+
+            <aside class="kb-report-side">
+              <div class="kb-card kb-meta-card">
+                <div class="kb-card-header"><h3>任务信息</h3></div>
+                <div class="kb-card-body">
+                  <dl class="kb-meta-list">
+                    <div class="kb-meta-item"><dt>创建时间</dt><dd data-dom-id="meta-created">—</dd></div>
+                    <div class="kb-meta-item"><dt>完成时间</dt><dd data-dom-id="meta-completed">—</dd></div>
+                    <div class="kb-meta-item"><dt>文档名称</dt><dd data-dom-id="meta-filename" class="kb-truncate">—</dd></div>
+                    <div class="kb-meta-item"><dt>文件大小</dt><dd data-dom-id="meta-file-size">—</dd></div>
+                    <div class="kb-meta-item"><dt>文档类型</dt><dd data-dom-id="meta-doc-type">—</dd></div>
+                    <div class="kb-meta-item"><dt>Token 消耗</dt><dd data-dom-id="meta-token">—</dd></div>
+                  </dl>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script src="/static/js/kbrefiner.js"></script>
+    <script>
+      lucide.createIcons();
+
+      const taskId = KBRefiner.getQueryParam('task_id');
+      const taskName = KBRefiner.getQueryParam('name') || '未命名任务';
+
+      const reportBody = document.querySelector('[data-dom-id="report-body"]');
+      const reportSubtitle = document.querySelector('[data-dom-id="report-subtitle"]');
+      const btnBack = document.querySelector('[data-dom-id="btn-back"]');
+      const btnDownload = document.querySelector('[data-dom-id="btn-download"]');
+
+      function setText(sel, text) {
+        const el = document.querySelector(`[data-dom-id="${sel}"]`);
+        if (el) el.textContent = text;
+      }
+
+      // 从任务列表取 Token 消耗（getStatus 不返回该字段）
+      async function loadToken(id) {
+        try {
+          const data = await KBRefiner.API.listTasks();
+          const t = (data.tasks || []).find(x => x.task_id === id);
+          setText('meta-token', t && t.token_consumed ? Number(t.token_consumed).toLocaleString() : '—');
+        } catch (e) { /* 忽略 */ }
+      }
+
+      async function loadMeta(id) {
+        try {
+          const status = await KBRefiner.API.getStatus(id);
+          const fmtTime = (ts) => ts ? new Date(ts * 1000).toLocaleString('zh-CN') : '—';
+          const fmtSize = (b) => {
+            b = b || 0;
+            return b >= 1048576 ? (b / 1048576).toFixed(1) + ' MB'
+              : b >= 1024 ? (b / 1024).toFixed(1) + ' KB' : b + ' B';
+          };
+          setText('meta-created', fmtTime(status.created_at));
+          setText('meta-completed', fmtTime(status.updated_at));
+          setText('meta-filename', status.filename || taskName);
+          setText('meta-file-size', fmtSize(status.file_size));
+        } catch (e) {
+          console.error('加载任务元数据失败:', e);
+        }
+      }
+
+      async function loadResult(id) {
+        if (!id) return;
+        try {
+          const result = await KBRefiner.API.getResult(id);
+          const docInfo = result.document_info || {};
+          setText('meta-doc-type', docInfo.doc_type || '—');
+          if (reportSubtitle) {
+            reportSubtitle.textContent = `${taskName} 的质检报告，共 ${docInfo.total_chunks || 0} 个知识原子、${docInfo.total_qa_pairs || 0} 个 QA 对。`;
+          }
+          if (reportBody) KBRefiner.renderPipelineResult(result, reportBody);
+        } catch (e) {
+          reportBody.innerHTML = '<div class="kb-empty">加载失败：无法获取处理结果。</div>';
+          reportSubtitle.textContent = '';
+        }
+      }
+
+      if (taskId) {
+        loadMeta(taskId);
+        loadResult(taskId);
+        loadToken(taskId);
+      }
+
+      btnBack?.addEventListener('click', (e) => {
+        e.preventDefault();
+        // 返回任务详情或列表
+        window.location.href = taskId ? `/task-detail?task_id=${taskId}&name=${encodeURIComponent(taskName)}` : '/task-list';
+      });
+
+      btnDownload?.addEventListener('click', () => {
+        if (taskId) window.location.href = KBRefiner.API.exportUrl(taskId, 'json');
+      });
+    </script>
+
+    <style id="critical-layout">
+    .kb-app { display: flex; flex-direction: column; min-height: 100vh; }
+    .kb-top-header {
+      height: var(--kb-header-height);
+      background: var(--kb-neutral-0);
+      border-bottom: 1px solid var(--kb-border);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 32px; position: sticky; top: 0; z-index: 40; gap: 16px;
+    }
+    .kb-top-header-left { display: flex; align-items: center; gap: 24px; min-width: 0; }
+    .kb-top-header-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+    .kb-top-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+    .kb-top-brand-icon {
+      width: 32px; height: 32px; background: linear-gradient(135deg, var(--kb-primary-500), var(--kb-primary-700));
+      border-radius: 8px; display: flex; align-items: center; justify-content: center;
+      font-weight: 700; color: var(--kb-neutral-0); font-size: 14px; flex-shrink: 0;
+    }
+    .kb-top-brand-text { display: flex; flex-direction: column; line-height: 1.2; }
+    .kb-top-brand-name { font-weight: 700; font-size: 1.05rem; color: var(--kb-neutral-900); }
+    .kb-top-brand-tag { font-size: 0.75rem; color: var(--kb-neutral-500); }
+    .kb-top-back {
+      display: inline-flex; align-items: center; gap: 6px; font-size: 0.875rem; font-weight: 600;
+      color: var(--kb-neutral-600); padding-left: 24px; border-left: 1px solid var(--kb-border);
+    }
+    .kb-top-back:hover { color: var(--kb-primary); }
+    .kb-main { flex: 1; min-height: 100vh; }
+    .kb-content { padding: 32px; max-width: 1440px; margin: 0 auto; }
+
+    .kb-report-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 16px; margin-bottom: 28px;
+    }
+    .kb-report-title { font-size: 1.5rem; font-weight: 700; color: var(--kb-neutral-900); }
+    .kb-report-subtitle { font-size: 0.875rem; color: var(--kb-neutral-500); margin-top: 6px; }
+
+    .kb-report-layout { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 24px; align-items: start; }
+    .kb-report-main { min-width: 0; }
+    .kb-report-side { min-width: 0; }
+
+    .kb-meta-list { display: flex; flex-direction: column; gap: 14px; }
+    .kb-meta-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .kb-meta-item dt { font-size: 0.875rem; color: var(--kb-neutral-500); flex-shrink: 0; }
+    .kb-meta-item dd { font-size: 0.875rem; font-weight: 600; color: var(--kb-neutral-800); text-align: right; min-width: 0; }
+
+    @media (max-width: 1024px) { .kb-report-layout { grid-template-columns: 1fr; } }
+    @media (max-width: 768px) {
+      .kb-top-header { padding: 0 16px; gap: 12px; }
+      .kb-top-header-left { gap: 12px; }
+      .kb-top-back { display: none; }
+      .kb-top-brand-text { display: none; }
+      .kb-content { padding: 16px; }
+      .kb-report-header { flex-direction: column; }
+    }
+    </style>
+</body>
+</html>

@@ -885,14 +885,10 @@ a:hover {
         window.location.href = KBRefiner.API.exportUrl(taskId, exportFormat.value);
       });
 
-      // ===== 查看质检报告 =====
+      // ===== 查看质检报告（独立报告页） =====
       btnReport?.addEventListener('click', () => {
-        if (!_lastResult) return;
-        // 在当前页展示完整结果
-        const resultContainer = document.querySelector('.kb-detail-main');
-        if (resultContainer) {
-          KBRefiner.renderPipelineResult(_lastResult, resultContainer);
-        }
+        if (!taskId) return;
+        window.location.href = `/report?task_id=${taskId}&name=${encodeURIComponent(taskName)}`;
       });
     </script>
 

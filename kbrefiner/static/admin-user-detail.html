@@ -1,0 +1,1367 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户详情 · KBRefiner 管理后台</title>
+    <style id="theme-vars">
+/* 知序 KBRefiner — 产品前端设计系统 */
+
+:root {
+  /* ===== 品牌主色阶（单一主色） ===== */
+  --kb-primary-50: #eff6ff;
+  --kb-primary-100: #dbeafe;
+  --kb-primary-200: #bfdbfe;
+  --kb-primary-300: #93c5fd;
+  --kb-primary-400: #60a5fa;
+  --kb-primary-500: #3b82f6;
+  --kb-primary-600: #2563eb;
+  --kb-primary-700: #1d4ed8;
+  --kb-primary-800: #1e40af;
+  --kb-primary-900: #1e3a8a;
+
+  /* ===== 中性色阶 ===== */
+  --kb-neutral-0: #ffffff;
+  --kb-neutral-50: #f8fafc;
+  --kb-neutral-100: #f1f5f9;
+  --kb-neutral-200: #e2e8f0;
+  --kb-neutral-300: #cbd5e1;
+  --kb-neutral-400: #94a3b8;
+  --kb-neutral-500: #64748b;
+  --kb-neutral-600: #475569;
+  --kb-neutral-700: #334155;
+  --kb-neutral-800: #1e293b;
+  --kb-neutral-900: #0f172a;
+
+  /* ===== 语义色（仅用于状态） ===== */
+  --kb-state-success: #10b981;
+  --kb-state-success-bg: #ecfdf5;
+  --kb-state-warning: #f59e0b;
+  --kb-state-warning-bg: #fffbeb;
+  --kb-state-error: #ef4444;
+  --kb-state-error-bg: #fef2f2;
+  --kb-state-info: #0ea5e9;
+  --kb-state-info-bg: #f0f9ff;
+
+  /* ===== 语义状态边框/文字（管理后台新增） ===== */
+  --kb-state-success-border: #a7f3d0;
+  --kb-state-success-text: #047857;
+  --kb-state-warning-border: #fde68a;
+  --kb-state-warning-text: #b45309;
+  --kb-state-error-border: #fecaca;
+  --kb-state-error-text: #b91c1c;
+  --kb-state-info-border: #bae6fd;
+  --kb-state-info-text: #0369a1;
+
+  /* ===== 语义别名 ===== */
+  --kb-background: var(--kb-neutral-50);
+  --kb-foreground: var(--kb-neutral-900);
+  --kb-card: var(--kb-neutral-0);
+  --kb-card-foreground: var(--kb-neutral-900);
+  --kb-popover: var(--kb-neutral-0);
+  --kb-popover-foreground: var(--kb-neutral-900);
+  --kb-primary: var(--kb-primary-600);
+  --kb-primary-foreground: var(--kb-neutral-0);
+  --kb-muted: var(--kb-neutral-100);
+  --kb-muted-foreground: var(--kb-neutral-500);
+  --kb-border: var(--kb-neutral-200);
+  --kb-input: var(--kb-neutral-200);
+  --kb-ring: var(--kb-primary-300);
+
+  --kb-radius-small: 4px;
+  --kb-radius-medium: 8px;
+  --kb-radius-large: 12px;
+
+  /* ===== 字体系统 ===== */
+  --kb-font-sans: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --kb-font-mono: "GeistMono", "SF Mono", "Fira Code", ui-monospace, monospace;
+
+  /* ===== 阴影 ===== */
+  --kb-shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --kb-shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.05);
+  --kb-shadow-md: 0 4px 12px rgba(15, 23, 42, 0.05);
+  --kb-shadow-lg: 0 8px 24px rgba(15, 23, 42, 0.05);
+  --kb-shadow-float: 0 16px 48px rgba(15, 23, 42, 0.12);
+
+  /* ===== 间距 ===== */
+  --kb-space-1: 4px;
+  --kb-space-2: 8px;
+  --kb-space-3: 12px;
+  --kb-space-4: 16px;
+  --kb-space-5: 20px;
+  --kb-space-6: 24px;
+  --kb-space-8: 32px;
+  --kb-space-10: 40px;
+  --kb-space-12: 48px;
+
+  /* ===== 尺寸 ===== */
+  --kb-header-height: 64px;
+  --kb-sidebar-width: 220px;
+  --kb-sidebar-collapsed: 64px;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--kb-font-sans);
+  background: var(--kb-background);
+  color: var(--kb-foreground);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  line-height: 1.3;
+  font-weight: 700;
+  color: var(--kb-foreground);
+}
+
+h1 { font-size: 1.875rem; }
+h2 { font-size: 1.5rem; }
+h3 { font-size: 1.25rem; }
+
+p { color: var(--kb-neutral-600); line-height: 1.7; }
+
+a { color: var(--kb-primary); text-decoration: none; }
+a:hover { color: var(--kb-primary-700); }
+
+.kb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--kb-space-2);
+  padding: 10px 18px;
+  border: 1px solid transparent;
+  border-radius: var(--kb-radius-medium);
+  font-family: var(--kb-font-sans);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.kb-btn-primary { background: var(--kb-primary); color: var(--kb-primary-foreground); }
+.kb-btn-primary:hover { background: var(--kb-primary-700); }
+.kb-btn-secondary { background: var(--kb-neutral-0); color: var(--kb-neutral-700); border-color: var(--kb-border); }
+.kb-btn-secondary:hover { background: var(--kb-neutral-50); border-color: var(--kb-neutral-300); }
+.kb-btn-ghost { background: transparent; color: var(--kb-neutral-600); }
+.kb-btn-ghost:hover { background: var(--kb-neutral-100); color: var(--kb-neutral-900); }
+.kb-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.kb-btn-sm { padding: 6px 12px; font-size: 0.8125rem; }
+
+.kb-card {
+  background: var(--kb-card);
+  border: 1px solid var(--kb-border);
+  border-radius: var(--kb-radius-large);
+  box-shadow: var(--kb-shadow-xs);
+}
+
+.kb-card-header {
+  padding: var(--kb-space-5) var(--kb-space-6);
+  border-bottom: 1px solid var(--kb-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--kb-space-4);
+}
+
+.kb-card-body { padding: var(--kb-space-6); }
+
+.kb-input,
+.kb-select {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--kb-input);
+  border-radius: var(--kb-radius-medium);
+  background: var(--kb-neutral-0);
+  color: var(--kb-foreground);
+  font-family: var(--kb-font-sans);
+  font-size: 0.875rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.kb-input:focus,
+.kb-select:focus {
+  outline: none;
+  border-color: var(--kb-primary-400);
+  box-shadow: 0 0 0 3px var(--kb-primary-100);
+}
+
+.kb-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.kb-tag-primary { background: var(--kb-primary-100); color: var(--kb-primary-700); }
+.kb-tag-success { background: var(--kb-state-success-bg); color: #047857; }
+.kb-tag-warning { background: var(--kb-state-warning-bg); color: #b45309; }
+.kb-tag-error { background: var(--kb-state-error-bg); color: #b91c1c; }
+.kb-tag-info { background: var(--kb-state-info-bg); color: #0369a1; }
+.kb-tag-muted { background: var(--kb-neutral-100); color: var(--kb-neutral-600); }
+
+.kb-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.kb-status::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.kb-status-pending::before { background: var(--kb-neutral-400); }
+.kb-status-running::before { background: var(--kb-state-info); }
+.kb-status-success::before { background: var(--kb-state-success); }
+.kb-status-warning::before { background: var(--kb-state-warning); }
+.kb-status-error::before { background: var(--kb-state-error); }
+
+.kb-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.kb-table th,
+.kb-table td {
+  padding: var(--kb-space-3) var(--kb-space-4);
+  text-align: left;
+  border-bottom: 1px solid var(--kb-border);
+}
+
+.kb-table th {
+  font-weight: 600;
+  color: var(--kb-neutral-600);
+  background: var(--kb-neutral-50);
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.kb-table tr:hover td { background: var(--kb-neutral-50); }
+
+.kb-progress {
+  width: 100%;
+  height: 8px;
+  background: var(--kb-neutral-200);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.kb-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--kb-primary-500), var(--kb-primary-600));
+  border-radius: 9999px;
+  transition: width 0.4s ease;
+}
+
+.kb-empty {
+  text-align: center;
+  padding: var(--kb-space-12) var(--kb-space-6);
+  color: var(--kb-neutral-500);
+}
+
+.kb-text-muted { color: var(--kb-neutral-500); }
+.kb-text-secondary { color: var(--kb-neutral-600); }
+.kb-text-primary { color: var(--kb-primary); }
+.kb-text-success { color: var(--kb-state-success); }
+.kb-text-warning { color: var(--kb-state-warning); }
+.kb-text-error { color: var(--kb-state-error); }
+.kb-font-semibold { font-weight: 600; }
+.kb-font-bold { font-weight: 700; }
+.kb-text-sm { font-size: 0.875rem; }
+.kb-text-xs { font-size: 0.75rem; }
+.kb-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.1/dist/index.global.js"></script>
+    <script src="https://unpkg.com/lucide@1.8.0/dist/umd/lucide.min.js"></script>
+    <style type="text/tailwindcss">
+  @theme inline {
+    --color-background: var(--kb-background);
+    --color-foreground: var(--kb-foreground);
+    --color-card: var(--kb-card);
+    --color-card-foreground: var(--kb-card-foreground);
+    --color-popover: var(--kb-popover);
+    --color-popover-foreground: var(--kb-popover-foreground);
+    --color-primary: var(--kb-primary);
+    --color-primary-foreground: var(--kb-primary-foreground);
+    --color-muted: var(--kb-muted);
+    --color-muted-foreground: var(--kb-muted-foreground);
+    --color-border: var(--kb-border);
+    --color-input: var(--kb-input);
+    --color-ring: var(--kb-ring);
+    --radius-sm: var(--kb-radius-small);
+    --radius-md: var(--kb-radius-medium);
+    --radius-lg: var(--kb-radius-large);
+  }
+  @layer base {
+    body { background: var(--kb-background); color: var(--kb-foreground); }
+    td, th { @apply break-words; word-break: break-all; word-break: auto-phrase; }
+    th { @apply whitespace-nowrap; }
+  }
+    </style>
+    <style id="semantic-token-fallback">
+      .bg-background { background-color: var(--kb-background); }
+      .text-background { color: var(--kb-background); }
+      .border-background { border-color: var(--kb-background); }
+      .bg-foreground { background-color: var(--kb-foreground); }
+      .text-foreground { color: var(--kb-foreground); }
+      .border-foreground { border-color: var(--kb-foreground); }
+      .bg-card { background-color: var(--kb-card); }
+      .text-card { color: var(--kb-card); }
+      .border-card { border-color: var(--kb-card); }
+      .bg-card-foreground { background-color: var(--kb-card-foreground); }
+      .text-card-foreground { color: var(--kb-card-foreground); }
+      .border-card-foreground { border-color: var(--kb-card-foreground); }
+      .bg-popover { background-color: var(--kb-popover); }
+      .text-popover { color: var(--kb-popover); }
+      .border-popover { border-color: var(--kb-popover); }
+      .bg-popover-foreground { background-color: var(--kb-popover-foreground); }
+      .text-popover-foreground { color: var(--kb-popover-foreground); }
+      .border-popover-foreground { border-color: var(--kb-popover-foreground); }
+      .bg-primary { background-color: var(--kb-primary); }
+      .text-primary { color: var(--kb-primary); }
+      .border-primary { border-color: var(--kb-primary); }
+      .bg-primary-foreground { background-color: var(--kb-primary-foreground); }
+      .text-primary-foreground { color: var(--kb-primary-foreground); }
+      .border-primary-foreground { border-color: var(--kb-primary-foreground); }
+      .bg-muted { background-color: var(--kb-muted); }
+      .text-muted { color: var(--kb-muted); }
+      .border-muted { border-color: var(--kb-muted); }
+      .bg-muted-foreground { background-color: var(--kb-muted-foreground); }
+      .text-muted-foreground { color: var(--kb-muted-foreground); }
+      .border-muted-foreground { border-color: var(--kb-muted-foreground); }
+      .bg-border { background-color: var(--kb-border); }
+      .text-border { color: var(--kb-border); }
+      .border-border { border-color: var(--kb-border); }
+      .bg-input { background-color: var(--kb-input); }
+      .text-input { color: var(--kb-input); }
+      .border-input { border-color: var(--kb-input); }
+      .bg-ring { background-color: var(--kb-ring); }
+      .text-ring { color: var(--kb-ring); }
+      .border-ring { border-color: var(--kb-ring); }
+    </style>
+</head>
+<body class="min-h-screen font-sans antialiased">
+    <div class="kb-admin-shell">
+      <!-- 侧边栏 -->
+      <aside class="kb-admin-sidebar" aria-label="管理后台导航">
+        <div class="kb-sidebar-head">
+          <div class="kb-sidebar-logo">知序</div>
+          <div class="kb-sidebar-brand-text">
+            <span class="kb-sidebar-brand-name">KBRefiner</span>
+            <span class="kb-sidebar-brand-sub">管理后台</span>
+          </div>
+        </div>
+
+        <nav class="kb-sidebar-nav">
+          <a class="kb-sidebar-nav-item" href="/admin/dashboard" data-dom-id="nav-dashboard">
+            <i data-lucide="layout-dashboard" class="kb-sidebar-nav-icon"></i>
+            <span class="kb-sidebar-nav-label">仪表盘</span>
+          </a>
+          <a class="kb-sidebar-nav-item is-active" href="/admin/users" data-dom-id="nav-users" aria-current="page">
+            <i data-lucide="users" class="kb-sidebar-nav-icon"></i>
+            <span class="kb-sidebar-nav-label">用户管理</span>
+          </a>
+          <a class="kb-sidebar-nav-item" href="/admin/messages" data-dom-id="nav-messages">
+            <i data-lucide="megaphone" class="kb-sidebar-nav-icon"></i>
+            <span class="kb-sidebar-nav-label">消息列表</span>
+          </a>
+          <a class="kb-sidebar-nav-item" href="/admin/access" data-dom-id="nav-access">
+            <i data-lucide="shield" class="kb-sidebar-nav-icon"></i>
+            <span class="kb-sidebar-nav-label">黑白名单</span>
+          </a>
+          <a class="kb-sidebar-nav-item" href="/admin/settings" data-dom-id="nav-settings">
+            <i data-lucide="settings" class="kb-sidebar-nav-icon"></i>
+            <span class="kb-sidebar-nav-label">系统设置</span>
+          </a>
+        </nav>
+
+        <div class="kb-sidebar-foot">
+          <div class="kb-sidebar-user">
+            <div class="kb-sidebar-avatar" id="self-avatar">管</div>
+            <div class="kb-sidebar-user-text">
+              <span class="kb-sidebar-user-name" id="self-name">管理员</span>
+              <span class="kb-sidebar-user-mail" id="self-email">-</span>
+            </div>
+          </div>
+          <a class="kb-sidebar-logout" href="#" id="btn-logout">
+            <i data-lucide="log-out" class="kb-sidebar-nav-icon"></i>
+            <span class="kb-sidebar-nav-label">退出登录</span>
+          </a>
+        </div>
+      </aside>
+
+      <!-- 主内容区 -->
+      <div class="kb-admin-main">
+        <!-- 顶部栏 -->
+        <header class="kb-admin-topbar">
+          <div class="kb-admin-topbar-left">
+            <button class="kb-admin-hamburger" type="button" aria-label="打开导航">
+              <i data-lucide="menu"></i>
+            </button>
+            <nav class="kb-breadcrumb" aria-label="面包屑">
+              <a class="kb-breadcrumb-item" href="/admin/dashboard">管理后台</a>
+              <i data-lucide="chevron-right" class="kb-breadcrumb-sep"></i>
+              <a class="kb-breadcrumb-item" href="/admin/users">用户管理</a>
+              <i data-lucide="chevron-right" class="kb-breadcrumb-sep"></i>
+              <span class="kb-breadcrumb-item is-current">用户详情</span>
+            </nav>
+          </div>
+          <div class="kb-admin-topbar-right">
+            <a class="kb-btn kb-btn-secondary kb-btn-sm" href="/admin/users" data-dom-id="btn-back-to-users">
+              <i data-lucide="arrow-left" class="kb-btn-icon"></i>返回
+            </a>
+          </div>
+        </header>
+
+        <!-- 内容主体 -->
+        <main class="kb-admin-content">
+          <!-- 用户资料头部卡片 -->
+          <section class="kb-card kb-profile-card" aria-label="用户资料">
+            <div class="kb-card-body kb-profile-body">
+              <div class="kb-profile-top">
+                <div class="kb-profile-avatar-lg" id="u-avatar">?</div>
+                <div class="kb-profile-info">
+                  <div class="kb-profile-name-row">
+                    <h2 id="u-name">加载中...</h2>
+                    <span id="u-role"></span>
+                    <span id="u-status"></span>
+                  </div>
+                  <div class="kb-profile-email">
+                    <i data-lucide="mail" class="kb-profile-email-icon"></i>
+                    <span id="u-email">-</span>
+                  </div>
+                </div>
+                <div class="kb-profile-actions">
+                  <button class="kb-btn kb-btn-secondary kb-btn-sm" type="button" id="btn-edit">
+                    <i data-lucide="pencil" class="kb-btn-icon"></i>编辑信息
+                  </button>
+                  <button class="kb-btn kb-btn-secondary kb-btn-sm" type="button" id="btn-reset-pwd">
+                    <i data-lucide="key-round" class="kb-btn-icon"></i>重置密码
+                  </button>
+                  <button class="kb-btn kb-btn-danger-ghost kb-btn-sm" type="button" id="btn-toggle-status">
+                    <i data-lucide="ban" class="kb-btn-icon"></i><span id="btn-toggle-text">禁用用户</span>
+                  </button>
+                </div>
+              </div>
+              <div class="kb-profile-stats">
+                <div class="kb-profile-stat">
+                  <span class="kb-profile-stat-value" id="u-tasks">-</span>
+                  <span class="kb-profile-stat-label">任务数</span>
+                </div>
+                <div class="kb-profile-stat">
+                  <span class="kb-profile-stat-value" id="u-uploads">-</span>
+                  <span class="kb-profile-stat-label">上传文档数</span>
+                </div>
+                <div class="kb-profile-stat">
+                  <span class="kb-profile-stat-value kb-text-primary" id="u-tokens">-</span>
+                  <span class="kb-profile-stat-label">Token 消耗</span>
+                </div>
+                <div class="kb-profile-stat">
+                  <span class="kb-profile-stat-value" id="u-days">-<span class="kb-profile-stat-unit">天</span></span>
+                  <span class="kb-profile-stat-label">注册天数</span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- 消耗统计卡片 -->
+          <section class="kb-detail-stat-grid" aria-label="消耗统计">
+            <div class="kb-stat-card">
+              <div class="kb-stat-card-top">
+                <div class="kb-stat-card-icon kb-stat-card-icon--primary">
+                  <i data-lucide="layers"></i>
+                </div>
+
+              </div>
+              <div class="kb-stat-card-value" id="d-today-tasks">-</div>
+              <div class="kb-stat-card-label">今日任务</div>
+            </div>
+
+            <div class="kb-stat-card">
+              <div class="kb-stat-card-top">
+                <div class="kb-stat-card-icon kb-stat-card-icon--warning">
+                  <i data-lucide="zap"></i>
+                </div>
+
+              </div>
+              <div class="kb-stat-card-value" id="d-today-tokens">-</div>
+              <div class="kb-stat-card-label">今日 Token</div>
+            </div>
+
+            <div class="kb-stat-card">
+              <div class="kb-stat-card-top">
+                <div class="kb-stat-card-icon kb-stat-card-icon--info">
+                  <i data-lucide="calendar-days"></i>
+                </div>
+              </div>
+              <div class="kb-stat-card-value" id="d-week-tasks">-</div>
+              <div class="kb-stat-card-label">本周任务</div>
+            </div>
+
+            <div class="kb-stat-card">
+              <div class="kb-stat-card-top">
+                <div class="kb-stat-card-icon kb-stat-card-icon--success">
+                  <i data-lucide="bar-chart-3"></i>
+                </div>
+              </div>
+              <div class="kb-stat-card-value" id="d-month-tokens">-</div>
+              <div class="kb-stat-card-label">本月 Token</div>
+            </div>
+          </section>
+
+          <!-- 消耗趋势（JS 按该用户近7天任务聚合渲染） -->
+          <section class="kb-card kb-chart-card" aria-label="消耗趋势">
+            <div class="kb-card-header">
+              <div class="kb-chart-title-wrap">
+                <h3 class="kb-chart-title">Token 消耗趋势</h3>
+                <span class="kb-tag kb-tag-muted">近7天</span>
+              </div>
+              <i data-lucide="trending-up" class="kb-chart-head-icon"></i>
+            </div>
+            <div class="kb-card-body kb-chart-body" id="u-chart"></div>
+          </section>
+
+          <!-- 最近任务列表 -->
+          <section class="kb-card" aria-label="最近任务列表">
+            <div class="kb-card-header">
+              <div class="kb-chart-title-wrap">
+                <h3 class="kb-chart-title">最近任务列表</h3>
+              </div>
+              <i data-lucide="list-checks" class="kb-chart-head-icon"></i>
+            </div>
+            <div class="kb-card-body kb-task-table-wrap">
+              <table class="kb-table kb-task-table">
+                <thead>
+                  <tr>
+                    <th>任务名称</th>
+                    <th>状态</th>
+                    <th>创建时间</th>
+                    <th>Token 消耗</th>
+                  </tr>
+                </thead>
+                <tbody id="u-tasks-tbody">
+                  <tr><td colspan="4" class="kb-text-muted" style="text-align:center;padding:32px;">加载中...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <!-- 操作日志 -->
+          <section class="kb-card" aria-label="操作日志">
+            <div class="kb-card-header">
+              <div class="kb-chart-title-wrap">
+                <h3 class="kb-chart-title">操作日志</h3>
+              </div>
+              <i data-lucide="history" class="kb-chart-head-icon"></i>
+            </div>
+            <div class="kb-card-body">
+              <ul class="kb-timeline" id="u-timeline"><li class="kb-timeline-item"><div class="kb-timeline-dot"></div><div class="kb-timeline-content"><div class="kb-timeline-text kb-text-muted">暂无记录</div></div></li></ul>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <script src="/static/js/kbrefiner.js"></script>
+    <script>
+      lucide.createIcons();
+
+      // 侧边栏移动端切换
+      (function () {
+        var menuBtn = document.querySelector('.kb-admin-hamburger');
+        var sidebar = document.querySelector('.kb-admin-sidebar');
+        function toggle() {
+          sidebar.classList.toggle('is-open');
+        }
+        if (menuBtn) menuBtn.addEventListener('click', toggle);
+      })();
+
+      const esc = KBRefiner.escapeHtml;
+      const fmtToken = n => {
+        n = Number(n || 0);
+        if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+        if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+        return String(n);
+      };
+      const fmtTime = ts => {
+        if (!ts) return '-';
+        const d = new Date(ts * 1000);
+        const p = x => String(x).padStart(2, '0');
+        return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+      };
+      const dayKey = ts => {
+        const d = new Date(ts * 1000);
+        const p = x => String(x).padStart(2, '0');
+        return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+      };
+
+      const ROLE_TAG = {
+        super_admin: '<span class="kb-tag kb-tag-primary">超级管理员</span>',
+        admin: '<span class="kb-tag kb-tag-info">管理员</span>',
+        user: '<span class="kb-tag kb-tag-muted">普通用户</span>',
+      };
+      const STATUS_TAG = {
+        active: '<span class="kb-status kb-status-success">启用</span>',
+        disabled: '<span class="kb-status kb-status-error">禁用</span>',
+      };
+      const TASK_STATUS = {
+        completed: '<span class="kb-status kb-status-success">已完成</span>',
+        processing: '<span class="kb-status kb-status-running">运行中</span>',
+        pending: '<span class="kb-status kb-status-pending">排队中</span>',
+        failed: '<span class="kb-status kb-status-error">失败</span>',
+        cancelled: '<span class="kb-status kb-status-warning">已取消</span>',
+      };
+
+      const userId = decodeURIComponent(location.pathname.split('/').pop());
+      let currentUser = null;
+      let profile = null;
+
+      async function guard() {
+        const { user } = await KBRefiner.Auth.me();
+        if (!user || !['super_admin', 'admin'].includes(user.role)) {
+          window.location.href = '/admin/login';
+          return false;
+        }
+        currentUser = user;
+        document.getElementById('self-name').textContent = user.username || '管理员';
+        document.getElementById('self-email').textContent = user.email || '-';
+        document.getElementById('self-avatar').textContent = (user.username || '管')[0];
+        return true;
+      }
+
+      document.getElementById('btn-logout').addEventListener('click', async e => {
+        e.preventDefault();
+        await KBRefiner.Auth.logout().catch(() => {});
+        window.location.href = '/admin/login';
+      });
+
+      async function loadDetail() {
+        try {
+          profile = await KBRefiner.Admin.getUser(userId);
+        } catch (e) {
+          document.querySelector('.kb-admin-content').innerHTML =
+            `<div class="kb-card"><div class="kb-card-body kb-text-muted">${esc(e.message)}，<a href="/admin/users">返回用户列表</a></div></div>`;
+          return;
+        }
+        document.title = `${profile.username} - 用户详情 - KBRefiner`;
+        document.getElementById('u-avatar').textContent = (profile.username || '?')[0];
+        document.getElementById('u-name').textContent = profile.username || '-';
+        document.getElementById('u-role').innerHTML = ROLE_TAG[profile.role] || esc(profile.role);
+        document.getElementById('u-status').innerHTML = STATUS_TAG[profile.status] || esc(profile.status);
+        document.getElementById('u-email').textContent = profile.email || '-';
+        document.getElementById('u-tasks').textContent = profile.task_count || 0;
+        document.getElementById('u-uploads').textContent = profile.upload_count || 0;
+        document.getElementById('u-tokens').textContent = fmtToken(profile.token_consumed);
+        document.getElementById('u-days').innerHTML =
+          `${profile.created_at ? Math.max(1, Math.floor((Date.now() / 1000 - profile.created_at) / 86400)) : '-'}<span class="kb-profile-stat-unit">天</span>`;
+
+        const isSelf = currentUser && currentUser.id === profile.id;
+        const btnToggle = document.getElementById('btn-toggle-status');
+        if (isSelf || profile.role === 'super_admin' && currentUser.role !== 'super_admin') {
+          btnToggle.disabled = true;
+        }
+        btnToggle.dataset.status = profile.status;
+        document.getElementById('btn-toggle-text').textContent =
+          profile.status === 'active' ? '禁用用户' : '启用用户';
+
+        renderTasks(profile.recent_tasks || []);
+        await loadExtraStats();
+      }
+
+      function renderTasks(tasks) {
+        const tbody = document.getElementById('u-tasks-tbody');
+        if (!tasks.length) {
+          tbody.innerHTML = '<tr><td colspan="4" class="kb-text-muted" style="text-align:center;padding:32px;">该用户暂无任务</td></tr>';
+          return;
+        }
+        tbody.innerHTML = tasks.map(t => `
+          <tr>
+            <td class="kb-font-semibold">${esc(t.filename)}</td>
+            <td>${TASK_STATUS[t.status] || esc(t.status || '-')}</td>
+            <td class="kb-text-muted kb-text-sm">${fmtTime(t.created_at)}</td>
+            <td class="kb-font-semibold kb-text-primary">${fmtToken(t.token_consumed)}</td>
+          </tr>`).join('');
+      }
+
+      // 今日/本周/本月统计与近7天趋势（按任务列表前端聚合）
+      async function loadExtraStats() {
+        let data;
+        try {
+          data = await KBRefiner.Admin.listTasks();
+        } catch (e) { return; }
+        const mine = data.tasks.filter(t => t.user_id === userId);
+        const now = new Date();
+        const p = x => String(x).padStart(2, '0');
+        const today = `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}`;
+        const weekAgo = Date.now() / 1000 - 7 * 86400;
+        const monthAgo = Date.now() / 1000 - 30 * 86400;
+
+        let todayTasks = 0, todayTokens = 0, weekTasks = 0, monthTokens = 0;
+        const byDay = {};
+        mine.forEach(t => {
+          const ts = t.created_at || 0;
+          const tokens = Number(t.token_consumed || 0);
+          const dk = dayKey(ts);
+          if (dk === today) { todayTasks++; todayTokens += tokens; }
+          if (ts >= weekAgo) { weekTasks++; byDay[dk] = (byDay[dk] || 0) + tokens; }
+          if (ts >= monthAgo) monthTokens += tokens;
+        });
+        document.getElementById('d-today-tasks').textContent = todayTasks;
+        document.getElementById('d-today-tokens').textContent = fmtToken(todayTokens);
+        document.getElementById('d-week-tasks').textContent = weekTasks;
+        document.getElementById('d-month-tokens').textContent = fmtToken(monthTokens);
+
+        // 操作日志：以任务创建记录近似
+        const recent = (profile.recent_tasks || []).slice(0, 6);
+        const timeline = document.getElementById('u-timeline');
+        timeline.innerHTML = recent.length ? recent.map(t => `
+          <li class="kb-timeline-item">
+            <div class="kb-timeline-dot"></div>
+            <div class="kb-timeline-content">
+              <div class="kb-timeline-time">${fmtTime(t.created_at)}</div>
+              <div class="kb-timeline-text">创建任务「${esc(t.filename)}」（${TASK_STATUS[t.status] || esc(t.status || '-')}）</div>
+            </div>
+          </li>`).join('') : '<li class="kb-timeline-item"><div class="kb-timeline-dot"></div><div class="kb-timeline-content"><div class="kb-timeline-text kb-text-muted">暂无记录</div></div></li>';
+
+        // 近7天 Token 折线
+        drawChart(byDay);
+      }
+
+      function drawChart(byDay) {
+        const el = document.getElementById('u-chart');
+        const days = [];
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date(Date.now() - i * 86400 * 1000);
+          const p = x => String(x).padStart(2, '0');
+          days.push(`${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`);
+        }
+        const values = days.map(dk => byDay[dk] || 0);
+        const max = Math.max(1, ...values);
+        const niceMax = Math.ceil(max / 5) * 5 || 5;
+        let grid = '', yaxis = '';
+        const fmt = v => v >= 1e6 ? (v / 1e6).toFixed(1) + 'M' : v >= 1000 ? (v / 1000).toFixed(0) + 'K' : String(Math.round(v));
+        for (let i = 0; i <= 5; i++) {
+          const y = 20 + i * 48;
+          grid += `<line x1="40" y1="${y}" x2="580" y2="${y}"></line>`;
+          yaxis += `<text x="32" y="${y + 4}" text-anchor="end">${fmt(niceMax - (niceMax / 5) * i)}</text>`;
+        }
+        const step = 540 / 6;
+        const y = v => 260 - (v / niceMax) * 240;
+        const pts = values.map((v, i) => `${40 + i * step},${y(v)}`);
+        const xlabels = days.map((dk, i) => `<text x="${40 + i * step}" y="282" text-anchor="middle">${esc(dk.slice(5))}</text>`).join('');
+        el.innerHTML = `
+          <svg class="kb-chart-svg" viewBox="0 0 600 300" role="img" aria-label="Token 消耗趋势折线图">
+            <g class="kb-chart-grid">${grid}</g>
+            <g class="kb-chart-axis">${yaxis}</g>
+            <path class="kb-chart-area" d="M${pts.join(' L')} L580,260 L40,260 Z"></path>
+            <polyline class="kb-chart-line" points="${pts.join(' ')}"></polyline>
+            <g class="kb-chart-dots">${values.map((v, i) => `<circle cx="${40 + i * step}" cy="${y(v)}" r="4"></circle>`).join('')}</g>
+            <g class="kb-chart-axis">${xlabels}</g>
+          </svg>`;
+      }
+
+      // ===== 操作按钮 =====
+      document.getElementById('btn-edit').addEventListener('click', async () => {
+        const name = prompt('新用户名（留空保持不变）：', profile.username || '');
+        if (name === null) return;
+        const email = prompt('新邮箱（留空保持不变）：', profile.email || '');
+        if (email === null) return;
+        const payload = {};
+        if (name.trim() && name.trim() !== profile.username) payload.username = name.trim();
+        if (email.trim() && email.trim() !== profile.email) payload.email = email.trim();
+        if (!Object.keys(payload).length) return;
+        try {
+          await KBRefiner.Admin.updateUser(userId, payload);
+          alert('已更新');
+          loadDetail();
+        } catch (e) { alert(e.message || '更新失败'); }
+      });
+
+      document.getElementById('btn-reset-pwd').addEventListener('click', async () => {
+        const pwd = prompt(`为「${profile.username}」设置新密码（至少 6 位）：`);
+        if (!pwd) return;
+        if (pwd.length < 6) return alert('密码至少 6 位');
+        try {
+          await KBRefiner.Admin.resetPassword(userId, pwd);
+          alert('密码已重置');
+        } catch (e) { alert(e.message || '重置失败'); }
+      });
+
+      document.getElementById('btn-toggle-status').addEventListener('click', async e => {
+        const btn = e.currentTarget;
+        if (btn.disabled) return;
+        const next = btn.dataset.status === 'active' ? 'disabled' : 'active';
+        if (!confirm(`确认${next === 'disabled' ? '禁用' : '启用'}用户「${profile.username}」？`)) return;
+        try {
+          await KBRefiner.Admin.updateUser(userId, { status: next });
+          loadDetail();
+        } catch (err) { alert(err.message || '操作失败'); }
+      });
+
+      // ===== 初始化 =====
+      (async () => {
+        if (await guard()) await loadDetail();
+      })();
+    </script>
+
+    <style id="critical-layout">
+    /* ===== 后台整体布局 ===== */
+    .kb-admin-shell {
+      display: grid;
+      grid-template-columns: var(--kb-sidebar-width) 1fr;
+      min-height: 100vh;
+    }
+
+    /* ===== 侧边栏 ===== */
+    .kb-admin-sidebar {
+      background: var(--kb-neutral-0);
+      border-right: 1px solid var(--kb-border);
+      display: flex;
+      flex-direction: column;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      z-index: 30;
+    }
+    .kb-sidebar-head {
+      display: flex;
+      align-items: center;
+      gap: var(--kb-space-3);
+      padding: var(--kb-space-5) var(--kb-space-5);
+      border-bottom: 1px solid var(--kb-border);
+      min-height: var(--kb-header-height);
+    }
+    .kb-sidebar-logo {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--kb-radius-medium);
+      background: linear-gradient(135deg, var(--kb-primary-500), var(--kb-primary-700));
+      color: var(--kb-neutral-0);
+      font-weight: 700;
+      font-size: 0.875rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .kb-sidebar-brand-text {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.25;
+      min-width: 0;
+    }
+    .kb-sidebar-brand-name {
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--kb-neutral-900);
+    }
+    .kb-sidebar-brand-sub {
+      font-size: 0.75rem;
+      color: var(--kb-neutral-500);
+    }
+
+    .kb-sidebar-nav {
+      flex: 1;
+      padding: var(--kb-space-4) var(--kb-space-3);
+      display: flex;
+      flex-direction: column;
+      gap: var(--kb-space-1);
+      overflow-y: auto;
+    }
+    .kb-sidebar-nav-item,
+    .kb-sidebar-logout {
+      display: flex;
+      align-items: center;
+      gap: var(--kb-space-3);
+      padding: 10px 12px;
+      border-radius: var(--kb-radius-medium);
+      color: var(--kb-neutral-600);
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: background 0.15s ease, color 0.15s ease;
+      position: relative;
+      text-decoration: none;
+    }
+    .kb-sidebar-nav-item:hover,
+    .kb-sidebar-logout:hover {
+      background: var(--kb-neutral-100);
+      color: var(--kb-neutral-900);
+    }
+    .kb-sidebar-nav-icon {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+    }
+    .kb-sidebar-nav-label {
+      white-space: nowrap;
+    }
+    .kb-sidebar-nav-item.is-active {
+      background: var(--kb-primary-50);
+      color: var(--kb-primary-700);
+      font-weight: 600;
+    }
+    .kb-sidebar-nav-item.is-active::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 8px;
+      bottom: 8px;
+      width: 3px;
+      border-radius: 0 3px 3px 0;
+      background: var(--kb-primary-600);
+    }
+
+    .kb-sidebar-foot {
+      border-top: 1px solid var(--kb-border);
+      padding: var(--kb-space-4) var(--kb-space-3);
+      display: flex;
+      flex-direction: column;
+      gap: var(--kb-space-2);
+    }
+    .kb-sidebar-user {
+      display: flex;
+      align-items: center;
+      gap: var(--kb-space-3);
+      padding: 8px 12px;
+      border-radius: var(--kb-radius-medium);
+    }
+    .kb-sidebar-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--kb-primary-500), var(--kb-primary-700));
+      color: var(--kb-neutral-0);
+      font-weight: 700;
+      font-size: 0.875rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .kb-sidebar-user-text {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.3;
+      min-width: 0;
+    }
+    .kb-sidebar-user-name {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--kb-neutral-900);
+    }
+    .kb-sidebar-user-mail {
+      font-size: 0.75rem;
+      color: var(--kb-neutral-500);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .kb-sidebar-logout {
+      color: var(--kb-neutral-500);
+    }
+    .kb-sidebar-logout:hover {
+      color: var(--kb-state-error);
+      background: var(--kb-state-error-bg);
+    }
+
+    /* ===== 主区域 ===== */
+    .kb-admin-main {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      min-height: 100vh;
+    }
+
+    /* 顶部栏 */
+    .kb-admin-topbar {
+      height: var(--kb-header-height);
+      background: var(--kb-neutral-0);
+      border-bottom: 1px solid var(--kb-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 var(--kb-space-6);
+      gap: var(--kb-space-4);
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+    .kb-admin-topbar-left {
+      display: flex;
+      align-items: center;
+      gap: var(--kb-space-4);
+      min-width: 0;
+    }
+    .kb-admin-topbar-right {
+      display: flex;
+      align-items: center;
+      gap: var(--kb-space-3);
+      flex-shrink: 0;
+    }
+    .kb-admin-hamburger {
+      display: none;
+      width: 36px;
+      height: 36px;
+      border-radius: var(--kb-radius-medium);
+      border: 1px solid var(--kb-border);
+      background: var(--kb-neutral-0);
+      color: var(--kb-neutral-600);
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    .kb-admin-hamburger:hover { background: var(--kb-neutral-100); }
+    .kb-admin-hamburger svg { width: 18px; height: 18px; }
+
+    .kb-breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: var(--kb-space-2);
+      font-size: 0.875rem;
+    }
+    .kb-breadcrumb-item { color: var(--kb-neutral-500); }
+    .kb-breadcrumb-item.is-current { color: var(--kb-neutral-900); font-weight: 600; }
+    .kb-breadcrumb-sep { width: 14px; height: 14px; color: var(--kb-neutral-400); }
+
+    .kb-btn-icon { width: 14px; height: 14px; }
+
+    /* 内容主体 */
+    .kb-admin-content {
+      flex: 1;
+      padding: var(--kb-space-6);
+      display: flex;
+      flex-direction: column;
+      gap: var(--kb-space-6);
+    }
+
+    /* 统计卡片 */
+    .kb-stat-card {
+      background: var(--kb-card);
+      border: 1px solid var(--kb-border);
+      border-radius: var(--kb-radius-large);
+      padding: var(--kb-space-5);
+      box-shadow: var(--kb-shadow-xs);
+      display: flex;
+      flex-direction: column;
+      gap: var(--kb-space-3);
+    }
+    .kb-stat-card-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--kb-space-2);
+    }
+    .kb-stat-card-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--kb-radius-medium);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .kb-stat-card-icon svg { width: 20px; height: 20px; }
+    .kb-stat-card-icon--primary { background: var(--kb-primary-100); color: var(--kb-primary-700); }
+    .kb-stat-card-icon--info { background: var(--kb-state-info-bg); color: var(--kb-state-info-text); }
+    .kb-stat-card-icon--warning { background: var(--kb-state-warning-bg); color: var(--kb-state-warning-text); }
+    .kb-stat-card-icon--success { background: var(--kb-state-success-bg); color: var(--kb-state-success-text); }
+    .kb-stat-card-icon--error { background: var(--kb-state-error-bg); color: var(--kb-state-error-text); }
+
+    .kb-stat-trend {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+    .kb-stat-trend svg { width: 12px; height: 12px; }
+    .kb-stat-trend--up { color: var(--kb-state-success); }
+    .kb-stat-trend--down { color: var(--kb-state-error); }
+
+    .kb-stat-card-value {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--kb-neutral-900);
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+    }
+    .kb-stat-card-label {
+      font-size: 0.8125rem;
+      color: var(--kb-neutral-500);
+    }
+
+    /* 图表区 */
+    .kb-chart-card { display: flex; flex-direction: column; }
+    .kb-chart-title-wrap { display: flex; align-items: center; gap: var(--kb-space-3); }
+    .kb-chart-title { font-size: 1rem; font-weight: 700; color: var(--kb-neutral-900); }
+    .kb-chart-head-icon { width: 18px; height: 18px; color: var(--kb-neutral-400); }
+    .kb-chart-body { padding: var(--kb-space-4) var(--kb-space-6) var(--kb-space-5); }
+    .kb-chart-svg {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    .kb-chart-grid line {
+      stroke: var(--kb-neutral-200);
+      stroke-width: 1;
+      stroke-dasharray: 3 3;
+    }
+    .kb-chart-axis text {
+      fill: var(--kb-neutral-400);
+      font-size: 11px;
+      font-family: var(--kb-font-sans);
+    }
+    .kb-chart-line {
+      fill: none;
+      stroke: var(--kb-primary-600);
+      stroke-width: 2.5;
+      stroke-linejoin: round;
+      stroke-linecap: round;
+    }
+    .kb-chart-area {
+      fill: var(--kb-primary-100);
+      opacity: 0.5;
+    }
+    .kb-chart-dots circle {
+      fill: var(--kb-neutral-0);
+      stroke: var(--kb-primary-600);
+      stroke-width: 2;
+    }
+
+    /* ===== 响应式 ===== */
+    @media (max-width: 1024px) {
+      :root { --kb-sidebar-width: var(--kb-sidebar-collapsed); }
+      .kb-sidebar-brand-text,
+      .kb-sidebar-nav-label,
+      .kb-sidebar-user-text,
+      .kb-sidebar-logout .kb-sidebar-nav-label { display: none; }
+      .kb-sidebar-head { justify-content: center; padding: var(--kb-space-4) var(--kb-space-2); }
+      .kb-sidebar-nav-item,
+      .kb-sidebar-logout { justify-content: center; padding: 12px 8px; }
+      .kb-sidebar-user { justify-content: center; padding: 8px 4px; }
+      .kb-admin-content { padding: var(--kb-space-5); }
+    }
+
+    @media (max-width: 768px) {
+      .kb-admin-shell { grid-template-columns: 1fr; }
+      .kb-admin-sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 240px;
+        transform: translateX(-100%);
+        transition: transform 0.25s ease;
+        box-shadow: var(--kb-shadow-float);
+      }
+      .kb-admin-sidebar.is-open { transform: translateX(0); }
+      .kb-admin-hamburger { display: inline-flex; }
+      .kb-admin-topbar { padding: 0 var(--kb-space-4); }
+      .kb-admin-topbar-right { gap: var(--kb-space-2); }
+      .kb-admin-content { padding: var(--kb-space-4); gap: var(--kb-space-4); }
+      .kb-breadcrumb-item:first-child { display: none; }
+    }
+    </style>
+
+    <style id="detail-page-styles">
+    /* 面包屑链接 */
+    a.kb-breadcrumb-item { transition: color 0.15s ease; }
+    a.kb-breadcrumb-item:hover { color: var(--kb-primary-700); }
+
+    /* 危险 ghost 按钮 */
+    .kb-btn-danger-ghost {
+      background: transparent;
+      color: var(--kb-state-error);
+      border-color: transparent;
+    }
+    .kb-btn-danger-ghost:hover {
+      background: var(--kb-state-error-bg);
+      color: var(--kb-state-error-text);
+    }
+
+    /* 用户资料头部卡片 */
+    .kb-profile-card { display: flex; flex-direction: column; }
+    .kb-profile-body {
+      padding: var(--kb-space-6);
+      display: flex;
+      flex-direction: column;
+      gap: var(--kb-space-5);
+    }
+    .kb-profile-top {
+      display: flex;
+      align-items: center;
+      gap: var(--kb-space-5);
+      flex-wrap: wrap;
+    }
+    .kb-profile-avatar-lg {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--kb-primary-500), var(--kb-primary-700));
+      color: var(--kb-neutral-0);
+      font-weight: 700;
+      font-size: 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .kb-profile-info {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: var(--kb-space-2);
+    }
+    .kb-profile-name-row {
+      display: flex;
+      align-items: center;
+      gap: var(--kb-space-3);
+      flex-wrap: wrap;
+    }
+    .kb-profile-name-row h2 { font-size: 1.375rem; }
+    .kb-profile-email {
+      display: flex;
+      align-items: center;
+      gap: var(--kb-space-2);
+      font-size: 0.875rem;
+      color: var(--kb-neutral-500);
+    }
+    .kb-profile-email-icon { width: 14px; height: 14px; flex-shrink: 0; }
+    .kb-profile-actions {
+      display: flex;
+      align-items: center;
+      gap: var(--kb-space-2);
+      flex-shrink: 0;
+      flex-wrap: wrap;
+    }
+    .kb-profile-stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--kb-space-4);
+      padding-top: var(--kb-space-5);
+      border-top: 1px solid var(--kb-border);
+    }
+    .kb-profile-stat { display: flex; flex-direction: column; gap: 4px; }
+    .kb-profile-stat-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--kb-neutral-900);
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+    }
+    .kb-profile-stat-unit {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--kb-neutral-500);
+      margin-left: 2px;
+    }
+    .kb-profile-stat-label {
+      font-size: 0.8125rem;
+      color: var(--kb-neutral-500);
+    }
+
+    /* 详情统计 4 卡片 */
+    .kb-detail-stat-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--kb-space-4);
+    }
+
+    /* 任务表 */
+    .kb-task-table-wrap { overflow-x: auto; padding: 0; }
+    .kb-task-table { min-width: 760px; }
+    .kb-task-table td { vertical-align: middle; }
+    .kb-task-progress {
+      display: flex;
+      align-items: center;
+      gap: var(--kb-space-2);
+      min-width: 150px;
+    }
+    .kb-task-progress-bar { flex: 1; }
+    .kb-task-progress-text {
+      font-size: 0.75rem;
+      color: var(--kb-neutral-500);
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    /* 操作日志时间线 */
+    .kb-timeline { list-style: none; display: flex; flex-direction: column; }
+    .kb-timeline-item {
+      display: flex;
+      gap: var(--kb-space-4);
+      position: relative;
+      padding-bottom: var(--kb-space-5);
+    }
+    .kb-timeline-item:last-child { padding-bottom: 0; }
+    .kb-timeline-item::before {
+      content: "";
+      position: absolute;
+      left: 5px;
+      top: 16px;
+      bottom: -4px;
+      width: 2px;
+      background: var(--kb-neutral-200);
+    }
+    .kb-timeline-item:last-child::before { display: none; }
+    .kb-timeline-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--kb-primary-600);
+      border: 2px solid var(--kb-neutral-0);
+      box-shadow: 0 0 0 2px var(--kb-primary-100);
+      flex-shrink: 0;
+      margin-top: 4px;
+      position: relative;
+      z-index: 1;
+    }
+    .kb-timeline-content { display: flex; flex-direction: column; gap: 2px; }
+    .kb-timeline-time {
+      font-size: 0.75rem;
+      color: var(--kb-neutral-500);
+      font-family: var(--kb-font-mono);
+    }
+    .kb-timeline-text {
+      font-size: 0.875rem;
+      color: var(--kb-neutral-700);
+    }
+
+    /* 详情页响应式 */
+    @media (max-width: 1024px) {
+      .kb-detail-stat-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 768px) {
+      .kb-detail-stat-grid { grid-template-columns: 1fr; }
+      .kb-profile-top { flex-direction: column; align-items: flex-start; }
+      .kb-profile-stats { grid-template-columns: repeat(2, 1fr); }
+    }
+    </style>
+</body>
+</html>

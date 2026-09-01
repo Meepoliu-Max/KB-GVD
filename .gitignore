@@ -1,18 +1,53 @@
-# Build and Release Folders
-bin-debug/
-bin-release/
-[Oo]bj/
-[Bb]in/
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+ENV/
+*.egg-info/
+.eggs/
+dist/
+build/
 
-# Other files and folders
-.settings/
+# 环境变量与密钥
+.env
+.env.local
+*.key
+*.pem
 
-# Executables
-*.swf
-*.air
-*.ipa
-*.apk
+# 数据与运行时产物
+data/uploads/*
+!data/uploads/.gitkeep
+data/outputs/*
+!data/outputs/.gitkeep
+*.db
+*.sqlite3
+backend/data/
+output/
 
-# Project files, i.e. `.project`, `.actionScriptProperties` and `.flexProperties`
-# should NOT be excluded as they contain compiler settings and other important
-# information for Eclipse / Flash Builder.
+# 校验中间产物
+*.validate_result.json
+*.metrics_result.json
+*.consistency_result.json
+*.review_summary.md
+
+# 日志
+*.log
+logs/
+
+# IDE / 系统
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# 前端
+node_modules/
+frontend/dist/
+
+# 认证签名密钥（本地生成，勿入库）
+data/.auth_secret

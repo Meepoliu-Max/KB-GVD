@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>知序 KBRefiner - 知识库预处理工具</title>
+<style>
+  :root {
+    --primary: #4f6ef7;
+    --primary-hover: #3b5de7;
+    --success: #22c55e;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --text: #1e293b;
+    --text-secondary: #64748b;
+    --border: #e2e8f0;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  .header {
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .header h1 { font-size: 20px; font-weight: 600; }
+  .header .badge {
+    font-size: 12px;
+    background: var(--primary);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 24px;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  .card h2 { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    padding: 40px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .upload-zone:hover { border-color: var(--primary); }
+  .upload-zone.dragover { border-color: var(--primary); background: #eef2ff; }
+  .upload-zone input[type="file"] { display: none; }
+  .upload-zone .icon { font-size: 48px; margin-bottom: 8px; }
+  .upload-zone .hint { color: var(--text-secondary); font-size: 14px; margin-top: 8px; }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-primary:hover { background: var(--primary-hover); }
+  .btn-primary:disabled { background: #94a3b8; cursor: not-allowed; }
+  .btn-success { background: var(--success); color: white; }
+  .btn-warning { background: var(--warning); color: white; }
+  .btn-sm { padding: 4px 12px; font-size: 12px; }
+
+  /* Progress */
+  .progress-bar {
+    height: 8px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 12px 0;
+  }
+  .progress-bar .fill {
+    height: 100%;
+    background: var(--primary);
+    border-radius: 4px;
+    transition: width 0.5s ease;
+  }
+  .stage-list { list-style: none; }
+  .stage-list li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+  .stage-list li:last-child { border-bottom: none; }
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .status-dot.pending { background: var(--border); }
+  .status-dot.processing { background: var(--primary); animation: pulse 1s infinite; }
+  .status-dot.completed { background: var(--success); }
+  .status-dot.failed { background: var(--danger); }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* Results */
+  .result-section { margin-bottom: 24px; }
+  .result-section h3 { font-size: 14px; font-weight: 600; margin-bottom: 8px; color: var(--text-secondary); }
+  .chunk-card {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 8px;
+  }
+  .chunk-card .title { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+  .chunk-card .meta { font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; }
+  .chunk-card .content { font-size: 13px; line-height: 1.6; }
+  .qa-item {
+    border-left: 3px solid var(--primary);
+    padding: 8px 12px;
+    margin: 6px 0;
+    background: #f8fafc;
+    border-radius: 0 4px 4px 0;
+  }
+  .qa-item .q { font-weight: 500; font-size: 13px; }
+  .qa-item .a { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
+  .exception-item {
+    border-left: 3px solid var(--warning);
+    padding: 8px 12px;
+    margin: 4px 0;
+    background: #fffbeb;
+    border-radius: 0 4px 4px 0;
+    font-size: 13px;
+  }
+  .exception-item.danger { border-left-color: var(--danger); background: #fef2f2; }
+
+  .tab-bar {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+  .tab-bar button {
+    padding: 8px 16px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text-secondary);
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+  }
+  .tab-bar button.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+    font-weight: 500;
+  }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .summary-item {
+    text-align: center;
+    padding: 12px;
+    background: #f8fafc;
+    border-radius: 6px;
+  }
+  .summary-item .value { font-size: 24px; font-weight: 700; }
+  .summary-item .label { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+  .summary-item .value.ok { color: var(--success); }
+  .summary-item .value.warn { color: var(--warning); }
+  .summary-item .value.danger { color: var(--danger); }
+
+  .hidden { display: none !important; }
+  .flex { display: flex; }
+  .gap-2 { gap: 8px; }
+  .mt-4 { margin-top: 16px; }
+  .mb-4 { margin-bottom: 16px; }
+  .text-center { text-align: center; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>知序 KBRefiner</h1>
+  <span class="badge">v0.1</span>
+  <span style="font-size:13px;color:var(--text-secondary);margin-left:auto;">RAG 知识库预处理</span>
+</div>
+
+<div class="container">
+  <!-- Step 1: Upload -->
+  <div class="card" id="step-upload">
+    <h2>上传文档</h2>
+    <div class="upload-zone" id="upload-zone">
+      <div class="icon">📄</div>
+      <div><strong>点击或拖拽文件到此处</strong></div>
+      <div class="hint">支持 PDF、DOCX、PPTX、XLSX、PNG、JPG（最大 50MB）</div>
+      <input type="file" id="file-input" accept=".pdf,.docx,.pptx,.xlsx,.png,.jpg,.jpeg,.bmp">
+    </div>
+    <div id="upload-info" class="hidden" style="margin-top:12px;font-size:14px;color:var(--text-secondary);"></div>
+    <div class="flex gap-2 mt-4">
+      <button class="btn btn-primary" id="btn-process" disabled>开始处理</button>
+      <button class="btn btn-primary" id="btn-process-async" disabled>异步处理（WS 进度）</button>
+    </div>
+  </div>
+
+  <!-- Step 2: Progress -->
+  <div class="card hidden" id="step-progress">
+    <h2>处理进度</h2>
+    <div class="flex gap-2" style="align-items:center;margin-bottom:8px;">
+      <span id="progress-status" style="font-size:14px;font-weight:500;">等待中</span>
+      <span id="progress-pct" style="font-size:13px;color:var(--text-secondary);margin-left:auto;">0%</span>
+    </div>
+    <div class="progress-bar">
+      <div class="fill" id="progress-fill" style="width:0%"></div>
+    </div>
+    <ul class="stage-list" id="stage-list">
+      <li><span class="status-dot pending" id="dot-stage1"></span> Stage 1 — 文档清洗 (Clean)</li>
+      <li><span class="status-dot pending" id="dot-stage2"></span> Stage 2 — 语义切片 (Chunk)</li>
+      <li><span class="status-dot pending" id="dot-stage3"></span> Stage 3 — QA 生成</li>
+      <li><span class="status-dot pending" id="dot-stage4"></span> Stage 4 — 元数据打标 (Tag)</li>
+      <li><span class="status-dot pending" id="dot-postprocess"></span> 后处理合并</li>
+    </ul>
+    <div id="progress-message" style="font-size:13px;color:var(--text-secondary);margin-top:8px;"></div>
+  </div>
+
+  <!-- Step 3: Results -->
+  <div class="card hidden" id="step-result">
+    <h2>处理结果</h2>
+    <div class="summary-grid" id="summary-grid"></div>
+
+    <div class="tab-bar" id="result-tabs">
+      <button class="active" data-tab="atoms">知识原子</button>
+      <button data-tab="qa">QA 对</button>
+      <button data-tab="exceptions">异常清单</button>
+      <button data-tab="raw">原始 JSON</button>
+    </div>
+
+    <div class="tab-content active" id="tab-atoms"></div>
+    <div class="tab-content" id="tab-qa"></div>
+    <div class="tab-content" id="tab-exceptions"></div>
+    <div class="tab-content" id="tab-raw"><pre id="raw-json" style="font-size:12px;overflow:auto;max-height:500px;background:#f8fafc;padding:12px;border-radius:4px;"></pre></div>
+  </div>
+</div>
+
+<script>
+// ===== State =====
+let state = {
+  fileId: null,
+  taskId: null,
+  ws: null,
+  result: null,
+};
+
+// ===== DOM refs =====
+const uploadZone = document.getElementById('upload-zone');
+const fileInput = document.getElementById('file-input');
+const uploadInfo = document.getElementById('upload-info');
+const btnProcess = document.getElementById('btn-process');
+const btnProcessAsync = document.getElementById('btn-process-async');
+const stepUpload = document.getElementById('step-upload');
+const stepProgress = document.getElementById('step-progress');
+const stepResult = document.getElementById('step-result');
+const progressFill = document.getElementById('progress-fill');
+const progressPct = document.getElementById('progress-pct');
+const progressStatus = document.getElementById('progress-status');
+const progressMsg = document.getElementById('progress-message');
+const stageList = document.getElementById('stage-list');
+
+// ===== Upload =====
+uploadZone.addEventListener('click', () => fileInput.click());
+uploadZone.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  uploadZone.classList.add('dragover');
+});
+uploadZone.addEventListener('dragleave', () => {
+  uploadZone.classList.remove('dragover');
+});
+uploadZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  uploadZone.classList.remove('dragover');
+  if (e.dataTransfer.files.length) {
+    fileInput.files = e.dataTransfer.files;
+    onFileSelected();
+  }
+});
+fileInput.addEventListener('change', onFileSelected);
+
+async function onFileSelected() {
+  const file = fileInput.files[0];
+  if (!file) return;
+  uploadInfo.classList.remove('hidden');
+  uploadInfo.textContent = `已选择: ${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB)`;
+  btnProcess.disabled = true;
+  btnProcessAsync.disabled = true;
+
+  // Upload
+  const formData = new FormData();
+  formData.append('file', file);
+  try {
+    const resp = await fetch('/api/upload', { method: 'POST', body: formData });
+    if (!resp.ok) {
+      const err = await resp.json();
+      uploadInfo.textContent = `上传失败: ${err.detail}`;
+      return;
+    }
+    const data = await resp.json();
+    state.fileId = data.file_id;
+    uploadInfo.textContent = `上传成功: ${data.filename} (file_id: ${data.file_id})`;
+    btnProcess.disabled = false;
+    btnProcessAsync.disabled = false;
+  } catch (e) {
+    uploadInfo.textContent = `上传失败: ${e.message}`;
+  }
+}
+
+// ===== Process =====
+btnProcess.addEventListener('click', () => startProcess(false));
+btnProcessAsync.addEventListener('click', () => startProcess(true));
+
+async function startProcess(asyncMode) {
+  if (!state.fileId) return;
+  stepUpload.classList.add('hidden');
+  stepProgress.classList.remove('hidden');
+  stepResult.classList.add('hidden');
+  resetProgress();
+
+  if (asyncMode) {
+    // Connect WebSocket first
+    connectWebSocket(state.fileId);
+    // Then trigger async process
+    try {
+      const resp = await fetch(`/api/process?file_id=${state.fileId}&async_mode=true`, { method: 'POST' });
+      const data = await resp.json();
+      state.taskId = data.task_id;
+      progressStatus.textContent = '处理中...';
+    } catch (e) {
+      progressStatus.textContent = `启动失败: ${e.message}`;
+    }
+  } else {
+    // Sync mode
+    try {
+      progressStatus.textContent = '处理中（同步模式）...';
+      const resp = await fetch(`/api/process?file_id=${state.fileId}`, { method: 'POST' });
+      if (!resp.ok) {
+        const err = await resp.json();
+        progressStatus.textContent = `处理失败: ${err.detail}`;
+        return;
+      }
+      const data = await resp.json();
+      state.result = data.result;
+      onComplete();
+    } catch (e) {
+      progressStatus.textContent = `处理失败: ${e.message}`;
+    }
+  }
+}
+
+// ===== WebSocket =====
+function connectWebSocket(taskId) {
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const wsUrl = `${protocol}//${window.location.host}/api/ws/${taskId}`;
+  state.ws = new WebSocket(wsUrl);
+
+  state.ws.onmessage = (event) => {
+    const msg = JSON.parse(event.data);
+    switch (msg.type) {
+      case 'progress':
+        updateProgress(msg);
+        break;
+      case 'result':
+        state.result = msg.result;
+        onComplete();
+        break;
+      case 'error':
+        progressStatus.textContent = `错误: ${msg.error}`;
+        progressStatus.style.color = 'var(--danger)';
+        break;
+    }
+  };
+
+  state.ws.onclose = () => {
+    console.log('WebSocket closed');
+  };
+
+  state.ws.onerror = (e) => {
+    console.error('WebSocket error:', e);
+  };
+
+  // Heartbeat
+  state._heartbeat = setInterval(() => {
+    if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+      state.ws.send('ping');
+    }
+  }, 30000);
+}
+
+function updateProgress(msg) {
+  progressFill.style.width = `${msg.progress * 100}%`;
+  progressPct.textContent = `${Math.round(msg.progress * 100)}%`;
+  progressMsg.textContent = msg.message || '';
+
+  // Update stage dots
+  const stageMap = {
+    'Stage1-Clean': 'dot-stage1',
+    'Stage2-Chunk': 'dot-stage2',
+    'Stage3-QA': 'dot-stage3',
+    'Stage4-Tag': 'dot-stage4',
+    'Postprocess': 'dot-postprocess',
+  };
+  const dotId = stageMap[msg.stage];
+  if (dotId) {
+    const dot = document.getElementById(dotId);
+    if (dot) {
+      dot.className = `status-dot ${msg.status}`;
+    }
+  }
+
+  if (msg.status === 'completed') {
+    progressStatus.textContent = '已完成';
+  }
+}
+
+function resetProgress() {
+  progressFill.style.width = '0%';
+  progressPct.textContent = '0%';
+  progressStatus.textContent = '处理中...';
+  progressStatus.style.color = '';
+  progressMsg.textContent = '';
+  document.querySelectorAll('.status-dot').forEach(d => d.className = 'status-dot pending');
+}
+
+// ===== Results =====
+function onComplete() {
+  if (state._heartbeat) {
+    clearInterval(state._heartbeat);
+    state._heartbeat = null;
+  }
+  if (state.ws) {
+    state.ws.close();
+    state.ws = null;
+  }
+  stepProgress.classList.add('hidden');
+  stepResult.classList.remove('hidden');
+  renderResults();
+}
+
+function renderResults() {
+  const r = state.result;
+  if (!r) return;
+
+  // Summary
+  const summaryGrid = document.getElementById('summary-grid');
+  const docInfo = r.document_info || {};
+  const quality = r.quality_summary || {};
+  summaryGrid.innerHTML = `
+    <div class="summary-item">
+      <div class="value">${docInfo.total_chunks || 0}</div>
+      <div class="label">知识原子</div>
+    </div>
+    <div class="summary-item">
+      <div class="value">${docInfo.total_qa_pairs || 0}</div>
+      <div class="label">QA 对</div>
+    </div>
+    <div class="summary-item">
+      <div class="value ${quality.needs_review ? 'warn' : 'ok'}">${quality.avg_confidence || 0}%</div>
+      <div class="label">平均置信度</div>
+    </div>
+    <div class="summary-item">
+      <div class="value ${quality.exception_count > 0 ? 'danger' : 'ok'}">${quality.exception_count || 0}</div>
+      <div class="label">异常项</div>
+    </div>
+  `;
+
+  // Knowledge atoms
+  const atomsTab = document.getElementById('tab-atoms');
+  const atoms = r.knowledge_atoms || [];
+  atomsTab.innerHTML = atoms.map(a => `
+    <div class="chunk-card">
+      <div class="title">${a.title || a.chunk_id || '未命名'}</div>
+      <div class="meta">
+        ID: ${a.chunk_id || '-'} | 类型: ${a.doc_type || '-'} | 模块: ${a.metadata?.business_module || '-'}
+      </div>
+      <div class="content">${escapeHtml(a.content || '')}</div>
+      ${a.qa_pairs && a.qa_pairs.length ? `
+        <div style="margin-top:8px;font-size:12px;color:var(--text-secondary);font-weight:500;">QA 对 (${a.qa_pairs.length})</div>
+        ${a.qa_pairs.map(qa => `
+          <div class="qa-item">
+            <div class="q">Q: ${escapeHtml(qa.question || '')}</div>
+            <div class="a">A: ${escapeHtml(qa.answer || '')}</div>
+            <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">置信度: ${qa.confidence_score || 0}%</div>
+          </div>
+        `).join('')}
+      ` : ''}
+      ${a.remark ? `<div style="font-size:12px;color:var(--warning);margin-top:4px;">备注: ${escapeHtml(a.remark)}</div>` : ''}
+    </div>
+  `).join('') || '<div style="color:var(--text-secondary);">暂无知识原子</div>';
+
+  // QA pairs (flat)
+  const qaTab = document.getElementById('tab-qa');
+  const allQa = atoms.flatMap(a => (a.qa_pairs || []).map(qa => ({ ...qa, chunk: a.title || a.chunk_id })));
+  qaTab.innerHTML = allQa.length ? allQa.map(qa => `
+    <div class="qa-item">
+      <div class="q">Q: ${escapeHtml(qa.question || '')}</div>
+      <div class="a">A: ${escapeHtml(qa.answer || '')}</div>
+      <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">
+        来源: ${qa.chunk || '-'} | 置信度: ${qa.confidence_score || 0}% | 关键词: ${(qa.keywords || []).join(', ')}
+      </div>
+    </div>
+  `).join('') : '<div style="color:var(--text-secondary);">暂无 QA 对</div>';
+
+  // Exceptions（后端 ExceptionList 为 9 个字符串数组字段，逐项平铺展示）
+  const excTab = document.getElementById('tab-exceptions');
+  const excList = r.exception_list || {};
+  const excLabels = {
+    content_conflicts: '内容冲突',
+    missing_info: '缺失信息',
+    vague_items: '模糊表述',
+    expired_items: '过期内容',
+    chunk_anomalies: '拆分异常',
+    truncated_items: '截断位置',
+    sensitive_items: '敏感数据',
+    low_confidence_qa: '低置信 QA',
+    terminology_pending: '术语待确认',
+  };
+  const excItems = Object.entries(excList)
+    .filter(([, v]) => Array.isArray(v) && v.length)
+    .flatMap(([k, v]) => v.map(text => ({ label: excLabels[k] || k, text })));
+  excTab.innerHTML = excItems.length ? excItems.map(exc => `
+    <div class="exception-item">
+      <strong>${escapeHtml(exc.label)}</strong>
+      <div>${escapeHtml(exc.text)}</div>
+    </div>
+  `).join('') : '<div style="color:var(--text-secondary);">无异常项</div>';
+
+  // Raw JSON
+  document.getElementById('raw-json').textContent = JSON.stringify(r, null, 2);
+
+  // Summary needs_review warning
+  if (quality.needs_review) {
+    const banner = document.createElement('div');
+    banner.style.cssText = 'background:#fef3c7;border:1px solid #f59e0b;border-radius:6px;padding:12px;margin-bottom:16px;font-size:14px;';
+    banner.textContent = '⚠ 该文档需要人工复核。请查看异常清单和备注项。';
+    summaryGrid.parentNode.insertBefore(banner, summaryGrid);
+  }
+}
+
+// ===== Tab switching =====
+document.getElementById('result-tabs').addEventListener('click', (e) => {
+  if (e.target.tagName === 'BUTTON') {
+    document.querySelectorAll('#result-tabs button').forEach(b => b.classList.remove('active'));
+    e.target.classList.add('active');
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.getElementById(`tab-${e.target.dataset.tab}`).classList.add('active');
+  }
+});
+
+// ===== Utils =====
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+</script>
+</body>
+</html>

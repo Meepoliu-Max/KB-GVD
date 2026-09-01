@@ -1,0 +1,42 @@
+# 知序 KBRefiner 容器编排（简化架构最终形态）
+# 架构：单 app 容器（FastAPI + BackgroundTasks + SQLite），无 Redis / Celery / PostgreSQL
+#
+# 常用命令：
+#   docker compose up -d                 # 启动 KBRefiner（http://localhost:8000）
+#   docker compose --profile mineru up -d  # 同时启动 MinerU 解析服务（可选）
+#   docker compose logs -f app           # 查看日志
+services:
+  app:
+    build: .
+    image: kbrefiner:latest
+    container_name: kbrefiner-app
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    env_file:
+      - .env
+    volumes:
+      # SQLite 任务库 + 上传文件 + 输出结果统一持久化
+      - kbrefiner-data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+
+  # MinerU 文档解析服务（可选，镜像较大按需启动）
+  # 启用后设置 .env: PARSER_BACKEND=mineru 并配置调用地址
+  # 镜像与端口以 MinerU 官方文档为准：https://github.com/opendatalab/MinerU
+  mineru:
+    image: opendatalab/mineru:3.4
+    container_name: kbrefiner-mineru
+    restart: unless-stopped
+    profiles: ["mineru"]
+    ports:
+      - "8001:8000"
+    volumes:
+      - kbrefiner-data:/app/data
+
+volumes:
+  kbrefiner-data:

@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>注册 - KBRefiner</title>
+    <style id="theme-vars">
+/* 知序 KBRefiner — 产品前端设计系统 */
+
+:root {
+  /* ===== 品牌主色阶（单一主色） ===== */
+  --kb-primary-50: #eff6ff;
+  --kb-primary-100: #dbeafe;
+  --kb-primary-200: #bfdbfe;
+  --kb-primary-300: #93c5fd;
+  --kb-primary-400: #60a5fa;
+  --kb-primary-500: #3b82f6;
+  --kb-primary-600: #2563eb;
+  --kb-primary-700: #1d4ed8;
+  --kb-primary-800: #1e40af;
+  --kb-primary-900: #1e3a8a;
+
+  /* ===== 中性色阶 ===== */
+  --kb-neutral-0: #ffffff;
+  --kb-neutral-50: #f8fafc;
+  --kb-neutral-100: #f1f5f9;
+  --kb-neutral-200: #e2e8f0;
+  --kb-neutral-300: #cbd5e1;
+  --kb-neutral-400: #94a3b8;
+  --kb-neutral-500: #64748b;
+  --kb-neutral-600: #475569;
+  --kb-neutral-700: #334155;
+  --kb-neutral-800: #1e293b;
+  --kb-neutral-900: #0f172a;
+
+  /* ===== 语义色（仅用于状态） ===== */
+  --kb-state-success: #10b981;
+  --kb-state-success-bg: #ecfdf5;
+  --kb-state-warning: #f59e0b;
+  --kb-state-warning-bg: #fffbeb;
+  --kb-state-error: #ef4444;
+  --kb-state-error-bg: #fef2f2;
+  --kb-state-info: #0ea5e9;
+  --kb-state-info-bg: #f0f9ff;
+
+  /* ===== 语义别名 ===== */
+  --kb-background: var(--kb-neutral-50);
+  --kb-foreground: var(--kb-neutral-900);
+  --kb-card: var(--kb-neutral-0);
+  --kb-card-foreground: var(--kb-neutral-900);
+  --kb-popover: var(--kb-neutral-0);
+  --kb-popover-foreground: var(--kb-neutral-900);
+  --kb-primary: var(--kb-primary-600);
+  --kb-primary-foreground: var(--kb-neutral-0);
+  --kb-muted: var(--kb-neutral-100);
+  --kb-muted-foreground: var(--kb-neutral-500);
+  --kb-border: var(--kb-neutral-200);
+  --kb-input: var(--kb-neutral-200);
+  --kb-ring: var(--kb-primary-300);
+
+  --kb-radius-small: 4px;
+  --kb-radius-medium: 8px;
+  --kb-radius-large: 12px;
+
+  /* ===== 字体系统 ===== */
+  --kb-font-sans: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --kb-font-mono: "GeistMono", "SF Mono", "Fira Code", ui-monospace, monospace;
+
+  /* ===== 阴影 ===== */
+  --kb-shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --kb-shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.05);
+  --kb-shadow-md: 0 4px 12px rgba(15, 23, 42, 0.05);
+  --kb-shadow-lg: 0 8px 24px rgba(15, 23, 42, 0.05);
+  --kb-shadow-float: 0 16px 48px rgba(15, 23, 42, 0.12);
+
+  /* ===== 间距 ===== */
+  --kb-space-1: 4px;
+  --kb-space-2: 8px;
+  --kb-space-3: 12px;
+  --kb-space-4: 16px;
+  --kb-space-5: 20px;
+  --kb-space-6: 24px;
+  --kb-space-8: 32px;
+  --kb-space-10: 40px;
+  --kb-space-12: 48px;
+
+  /* ===== 尺寸 ===== */
+  --kb-header-height: 64px;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--kb-font-sans);
+  background: var(--kb-background);
+  color: var(--kb-foreground);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  line-height: 1.3;
+  font-weight: 700;
+  color: var(--kb-foreground);
+}
+
+h1 { font-size: 1.875rem; }
+h2 { font-size: 1.5rem; }
+h3 { font-size: 1.25rem; }
+
+p { color: var(--kb-neutral-600); line-height: 1.7; }
+
+a { color: var(--kb-primary); text-decoration: none; }
+a:hover { color: var(--kb-primary-700); }
+
+.kb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--kb-space-2);
+  padding: 10px 18px;
+  border: 1px solid transparent;
+  border-radius: var(--kb-radius-medium);
+  font-family: var(--kb-font-sans);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.kb-btn-primary { background: var(--kb-primary); color: var(--kb-primary-foreground); }
+.kb-btn-primary:hover { background: var(--kb-primary-700); }
+.kb-btn-secondary { background: var(--kb-neutral-0); color: var(--kb-neutral-700); border-color: var(--kb-border); }
+.kb-btn-secondary:hover { background: var(--kb-neutral-50); border-color: var(--kb-neutral-300); }
+.kb-btn-ghost { background: transparent; color: var(--kb-neutral-600); }
+.kb-btn-ghost:hover { background: var(--kb-neutral-100); color: var(--kb-neutral-900); }
+.kb-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.kb-btn-sm { padding: 6px 12px; font-size: 0.8125rem; }
+
+.kb-card {
+  background: var(--kb-card);
+  border: 1px solid var(--kb-border);
+  border-radius: var(--kb-radius-large);
+  box-shadow: var(--kb-shadow-xs);
+}
+
+.kb-card-header {
+  padding: var(--kb-space-5) var(--kb-space-6);
+  border-bottom: 1px solid var(--kb-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--kb-space-4);
+}
+
+.kb-card-body { padding: var(--kb-space-6); }
+
+.kb-input,
+.kb-select {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--kb-input);
+  border-radius: var(--kb-radius-medium);
+  background: var(--kb-neutral-0);
+  color: var(--kb-foreground);
+  font-family: var(--kb-font-sans);
+  font-size: 0.875rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.kb-input:focus,
+.kb-select:focus {
+  outline: none;
+  border-color: var(--kb-primary-400);
+  box-shadow: 0 0 0 3px var(--kb-primary-100);
+}
+
+.kb-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.kb-tag-primary { background: var(--kb-primary-100); color: var(--kb-primary-700); }
+.kb-tag-success { background: var(--kb-state-success-bg); color: #047857; }
+.kb-tag-warning { background: var(--kb-state-warning-bg); color: #b45309; }
+.kb-tag-error { background: var(--kb-state-error-bg); color: #b91c1c; }
+.kb-tag-info { background: var(--kb-state-info-bg); color: #0369a1; }
+.kb-tag-muted { background: var(--kb-neutral-100); color: var(--kb-neutral-600); }
+
+.kb-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.kb-status::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.kb-status-pending::before { background: var(--kb-neutral-400); }
+.kb-status-running::before { background: var(--kb-state-info); }
+.kb-status-success::before { background: var(--kb-state-success); }
+.kb-status-warning::before { background: var(--kb-state-warning); }
+.kb-status-error::before { background: var(--kb-state-error); }
+
+.kb-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.kb-table th,
+.kb-table td {
+  padding: var(--kb-space-3) var(--kb-space-4);
+  text-align: left;
+  border-bottom: 1px solid var(--kb-border);
+}
+
+.kb-table th {
+  font-weight: 600;
+  color: var(--kb-neutral-600);
+  background: var(--kb-neutral-50);
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.kb-table tr:hover td { background: var(--kb-neutral-50); }
+
+.kb-progress {
+  width: 100%;
+  height: 8px;
+  background: var(--kb-neutral-200);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.kb-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--kb-primary-500), var(--kb-primary-600));
+  border-radius: 9999px;
+  transition: width 0.4s ease;
+}
+
+.kb-empty {
+  text-align: center;
+  padding: var(--kb-space-12) var(--kb-space-6);
+  color: var(--kb-neutral-500);
+}
+
+.kb-text-muted { color: var(--kb-neutral-500); }
+.kb-text-secondary { color: var(--kb-neutral-600); }
+.kb-text-primary { color: var(--kb-primary); }
+.kb-text-success { color: var(--kb-state-success); }
+.kb-text-warning { color: var(--kb-state-warning); }
+.kb-text-error { color: var(--kb-state-error); }
+.kb-font-semibold { font-weight: 600; }
+.kb-font-bold { font-weight: 700; }
+.kb-text-sm { font-size: 0.875rem; }
+.kb-text-xs { font-size: 0.75rem; }
+.kb-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.1/dist/index.global.js"></script>
+    <script src="https://unpkg.com/lucide@1.8.0/dist/umd/lucide.min.js"></script>
+    <style type="text/tailwindcss">
+  @theme inline {
+    --color-background: var(--kb-background);
+    --color-foreground: var(--kb-foreground);
+    --color-card: var(--kb-card);
+    --color-card-foreground: var(--kb-card-foreground);
+    --color-popover: var(--kb-popover);
+    --color-popover-foreground: var(--kb-popover-foreground);
+    --color-primary: var(--kb-primary);
+    --color-primary-foreground: var(--kb-primary-foreground);
+    --color-muted: var(--kb-muted);
+    --color-muted-foreground: var(--kb-muted-foreground);
+    --color-border: var(--kb-border);
+    --color-input: var(--kb-input);
+    --color-ring: var(--kb-ring);
+    --radius-sm: var(--kb-radius-small);
+    --radius-md: var(--kb-radius-medium);
+    --radius-lg: var(--kb-radius-large);
+  }
+  @layer base {
+    body { background: var(--kb-background); color: var(--kb-foreground); }
+    td, th { @apply break-words; word-break: break-all; word-break: auto-phrase; }
+    th { @apply whitespace-nowrap; }
+  }
+    </style>
+    <style id="semantic-token-fallback">
+      .bg-background { background-color: var(--kb-background); }
+      .text-background { color: var(--kb-background); }
+      .border-background { border-color: var(--kb-background); }
+      .bg-foreground { background-color: var(--kb-foreground); }
+      .text-foreground { color: var(--kb-foreground); }
+      .border-foreground { border-color: var(--kb-foreground); }
+      .bg-card { background-color: var(--kb-card); }
+      .text-card { color: var(--kb-card); }
+      .border-card { border-color: var(--kb-card); }
+      .bg-card-foreground { background-color: var(--kb-card-foreground); }
+      .text-card-foreground { color: var(--kb-card-foreground); }
+      .border-card-foreground { border-color: var(--kb-card-foreground); }
+      .bg-popover { background-color: var(--kb-popover); }
+      .text-popover { color: var(--kb-popover); }
+      .border-popover { border-color: var(--kb-popover); }
+      .bg-popover-foreground { background-color: var(--kb-popover-foreground); }
+      .text-popover-foreground { color: var(--kb-popover-foreground); }
+      .border-popover-foreground { border-color: var(--kb-popover-foreground); }
+      .bg-primary { background-color: var(--kb-primary); }
+      .text-primary { color: var(--kb-primary); }
+      .border-primary { border-color: var(--kb-primary); }
+      .bg-primary-foreground { background-color: var(--kb-primary-foreground); }
+      .text-primary-foreground { color: var(--kb-primary-foreground); }
+      .border-primary-foreground { border-color: var(--kb-primary-foreground); }
+      .bg-muted { background-color: var(--kb-muted); }
+      .text-muted { color: var(--kb-muted); }
+      .border-muted { border-color: var(--kb-muted); }
+      .bg-muted-foreground { background-color: var(--kb-muted-foreground); }
+      .text-muted-foreground { color: var(--kb-muted-foreground); }
+      .border-muted-foreground { border-color: var(--kb-muted-foreground); }
+      .bg-border { background-color: var(--kb-border); }
+      .text-border { color: var(--kb-border); }
+      .border-border { border-color: var(--kb-border); }
+      .bg-input { background-color: var(--kb-input); }
+      .text-input { color: var(--kb-input); }
+      .border-input { border-color: var(--kb-input); }
+      .bg-ring { background-color: var(--kb-ring); }
+      .text-ring { color: var(--kb-ring); }
+      .border-ring { border-color: var(--kb-ring); }
+    </style>
+</head>
+<body class="min-h-screen font-sans antialiased">
+    <div class="kb-login-layout">
+      <!-- 左侧品牌展示区 -->
+      <aside class="kb-login-hero" aria-label="KBRefiner 品牌介绍">
+        <div class="kb-login-hero-inner">
+          <div class="kb-login-brand">
+            <div class="kb-login-brand-icon">知序</div>
+            <div class="kb-login-brand-text">
+              <span class="kb-login-brand-name">KBRefiner</span>
+              <span class="kb-login-brand-tag">RAG 知识库质检车间</span>
+            </div>
+          </div>
+
+          <div class="kb-login-illustration" aria-hidden="true">
+            <svg viewBox="0 0 400 280" xmlns="http://www.w3.org/2000/svg" fill="none">
+              <!-- 文档块 1（左上） -->
+              <rect x="20" y="40" width="80" height="100" rx="8" stroke="#ffffff" stroke-width="2" fill="rgba(255,255,255,0.12)"/>
+              <line x1="36" y1="64" x2="84" y2="64" stroke="#ffffff" stroke-width="2" stroke-opacity="0.7"/>
+              <line x1="36" y1="80" x2="84" y2="80" stroke="#ffffff" stroke-width="2" stroke-opacity="0.7"/>
+              <line x1="36" y1="96" x2="68" y2="96" stroke="#ffffff" stroke-width="2" stroke-opacity="0.7"/>
+              <line x1="36" y1="112" x2="78" y2="112" stroke="#ffffff" stroke-width="2" stroke-opacity="0.5"/>
+
+              <!-- 箭头 1 -->
+              <path d="M104 90 L138 90" stroke="#ffffff" stroke-width="2" stroke-opacity="0.8"/>
+              <path d="M132 84 L142 90 L132 96" stroke="#ffffff" stroke-width="2" stroke-opacity="0.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+              <!-- 流水线节点 清洗 -->
+              <rect x="142" y="64" width="72" height="52" rx="10" stroke="#ffffff" stroke-width="2" fill="rgba(255,255,255,0.16)"/>
+              <circle cx="178" cy="84" r="7" stroke="#ffffff" stroke-width="2" fill="none"/>
+              <line x1="178" y1="77" x2="178" y2="84" stroke="#ffffff" stroke-width="2"/>
+              <line x1="178" y1="84" x2="183" y2="86" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+
+              <!-- 箭头 2 -->
+              <path d="M218 90 L252 90" stroke="#ffffff" stroke-width="2" stroke-opacity="0.8"/>
+              <path d="M246 84 L256 90 L246 96" stroke="#ffffff" stroke-width="2" stroke-opacity="0.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+              <!-- 流水线节点 分块 -->
+              <rect x="256" y="64" width="72" height="52" rx="10" stroke="#ffffff" stroke-width="2" fill="rgba(255,255,255,0.16)"/>
+              <rect x="276" y="76" width="14" height="10" rx="2" stroke="#ffffff" stroke-width="1.6" fill="none"/>
+              <rect x="294" y="76" width="14" height="10" rx="2" stroke="#ffffff" stroke-width="1.6" fill="none"/>
+              <rect x="276" y="94" width="14" height="10" rx="2" stroke="#ffffff" stroke-width="1.6" fill="none"/>
+              <rect x="294" y="94" width="14" height="10" rx="2" stroke="#ffffff" stroke-width="1.6" fill="none"/>
+
+              <!-- 箭头 3 -->
+              <path d="M332 90 L352 90" stroke="#ffffff" stroke-width="2" stroke-opacity="0.8"/>
+              <path d="M346 84 L356 90 L346 96" stroke="#ffffff" stroke-width="2" stroke-opacity="0.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+              <!-- 文档块 2（右下，产出） -->
+              <rect x="300" y="140" width="80" height="100" rx="8" stroke="#ffffff" stroke-width="2" fill="rgba(255,255,255,0.12)"/>
+              <line x1="316" y1="164" x2="364" y2="164" stroke="#ffffff" stroke-width="2" stroke-opacity="0.7"/>
+              <line x1="316" y1="180" x2="364" y2="180" stroke="#ffffff" stroke-width="2" stroke-opacity="0.7"/>
+              <line x1="316" y1="196" x2="348" y2="196" stroke="#ffffff" stroke-width="2" stroke-opacity="0.7"/>
+              <line x1="316" y1="212" x2="358" y2="212" stroke="#ffffff" stroke-width="2" stroke-opacity="0.5"/>
+              <!-- QA 标记 -->
+              <circle cx="340" cy="148" r="9" fill="rgba(255,255,255,0.9)"/>
+              <path d="M336 148 L339 151 L344 145" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+              <!-- 连接竖线：分块 -> 产出 -->
+              <path d="M292 116 L292 140 L300 140" stroke="#ffffff" stroke-width="2" stroke-opacity="0.8" stroke-dasharray="3 4" fill="none"/>
+
+              <!-- 底部流水线轨道 -->
+              <line x1="20" y1="250" x2="380" y2="250" stroke="#ffffff" stroke-width="2" stroke-opacity="0.4"/>
+              <circle cx="60" cy="250" r="4" fill="#ffffff" fill-opacity="0.8"/>
+              <circle cx="178" cy="250" r="4" fill="#ffffff" fill-opacity="0.8"/>
+              <circle cx="292" cy="250" r="4" fill="#ffffff" fill-opacity="0.8"/>
+              <circle cx="340" cy="250" r="4" fill="#ffffff" fill-opacity="0.8"/>
+            </svg>
+          </div>
+
+          <ul class="kb-login-features">
+            <li>
+              <i data-lucide="check-circle-2" class="kb-login-feature-icon"></i>
+              <span>四段式流水线：清洗 → 分块 → QA → 智能打标</span>
+            </li>
+            <li>
+              <i data-lucide="check-circle-2" class="kb-login-feature-icon"></i>
+              <span>四维自动打标：受众、业务模块、知识类型、时效性</span>
+            </li>
+            <li>
+              <i data-lucide="check-circle-2" class="kb-login-feature-icon"></i>
+              <span>标签赋能 RAG：检索命中更准，知识可运营可追溯</span>
+            </li>
+          </ul>
+        </div>
+      </aside>
+
+      <!-- 右侧登录表单区 -->
+      <main class="kb-login-main" aria-labelledby="login-title">
+        <!-- 移动端品牌头（仅 ≤768px 显示） -->
+        <div class="kb-login-mobile-brand">
+          <div class="kb-login-brand-icon kb-login-brand-icon-sm">知序</div>
+          <span class="kb-login-mobile-brand-name">KBRefiner</span>
+        </div>
+
+        <div class="kb-login-form-wrap">
+          <h1 id="login-title" class="kb-login-title">创建账号</h1>
+          <p class="kb-login-subtitle">注册以开始使用 KBRefiner</p>
+
+          <div class="kb-login-card">
+            <!-- 用户名输入 -->
+            <div class="kb-login-field">
+              <label class="kb-login-label" for="reg-username">用户名</label>
+              <div class="kb-login-input-wrap">
+                <i data-lucide="user" class="kb-login-input-icon"></i>
+                <input id="reg-username" name="username" type="text" class="kb-input kb-login-input" placeholder="请输入用户名（2-32 字符）" autocomplete="username" maxlength="32">
+              </div>
+            </div>
+
+            <!-- 邮箱输入 -->
+            <div class="kb-login-field">
+              <label class="kb-login-label" for="reg-email">邮箱</label>
+              <div class="kb-login-input-wrap">
+                <i data-lucide="mail" class="kb-login-input-icon"></i>
+                <input id="reg-email" name="email" type="email" class="kb-input kb-login-input" placeholder="请输入邮箱地址" autocomplete="email">
+              </div>
+            </div>
+
+            <!-- 密码输入 -->
+            <div class="kb-login-field">
+              <label class="kb-login-label" for="reg-password">密码</label>
+              <div class="kb-login-input-wrap">
+                <i data-lucide="lock" class="kb-login-input-icon"></i>
+                <input id="reg-password" name="password" type="password" class="kb-input kb-login-input" placeholder="请输入密码（至少 6 位）" autocomplete="new-password">
+              </div>
+            </div>
+
+            <!-- 确认密码 -->
+            <div class="kb-login-field">
+              <label class="kb-login-label" for="reg-password2">确认密码</label>
+              <div class="kb-login-input-wrap">
+                <i data-lucide="lock" class="kb-login-input-icon"></i>
+                <input id="reg-password2" name="password2" type="password" class="kb-input kb-login-input" placeholder="请再次输入密码" autocomplete="new-password">
+              </div>
+            </div>
+
+            <!-- 主注册按钮 -->
+            <button class="kb-btn kb-btn-primary kb-login-btn" type="submit" id="btn-register">
+              <span id="btn-register-text">注册</span>
+            </button>
+
+            <!-- 错误提示（默认隐藏） -->
+            <div class="kb-login-alert" role="alert" id="login-error" style="display:none;">
+              <i data-lucide="alert-circle" class="kb-login-alert-icon"></i>
+              <span id="login-error-text">注册失败，请重试。</span>
+            </div>
+          </div>
+
+          <!-- 登录引导 -->
+          <p class="kb-login-register">
+            已有账号？<a href="/login" class="kb-login-register-link">返回登录</a>
+          </p>
+
+          <!-- 版权声明 -->
+          <p class="kb-login-copyright">© 2026 知序 KBRefiner</p>
+        </div>
+      </main>
+    </div>
+
+    <script src="/static/js/kbrefiner.js"></script>
+    <script>
+      lucide.createIcons();
+
+      const errBox = document.getElementById('login-error');
+      const errText = document.getElementById('login-error-text');
+
+      function showError(msg) {
+        errText.textContent = msg;
+        errBox.style.display = 'flex';
+      }
+
+      async function doRegister() {
+        const username = document.getElementById('reg-username').value.trim();
+        const email = document.getElementById('reg-email').value.trim();
+        const password = document.getElementById('reg-password').value;
+        const password2 = document.getElementById('reg-password2').value;
+        if (!username || username.length < 2) {
+          showError('请输入至少 2 个字符的用户名');
+          return;
+        }
+        if (!email) {
+          showError('请输入邮箱地址');
+          return;
+        }
+        if (password.length < 6) {
+          showError('密码至少 6 位');
+          return;
+        }
+        if (password !== password2) {
+          showError('两次输入的密码不一致');
+          return;
+        }
+        const btn = document.getElementById('btn-register');
+        const btnText = document.getElementById('btn-register-text');
+        btn.disabled = true;
+        btnText.textContent = '注册中...';
+        errBox.style.display = 'none';
+        try {
+          const resp = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, email, password }),
+          });
+          if (!resp.ok) {
+            const err = await resp.json().catch(() => ({}));
+            throw new Error(err.detail || `注册失败 (${resp.status})`);
+          }
+          // 注册成功后自动登录
+          await KBRefiner.Auth.login(email, password);
+          window.location.href = '/task-list';
+        } catch (e) {
+          showError(e.message || '注册失败，请重试');
+        } finally {
+          btn.disabled = false;
+          btnText.textContent = '注册';
+        }
+      }
+
+      document.getElementById('btn-register').addEventListener('click', doRegister);
+      document.getElementById('reg-password2').addEventListener('keydown', e => {
+        if (e.key === 'Enter') doRegister();
+      });
+
+      // 已登录用户直接进入任务列表
+      (async () => {
+        try {
+          const { user } = await KBRefiner.Auth.me();
+          if (user) window.location.href = '/task-list';
+        } catch (e) { /* 忽略 */ }
+      })();
+    </script>
+
+    <style id="critical-layout">
+    .kb-login-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      min-height: 100vh;
+    }
+
+    /* ===== 左侧品牌区 ===== */
+    .kb-login-hero {
+      background: linear-gradient(135deg, var(--kb-primary-600) 0%, var(--kb-primary-800) 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: var(--kb-space-12) var(--kb-space-10);
+      position: relative;
+      overflow: hidden;
+    }
+    .kb-login-hero::before {
+      content: "";
+      position: absolute;
+      top: -120px;
+      right: -120px;
+      width: 360px;
+      height: 360px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.06);
+    }
+    .kb-login-hero::after {
+      content: "";
+      position: absolute;
+      bottom: -100px;
+      left: -80px;
+      width: 280px;
+      height: 280px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.05);
+    }
+    .kb-login-hero-inner {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--kb-space-10);
+      width: 100%;
+      max-width: 440px;
+    }
+
+    .kb-login-brand {
+      display: flex;
+      align-items: center;
+      gap: var(--kb-space-4);
+    }
+    .kb-login-brand-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      background: var(--kb-neutral-0);
+      color: var(--kb-primary-700);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1rem;
+      flex-shrink: 0;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+    }
+    .kb-login-brand-icon-sm {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      font-size: 0.875rem;
+    }
+    .kb-login-brand-text {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.25;
+    }
+    .kb-login-brand-name {
+      color: var(--kb-neutral-0);
+      font-size: 2rem;
+      font-weight: 700;
+    }
+    .kb-login-brand-tag {
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 1rem;
+    }
+
+    .kb-login-illustration {
+      width: 100%;
+      max-width: 400px;
+    }
+    .kb-login-illustration svg {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .kb-login-features {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: var(--kb-space-4);
+      width: 100%;
+      max-width: 400px;
+    }
+    .kb-login-features li {
+      display: flex;
+      align-items: center;
+      gap: var(--kb-space-3);
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 0.9375rem;
+    }
+    .kb-login-feature-icon {
+      width: 20px;
+      height: 20px;
+      color: var(--kb-neutral-0);
+      flex-shrink: 0;
+    }
+
+    /* ===== 右侧表单区 ===== */
+    .kb-login-main {
+      background: var(--kb-neutral-50);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: var(--kb-space-12) var(--kb-space-6);
+      position: relative;
+    }
+    .kb-login-mobile-brand {
+      display: none;
+      align-items: center;
+      gap: var(--kb-space-3);
+      position: absolute;
+      top: var(--kb-space-6);
+      left: var(--kb-space-6);
+    }
+    .kb-login-mobile-brand-name {
+      color: var(--kb-neutral-900);
+      font-weight: 700;
+      font-size: 1.125rem;
+    }
+
+    .kb-login-form-wrap {
+      width: 100%;
+      max-width: 400px;
+    }
+    .kb-login-title {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--kb-neutral-900);
+      margin-bottom: var(--kb-space-2);
+    }
+    .kb-login-subtitle {
+      font-size: 0.875rem;
+      color: var(--kb-neutral-500);
+      margin-bottom: var(--kb-space-8);
+    }
+
+    .kb-login-card {
+      background: var(--kb-neutral-0);
+      border: 1px solid var(--kb-border);
+      border-radius: 12px;
+      padding: var(--kb-space-8);
+      box-shadow: var(--kb-shadow-md);
+    }
+
+    .kb-login-field {
+      margin-bottom: var(--kb-space-5);
+    }
+    .kb-login-field:last-of-type {
+      margin-bottom: var(--kb-space-4);
+    }
+    .kb-login-label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--kb-neutral-700);
+      margin-bottom: var(--kb-space-2);
+    }
+    .kb-login-input-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .kb-login-input-icon {
+      position: absolute;
+      left: 12px;
+      width: 18px;
+      height: 18px;
+      color: var(--kb-neutral-400);
+      pointer-events: none;
+    }
+    .kb-login-input {
+      padding-left: 40px;
+    }
+
+    .kb-login-options {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: var(--kb-space-5);
+    }
+    .kb-login-remember {
+      display: flex;
+      align-items: center;
+      gap: var(--kb-space-2);
+      font-size: 0.875rem;
+      color: var(--kb-neutral-700);
+      cursor: pointer;
+      user-select: none;
+    }
+    .kb-login-checkbox {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--kb-primary-600);
+      cursor: pointer;
+    }
+    .kb-login-forgot {
+      font-size: 0.8125rem;
+      color: var(--kb-primary-600);
+    }
+    .kb-login-forgot:hover {
+      color: var(--kb-primary-700);
+    }
+
+    .kb-login-btn {
+      width: 100%;
+      background: var(--kb-primary-600);
+      color: var(--kb-neutral-0);
+      border-radius: 8px;
+      padding: 12px;
+      font-weight: 600;
+      font-size: 0.875rem;
+      margin-bottom: var(--kb-space-4);
+    }
+    .kb-login-btn:hover {
+      background: var(--kb-primary-700);
+    }
+
+    .kb-login-alert {
+      display: flex;
+      align-items: center;
+      gap: var(--kb-space-2);
+      background: var(--kb-state-error-bg);
+      border: 1px solid #fecaca;
+      border-radius: 8px;
+      padding: 12px 16px;
+      color: #b91c1c;
+      font-size: 0.8125rem;
+      margin-bottom: var(--kb-space-4);
+    }
+    .kb-login-alert-icon {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
+
+    .kb-login-divider {
+      display: flex;
+      align-items: center;
+      gap: var(--kb-space-3);
+      margin: var(--kb-space-4) 0;
+    }
+    .kb-login-divider-line {
+      flex: 1;
+      height: 1px;
+      background: var(--kb-border);
+    }
+    .kb-login-divider-text {
+      font-size: 0.75rem;
+      color: var(--kb-neutral-500);
+      white-space: nowrap;
+    }
+
+    .kb-login-feishu {
+      width: 100%;
+      background: var(--kb-neutral-0);
+      border: 1px solid var(--kb-border);
+      color: var(--kb-neutral-700);
+      border-radius: 8px;
+      padding: 12px;
+      font-weight: 600;
+      font-size: 0.875rem;
+    }
+    .kb-login-feishu:hover {
+      background: var(--kb-neutral-50);
+      border-color: var(--kb-neutral-300);
+    }
+    .kb-login-feishu-icon {
+      width: 16px;
+      height: 16px;
+      color: var(--kb-neutral-700);
+    }
+
+    .kb-login-register {
+      text-align: center;
+      margin-top: var(--kb-space-6);
+      font-size: 0.875rem;
+      color: var(--kb-neutral-500);
+    }
+    .kb-login-register-link {
+      color: var(--kb-primary-600);
+      font-weight: 600;
+      margin-left: 4px;
+    }
+    .kb-login-register-link:hover {
+      color: var(--kb-primary-700);
+    }
+
+    .kb-login-copyright {
+      text-align: center;
+      margin-top: var(--kb-space-4);
+      font-size: 0.75rem;
+      color: var(--kb-neutral-400);
+    }
+
+    /* 图标尺寸强制约束 */
+    .kb-login-feature-icon { width: 20px !important; height: 20px !important; }
+    .kb-login-input-icon { width: 18px !important; height: 18px !important; }
+    .kb-login-alert-icon { width: 16px !important; height: 16px !important; }
+    .kb-login-feishu-icon { width: 16px !important; height: 16px !important; }
+
+    /* ===== 响应式：≤768px 隐藏左侧 ===== */
+    @media (max-width: 768px) {
+      .kb-login-layout {
+        grid-template-columns: 1fr;
+      }
+      .kb-login-hero {
+        display: none;
+      }
+      .kb-login-main {
+        padding-top: 88px;
+      }
+      .kb-login-mobile-brand {
+        display: flex;
+      }
+    }
+    </style>
+</body>
+</html>

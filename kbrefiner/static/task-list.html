@@ -687,9 +687,68 @@ a:hover { color: var(--kb-primary-700); }
           _tasks = data.tasks || [];
           renderTasks();
           renderStats();
+          syncLiveConnections();
         } catch (e) {
           console.error('加载任务列表失败:', e);
         }
+      }
+
+      // ===== 实时进度推送（WebSocket，每活动任务一个连接） =====
+      // 后台任务通过 /api/ws/{task_id} 广播进度，前端就地更新对应行，
+      // 避免整体重排闪烁；任务结束（完成/失败/取消）时关闭连接并刷新列表。
+      const _wsMap = new Map(); // task_id -> WSClient
+
+      function syncLiveConnections() {
+        const activeIds = _tasks
+          .filter(t => t.status === 'processing' || t.status === 'pending')
+          .map(t => t.task_id);
+
+        // 关闭已不在活动集的连接
+        for (const [tid, client] of _wsMap) {
+          if (!activeIds.includes(tid)) {
+            client.close();
+            _wsMap.delete(tid);
+          }
+        }
+        // 为新增的活动任务建立连接
+        for (const tid of activeIds) {
+          if (_wsMap.has(tid)) continue;
+          const client = new KBRefiner.WSClient(tid);
+          _wsMap.set(tid, client);
+          client.connect({
+            onProgress: msg => updateRowFromProgress(msg),
+            onResult: () => { client.close(); _wsMap.delete(tid); scheduleTaskRefresh(); },
+            onError: () => { client.close(); _wsMap.delete(tid); scheduleTaskRefresh(); },
+            onClose: () => { _wsMap.delete(tid); },
+          });
+        }
+      }
+
+      // 就地更新某任务行的进度条与进度文字（不重排列表）
+      function updateRowFromProgress(msg) {
+        const pct = Math.round((msg.progress || 0) * 100);
+        const tid = msg.task_id;
+        document.querySelectorAll(`.kb-task-row[data-task-id="${tid}"]`).forEach(row => {
+          const bar = row.querySelector('.kb-progress-bar');
+          if (bar) bar.style.width = pct + '%';
+          const txt = row.querySelector('.kb-progress-text');
+          if (txt) txt.textContent = pct + '%';
+        });
+        document.querySelectorAll(`.kb-task-card[data-task-id="${tid}"]`).forEach(card => {
+          const bar = card.querySelector('.kb-progress-bar');
+          if (bar) bar.style.width = pct + '%';
+        });
+      }
+
+      // 任务结束防抖刷新（合并短时间内多个任务完成的列表重载）
+      let _taskFinalScheduled = false;
+      function scheduleTaskRefresh() {
+        if (_taskFinalScheduled) return;
+        _taskFinalScheduled = true;
+        setTimeout(() => {
+          _taskFinalScheduled = false;
+          loadTasks();
+        }, 400);
       }
 
       function renderTasks() {
@@ -762,8 +821,10 @@ a:hover { color: var(--kb-primary-700); }
       // ===== 初始化加载 =====
       loadTasks();
 
-      // ===== 自动刷新：存在排队/运行中任务时每 5s 轮询（用户正在搜索/筛选时跳过，避免打断） =====
+      // ===== 兜底轮询：仅在没有活跃 WS 连接时启用（WS 断连降级），
+      // 避免全部跑 WebSocket 时仍高频轮询浪费请求 =====
       setInterval(() => {
+        if (_wsMap.size > 0) return; // 已有实时连接，无需轮询
         const filtering = (searchInput?.value) || (statusFilter?.value && statusFilter.value !== 'all');
         if (filtering) return;
         if (_tasks.some(t => t.status === 'processing' || t.status === 'pending')) {

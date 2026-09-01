@@ -263,6 +263,38 @@ class TestE2E(unittest.TestCase):
         self.assertIn("env", data)
         self.assertIn("llm_model", data)
 
+    def test_progress_broadcast_message_shape(self):
+        """实时进度推送：回调触发后广播的消息结构与进度值正确。
+
+        该项聚焦于「进度事件 → 广播消息」这一实时推送核心路径，
+        mock 掉 manager.broadcast 以捕获推送的 JSON 内容（不依赖真实 WS 传输）。
+        """
+        from kbrefiner.api.ws_manager import make_progress_callback
+
+        msg_queue = []
+
+        async def fake_broadcast(task_id, message):
+            msg_queue.append((task_id, message))
+
+        # 模拟 stage_runner 在 Stage1 完成时调用 on_progress("success")
+        with patch("kbrefiner.api.routes.manager.broadcast", new=fake_broadcast):
+            on_progress, _ = make_progress_callback("task_realtime", total_stages=5)
+
+            async def _run():
+                on_progress("Stage1-Clean", attempt=1, status="success")
+                # 让 ensure_future 调度的 fake_broadcast 协程执行完毕
+                await asyncio.sleep(0.02)
+
+            asyncio.run(_run())
+
+        self.assertTrue(msg_queue, "on_progress 应触发一次广播")
+        task_id, message = msg_queue[0]
+        self.assertEqual(task_id, "task_realtime")
+        self.assertEqual(message["type"], "progress")
+        self.assertEqual(message["stage"], "Stage1-Clean")
+        self.assertEqual(message["status"], "completed")
+        self.assertAlmostEqual(message["progress"], 0.2)  # (0+1)/5
+
 
 if __name__ == "__main__":
     unittest.main()

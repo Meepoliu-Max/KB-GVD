@@ -32,7 +32,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="知序 KBRefiner",
     description="RAG 知识库预处理工具：4 阶 AI 流水线把原始文档转为结构化知识原子 + QA + 元数据 + 异常清单",
-    version="0.1.0",
+    version="1.0.0",
     lifespan=lifespan,
 )
 

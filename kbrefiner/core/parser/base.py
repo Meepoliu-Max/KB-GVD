@@ -17,14 +17,14 @@ from pathlib import Path
 
 
 class FileType(str, Enum):
-    """支持的输入文件类型。MinerU 一站式覆盖。"""
+    """支持的输入文件类型。
+
+    MVP 1.0 范围：PDF / Word / TXT / Markdown。
+    不支持图片、视频、音频、网页（参见产品方向定义）。
+    """
 
     PDF = "pdf"
     DOCX = "docx"
-    PPTX = "pptx"
-    XLSX = "xlsx"
-    IMAGE = "image"  # png/jpg/jpeg/webp
-    WEBPAGE = "webpage"  # URL
     MARKDOWN = "markdown"  # md/markdown/txt 直读（无需解析）
 
     @classmethod
@@ -34,15 +34,7 @@ class FileType(str, Enum):
         mapping = {
             "pdf": cls.PDF,
             "docx": cls.DOCX,
-            "doc": cls.DOCX,  # 旧格式，MinerU 会尝试处理
-            "pptx": cls.PPTX,
-            "ppt": cls.PPTX,
-            "xlsx": cls.XLSX,
-            "xls": cls.XLSX,
-            "png": cls.IMAGE,
-            "jpg": cls.IMAGE,
-            "jpeg": cls.IMAGE,
-            "webp": cls.IMAGE,
+            "doc": cls.DOCX,
             "md": cls.MARKDOWN,
             "markdown": cls.MARKDOWN,
             "txt": cls.MARKDOWN,

@@ -39,14 +39,14 @@ def make_valid_data() -> dict:
                 "qa_pairs": [
                     {
                         "question": "登录失败几次会锁定？",
-                        "answer": "连续3次失败将锁定账号30分钟。",
+                        "answer": "用户登录连续3次失败将锁定账号30分钟，锁定期间无法再次登录。",
                         "keywords": ["登录", "锁定", "账号"],
                         "confidence_score": 95,
                         "remark": "",
                     },
                     {
                         "question": "锁定多久？",
-                        "answer": "30分钟。",
+                        "answer": "锁定时长为30分钟，期间无法再次登录，需等待解锁后重试。",
                         "keywords": ["锁定", "30分钟"],
                         "confidence_score": 72,
                         "remark": "【低置信-人工复核】",
@@ -70,6 +70,7 @@ def make_valid_data() -> dict:
             "avg_confidence": 83.5,
             "low_confidence_count": 1,
             "exception_count": 1,
+            "coverage_rate": 1.0,
             "needs_review": True,
         },
     }

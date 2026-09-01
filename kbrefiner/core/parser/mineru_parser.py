@@ -1,6 +1,6 @@
 """MinerU 文档解析器封装。
 
-MinerU 是 OpenDataLab 开源的一站式文档解析工具，支持 PDF/DOCX/PPTX/XLSX/图片/网页，
+MinerU 是 OpenDataLab 开源的一站式文档解析工具，支持 PDF/DOCX，
 自带表格提取（合并单元格拆解）、OCR、版面还原、公式转 LaTeX。
 
 调用方式优先级：
@@ -86,11 +86,8 @@ class MineruParser(BaseParser):
 
     @property
     def supported_types(self) -> set[FileType]:
-        """MinerU 支持所有格式。"""
-        return {
-            FileType.PDF, FileType.DOCX, FileType.PPTX,
-            FileType.XLSX, FileType.IMAGE, FileType.WEBPAGE,
-        }
+        """MinerU 支持 PDF 和 DOCX。"""
+        return {FileType.PDF, FileType.DOCX}
 
     def parse(self, file_path: str | Path) -> ParsedDocument:
         """解析文档，返回 ParsedDocument。
@@ -103,7 +100,7 @@ class MineruParser(BaseParser):
         if not self.supports(file_type):
             raise UnsupportedFileError(f"MinerU 不支持此格式: {file_type}")
 
-        if not path.exists() and file_type != FileType.WEBPAGE:
+        if not path.exists():
             raise ParseFailedError(f"文件不存在: {path}")
 
         # 调用 MinerU 获取 Markdown

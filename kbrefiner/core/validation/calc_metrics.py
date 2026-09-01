@@ -45,10 +45,27 @@ def calc(data: dict[str, Any]) -> tuple[dict[str, Any], MetricsResult]:
     # 3. needs_review
     needs_review = exception_count > 0
 
+    # 4. coverage_rate: 知识原子被 QA 有效覆盖的比例
+    # 一个原子被"有效覆盖"= 至少有 1 条 QA 且 answer 不是「文档未说明」
+    total_atoms = len(atoms)
+    covered_atoms = 0
+    for atom in atoms:
+        qa_pairs = atom.get("qa_pairs", [])
+        has_effective_qa = any(
+            qa.get("answer", "").strip()
+            and qa.get("answer", "").strip() != "文档未说明"
+            for qa in qa_pairs
+        )
+        if has_effective_qa:
+            covered_atoms += 1
+
+    coverage_rate = round(covered_atoms / total_atoms, 2) if total_atoms > 0 else 0.0
+
     calculated = {
         "avg_confidence": avg_confidence,
         "low_confidence_count": low_conf_count,
         "exception_count": exception_count,
+        "coverage_rate": coverage_rate,
         "needs_review": needs_review,
         "total_qa_count": len(all_scores),
     }
@@ -71,6 +88,10 @@ def calc(data: dict[str, Any]) -> tuple[dict[str, Any], MetricsResult]:
     if qs.get("exception_count") != exception_count:
         fixes.append(f"exception_count: LLM={qs.get('exception_count')} → 修正为{exception_count}")
         qs["exception_count"] = exception_count
+
+    if qs.get("coverage_rate") != coverage_rate:
+        fixes.append(f"coverage_rate: LLM={qs.get('coverage_rate')} → 修正为{coverage_rate}")
+        qs["coverage_rate"] = coverage_rate
 
     if qs.get("needs_review") != needs_review:
         fixes.append(f"needs_review: LLM={qs.get('needs_review')} → 修正为{needs_review}")

@@ -190,6 +190,28 @@ class TestRenderStage3(unittest.TestCase):
         self.assertIn("知识块 2/2", user)
         _assert_no_placeholder(system + user)
 
+    def test_question_purity_rule_in_system(self):
+        """问题纯净规则出现在 system prompt 中。"""
+        system, _ = render_stage3(
+            chunks=self.SAMPLE_CHUNKS,
+            doc_type="技术运维",
+            sensitive_items=[],
+        )
+        self.assertIn("问题纯净", system)
+        self.assertIn("不得包含任何章节前缀", system)
+        self.assertIn("前缀会污染向量检索", system)
+
+    def test_answer_completeness_rule_in_system(self):
+        """答案充分提取规则出现在 system prompt 中。"""
+        system, _ = render_stage3(
+            chunks=self.SAMPLE_CHUNKS,
+            doc_type="技术运维",
+            sensitive_items=[],
+        )
+        self.assertIn("充分提取", system)
+        self.assertIn("完整覆盖原文中该问题涉及的所有操作步骤", system)
+        self.assertIn("不得遗漏原文已有的信息", system)
+
     def test_sensitive_items_list_injected_into_system_and_user(self):
         sens = [
             "第1章: 登录密码abc123-禁止向量化入库",

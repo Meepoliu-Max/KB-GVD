@@ -41,16 +41,24 @@ class TestFileType(unittest.TestCase):
         # 旧格式兼容
         self.assertEqual(FileType.from_path("report.doc"), FileType.DOCX)
 
-    def test_pptx(self):
-        self.assertEqual(FileType.from_path("slides.pptx"), FileType.PPTX)
+    def test_pptx_unsupported(self):
+        with self.assertRaises(UnsupportedFileError):
+            FileType.from_path("slides.pptx")
 
-    def test_xlsx(self):
-        self.assertEqual(FileType.from_path("data.xlsx"), FileType.XLSX)
+    def test_xlsx_unsupported(self):
+        with self.assertRaises(UnsupportedFileError):
+            FileType.from_path("data.xlsx")
 
-    def test_images(self):
+    def test_images_unsupported(self):
         for ext in ("png", "jpg", "jpeg", "webp"):
             with self.subTest(ext=ext):
-                self.assertEqual(FileType.from_path(f"img.{ext}"), FileType.IMAGE)
+                with self.assertRaises(UnsupportedFileError):
+                    FileType.from_path(f"img.{ext}")
+
+    def test_markdown_and_txt(self):
+        self.assertEqual(FileType.from_path("doc.md"), FileType.MARKDOWN)
+        self.assertEqual(FileType.from_path("doc.markdown"), FileType.MARKDOWN)
+        self.assertEqual(FileType.from_path("notes.txt"), FileType.MARKDOWN)
 
     def test_unsupported(self):
         with self.assertRaises(UnsupportedFileError):
@@ -280,9 +288,8 @@ class TestMineruParserBoundary(unittest.TestCase):
 
     def test_supported_types(self):
         parser = MineruParser()
-        # MARKDOWN 由 SimpleParser 直读，不走 MinerU
-        expected = set(FileType) - {FileType.MARKDOWN}
-        self.assertEqual(parser.supported_types, expected)
+        # MVP 1.0: 仅 PDF 和 DOCX 走 MinerU，MARKDOWN 由 SimpleParser 直读
+        self.assertEqual(parser.supported_types, {FileType.PDF, FileType.DOCX})
 
     def test_encrypted_detection(self):
         """模拟加密 PDF：mock _run_mineru 抛出 EncryptedDocumentError。"""

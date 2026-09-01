@@ -8,7 +8,7 @@ version = "1.0.0"
 description = "RAG 四阶流水线精度优化引擎：Clean → Chunk → QA → Tag"
 readme = "README.md"
 license = { text = "GPL-3.0-or-later" }
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 authors = [
     { name = "KBRefiner Team" },
 ]

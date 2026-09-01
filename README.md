@@ -2,11 +2,12 @@
 
 RAG 四阶流水线精度优化引擎：**Clean → Chunk → QA → Tag**
 
-将原始文档（PDF / DOCX / PPTX 等）转化为结构化知识原子 + QA 对 + 元数据标签，为 RAG 知识库提供高质量入库数据。
+将原始文档（PDF / Word / TXT / Markdown）转化为结构化知识原子 + QA 对 + 元数据标签，为 RAG 知识库提供高质量入库数据。输出可直接导入扣子 / Dify 等 Agent 平台。
 
 ## 特性
 
 - **四阶 AI 流水线**：清洗 → 分块 → QA 生成 → 标签标注
+- **Agent 友好输出**：支持扣子 / Dify 知识库导入格式，无需手动转换
 - **本地部署**：数据不离本地，隐私安全由你掌控
 - **自带 API Key**：支持所有 OpenAI 兼容的 LLM API（DeepSeek / OpenAI / Ollama 等）
 - **插件化解析**：MinerU（一站式）或轻量解析器（pypdf + python-docx）
@@ -46,6 +47,31 @@ print(result.model_dump_json(indent=2))
 # Web UI：启动本地服务
 kbrefiner serve
 ```
+
+### Docker 一键部署
+
+```bash
+cp .env.example .env
+# 编辑 .env，填入你的 LLM API Key
+docker compose up -d
+# 打开 http://localhost:8000
+```
+
+### 导出格式
+
+处理完成后，可导出为扣子 / Dify 知识库可直接导入的格式：
+
+```bash
+# CLI 导出
+kbrefiner process document.pdf --format coze_qa    # 扣子问答 CSV
+kbrefiner process document.pdf --format dify_qa    # Dify Q&A CSV
+kbrefiner process document.pdf --format dify_jsonl  # Dify API 批量导入 JSONL
+
+# API 导出
+curl http://localhost:8000/api/export/{task_id}?format=coze_qa -o qa.csv
+```
+
+支持的全部格式：`coze_qa` / `coze_text` / `dify_qa` / `dify_text` / `dify_jsonl` / `json`
 
 ## CLI 命令
 

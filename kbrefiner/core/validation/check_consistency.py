@@ -123,6 +123,20 @@ def check(data: dict[str, Any]) -> tuple[dict[str, Any], ConsistencyResult]:
     # 原脚本逻辑：el 中条目提取 chunk_id 前缀后查实际低分 QA，未命中也不报错（假阳性可能）
     # 此处保留同样的宽松行为，不新增 issue
 
+    # 5. 短答案检测：答案过短可能信息不完整（排除「文档未说明」）
+    SHORT_ANSWER_THRESHOLD = 20
+    for atom in atoms:
+        chunk_id = atom.get("chunk_id", "?")
+        for j, qa in enumerate(atom.get("qa_pairs", [])):
+            answer = qa.get("answer", "").strip()
+            if answer and answer != "文档未说明" and len(answer) < SHORT_ANSWER_THRESHOLD:
+                issues.append(ConsistencyIssue(
+                    type="答案过短",
+                    location=f"{chunk_id} 第{j+1}条QA",
+                    detail=f"答案仅{len(answer)}字（低于{SHORT_ANSWER_THRESHOLD}字），可能信息不完整",
+                    fix="检查原文是否有更多相关信息，补充到答案中",
+                ))
+
     # 自动修复：score<80 但未标记低置信的，添加标记
     fixed: list[str] = []
     for issue in issues:

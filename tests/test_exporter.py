@@ -98,8 +98,8 @@ class TestCozeExporters(unittest.TestCase):
         self.assertEqual(rows[0], ["问题", "答案"])
         # 2 条 QA = 2 行数据
         self.assertEqual(len(rows), 3)
-        # 问题带 chunk 标题前缀
-        self.assertIn("【账号管理】- 登录失败处理", rows[1][0])
+        # 问题不含章节前缀（T-10 修复：前缀会污染向量检索）
+        self.assertNotIn("【账号管理】", rows[1][0])
         self.assertIn("密码输错了被锁了怎么办", rows[1][0])
         self.assertIn("锁定账户30分钟", rows[1][1])
 

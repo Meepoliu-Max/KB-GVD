@@ -204,7 +204,7 @@ class ExceptionList(BaseModel):
 
 
 class QualitySummary(BaseModel):
-    """质量汇总，4 个字段。数值由 calc_metrics 精确重算，不可信 LLM 输出。"""
+    """质量汇总，5 个字段。数值由 calc_metrics 精确重算，不可信 LLM 输出。"""
 
     model_config = ConfigDict(extra="ignore")
 
@@ -214,6 +214,10 @@ class QualitySummary(BaseModel):
     )
     exception_count: int = Field(
         description="异常总数（exception_list 9 个数组的元素总数）",
+    )
+    coverage_rate: float = Field(
+        default=0.0,
+        description="知识覆盖率（0.0-1.0），衡量知识原子被 QA 有效覆盖的比例",
     )
     needs_review: bool = Field(
         description="是否有需人工复核项（exception_count > 0 即为 true）",

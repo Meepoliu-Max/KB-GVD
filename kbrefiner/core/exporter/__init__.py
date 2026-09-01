@@ -93,9 +93,7 @@ class CozeQaExporter(BaseExporter):
         rows: list[list[str]] = []
         for atom in doc.knowledge_atoms:
             for qa in atom.qa_pairs:
-                # 问题前拼上 chunk 标题，增强检索上下文（扣子按行独立检索）
-                q = f"[{atom.title}] {qa.question}"
-                rows.append([q, qa.answer])
+                rows.append([qa.question, qa.answer])
         return _csv_dump(["问题", "答案"], rows)
 
 

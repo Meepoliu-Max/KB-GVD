@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>消息列表 · KBRefiner 管理后台</title>
+    <title>操作审计 · KBRefiner 管理后台</title>
     <style id="theme-vars">
 /* 知序 KBRefiner — 产品前端设计系统 */
 
@@ -247,6 +247,7 @@ a:hover { color: var(--kb-primary-700); }
   padding: var(--kb-space-3) var(--kb-space-4);
   text-align: left;
   border-bottom: 1px solid var(--kb-border);
+  vertical-align: middle;
 }
 
 .kb-table th {
@@ -259,21 +260,6 @@ a:hover { color: var(--kb-primary-700); }
 }
 
 .kb-table tr:hover td { background: var(--kb-neutral-50); }
-
-.kb-progress {
-  width: 100%;
-  height: 8px;
-  background: var(--kb-neutral-200);
-  border-radius: 9999px;
-  overflow: hidden;
-}
-
-.kb-progress-bar {
-  height: 100%;
-  background: linear-gradient(90deg, var(--kb-primary-500), var(--kb-primary-600));
-  border-radius: 9999px;
-  transition: width 0.4s ease;
-}
 
 .kb-empty {
   text-align: center;
@@ -296,6 +282,11 @@ a:hover { color: var(--kb-primary-700); }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* 操作审计特有：角色 tag 配色 */
+.kb-audit-role-super { background: #f3e8ff; color: #7c3aed; }
+.kb-audit-role-admin { background: var(--kb-primary-100); color: var(--kb-primary-700); }
+.kb-audit-role-user { background: var(--kb-neutral-100); color: var(--kb-neutral-600); }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.1/dist/index.global.js"></script>
     <script src="https://unpkg.com/lucide@1.8.0/dist/umd/lucide.min.js"></script>
@@ -387,7 +378,7 @@ a:hover { color: var(--kb-primary-700); }
             <i data-lucide="users" class="kb-sidebar-nav-icon"></i>
             <span class="kb-sidebar-nav-label">用户管理</span>
           </a>
-          <a class="kb-sidebar-nav-item is-active" href="/admin/messages" data-dom-id="nav-messages" aria-current="page">
+          <a class="kb-sidebar-nav-item" href="/admin/messages" data-dom-id="nav-messages">
             <i data-lucide="megaphone" class="kb-sidebar-nav-icon"></i>
             <span class="kb-sidebar-nav-label">消息列表</span>
           </a>
@@ -395,7 +386,7 @@ a:hover { color: var(--kb-primary-700); }
             <i data-lucide="shield" class="kb-sidebar-nav-icon"></i>
             <span class="kb-sidebar-nav-label">黑白名单</span>
           </a>
-          <a class="kb-sidebar-nav-item" href="/admin/audit-logs" data-nav="audit-logs">
+          <a class="kb-sidebar-nav-item is-active" href="/admin/audit-logs" data-nav="audit-logs" aria-current="page">
             <i data-lucide="clipboard-list" class="kb-sidebar-nav-icon"></i>
             <span class="kb-sidebar-nav-label">操作审计</span>
           </a>
@@ -432,141 +423,96 @@ a:hover { color: var(--kb-primary-700); }
             <nav class="kb-breadcrumb" aria-label="面包屑">
               <span class="kb-breadcrumb-item">管理后台</span>
               <i data-lucide="chevron-right" class="kb-breadcrumb-sep"></i>
-              <span class="kb-breadcrumb-item is-current">消息列表</span>
+              <span class="kb-breadcrumb-item is-current">操作审计</span>
             </nav>
           </div>
           <div class="kb-admin-topbar-right">
-            <button class="kb-btn kb-btn-primary kb-btn-sm" type="button" id="btn-new-message">
-              <i data-lucide="plus" style="width:16px;height:16px;"></i>新建消息
+            <button class="kb-btn kb-btn-secondary kb-btn-sm" type="button" id="btn-audit-refresh">
+              <i data-lucide="refresh-cw" style="width:14px;height:14px;"></i>刷新
             </button>
           </div>
         </header>
 
         <!-- 内容主体 -->
         <main class="kb-admin-content">
-          <section class="kb-card kb-message-card" aria-label="消息列表">
-            <div class="kb-card-header kb-message-header">
-              <div class="kb-message-title-wrap">
-                <h3 class="kb-message-title">消息列表</h3>
-                <span class="kb-tag kb-tag-muted" id="messages-total">共 0 条</span>
+          <!-- 标题区 -->
+          <div class="kb-page-title-block">
+            <h2 style="font-size:1.5rem;font-weight:700;color:var(--kb-neutral-900);">操作审计</h2>
+            <p class="kb-text-muted" style="margin-top:6px;font-size:0.875rem;">系统管理员关键操作全量记录，用于安全审计与追溯。</p>
+          </div>
+
+          <!-- 审计表格卡片 -->
+          <section class="kb-card kb-audit-card" aria-label="操作审计记录">
+            <div class="kb-card-header kb-audit-header">
+              <div class="kb-audit-title-wrap">
+                <h3 class="kb-audit-title">审计日志</h3>
+                <span class="kb-tag kb-tag-muted" id="audit-total">共 0 条</span>
               </div>
               <div class="kb-filter-bar">
-                <select class="kb-select kb-filter-select" aria-label="消息类型" id="filter-type">
-                  <option value="">全部类型</option>
-                  <option value="system">系统通知</option>
-                  <option value="task">任务通知</option>
-                  <option value="maintenance">维护公告</option>
-                  <option value="security">安全告警</option>
-                </select>
-                <select class="kb-select kb-filter-select" aria-label="状态" id="filter-status">
-                  <option value="">全部状态</option>
-                  <option value="sent">已发送</option>
-                  <option value="draft">草稿</option>
-                  <option value="scheduled">已定时</option>
-                  <option value="revoked">已撤回</option>
-                </select>
                 <div class="kb-search-wrap">
                   <i data-lucide="search" class="kb-search-icon"></i>
-                  <input type="text" class="kb-input kb-search-input" placeholder="搜索消息标题..." aria-label="搜索消息标题" id="input-message-search">
+                  <input type="text" class="kb-input kb-search-input" placeholder="搜索操作人..." aria-label="搜索操作人" id="audit-user-keyword">
                 </div>
+                <select class="kb-select kb-filter-select" aria-label="动作类型" id="audit-action">
+                  <option value="">全部动作</option>
+                  <option value="auth.login.success">auth.login.success</option>
+                  <option value="auth.login.failed">auth.login.failed</option>
+                  <option value="user.created">user.created</option>
+                  <option value="user.updated">user.updated</option>
+                  <option value="user.role_changed">user.role_changed</option>
+                  <option value="user.deleted">user.deleted</option>
+                  <option value="user.password_reset">user.password_reset</option>
+                  <option value="settings.updated">settings.updated</option>
+                  <option value="access.rule_created">access.rule_created</option>
+                  <option value="access.rule_deleted">access.rule_deleted</option>
+                  <option value="access.toggled">access.toggled</option>
+                  <option value="message.created">message.created</option>
+                  <option value="message.sent">message.sent</option>
+                  <option value="message.revoked">message.revoked</option>
+                  <option value="message.deleted">message.deleted</option>
+                  <option value="message.cancelled">message.cancelled</option>
+                  <option value="message.updated">message.updated</option>
+                  <option value="task.cancelled">task.cancelled</option>
+                  <option value="task.batch">task.batch</option>
+                </select>
+                <select class="kb-select kb-filter-select" aria-label="时间范围" id="audit-days">
+                  <option value="0">全部</option>
+                  <option value="1">今日</option>
+                  <option value="7">近 7 天</option>
+                </select>
               </div>
             </div>
 
-            <div class="kb-card-body kb-message-table-wrap">
-              <table class="kb-table kb-message-table">
+            <div class="kb-card-body kb-audit-table-wrap">
+              <table class="kb-table kb-audit-table">
                 <thead>
                   <tr>
-                    <th style="width:34%">消息标题</th>
-                    <th style="width:110px">类型</th>
-                    <th style="width:96px">状态</th>
-                    <th style="width:150px">目标用户</th>
-                    <th style="width:150px">发送时间</th>
-                    <th style="width:200px">操作</th>
+                    <th style="width:150px">时间</th>
+                    <th style="width:160px">操作人</th>
+                    <th style="width:100px">角色</th>
+                    <th style="width:160px">动作</th>
+                    <th style="width:110px">对象类型</th>
+                    <th style="width:110px">对象 ID</th>
+                    <th>详情</th>
+                    <th style="width:130px">IP</th>
                   </tr>
                 </thead>
-                <tbody id="messages-tbody">
-                  <tr><td colspan="6" class="kb-text-muted" style="text-align:center;padding:40px;">加载中...</td></tr>
+                <tbody id="audit-tbody">
+                  <tr><td colspan="8" class="kb-text-muted" style="text-align:center;padding:40px;">加载中...</td></tr>
                 </tbody>
               </table>
             </div>
 
-            <!-- 分页（前端分页，每页 10 条） -->
-            <div class="kb-message-pagination">
-              <span class="kb-page-info" id="page-info">共 0 条 · 每页 10 条</span>
-              <div class="kb-page-group" id="page-group"></div>
+            <!-- 分页：上一页 / 下一页 + 页码 indicator -->
+            <div class="kb-audit-pagination">
+              <span class="kb-page-info" id="audit-page-info">1 / 1</span>
+              <div class="kb-page-group">
+                <button class="kb-page-btn" type="button" id="btn-prev" aria-label="上一页"><i data-lucide="chevron-left"></i>上一页</button>
+                <button class="kb-page-btn" type="button" id="btn-next" aria-label="下一页">下一页<i data-lucide="chevron-right"></i></button>
+              </div>
             </div>
           </section>
         </main>
-      </div>
-    </div>
-
-    <!-- 新建/编辑消息模态框 -->
-    <div class="kb-modal-mask" id="modal-edit" hidden>
-      <div class="kb-modal" role="dialog" aria-modal="true" aria-labelledby="modal-edit-title">
-        <div class="kb-modal-head">
-          <h3 class="kb-modal-title" id="modal-edit-title">新建消息</h3>
-          <button class="kb-modal-close" type="button" data-close>&times;</button>
-        </div>
-        <div class="kb-modal-body">
-          <div class="kb-field">
-            <label class="kb-field-label" for="msg-title">消息标题</label>
-            <input type="text" class="kb-input" id="msg-title" maxlength="200" placeholder="请输入消息标题">
-          </div>
-          <div class="kb-field">
-            <label class="kb-field-label" for="msg-content">消息内容</label>
-            <textarea class="kb-input" id="msg-content" rows="5" maxlength="5000" placeholder="请输入消息内容" style="resize:vertical;"></textarea>
-          </div>
-          <div class="kb-form-grid">
-            <div class="kb-field">
-              <label class="kb-field-label" for="msg-type">消息类型</label>
-              <select class="kb-select" id="msg-type">
-                <option value="system">系统通知</option>
-                <option value="task">任务通知</option>
-                <option value="maintenance">维护公告</option>
-                <option value="security">安全告警</option>
-              </select>
-            </div>
-            <div class="kb-field">
-              <label class="kb-field-label" for="msg-send-mode">发送方式</label>
-              <select class="kb-select" id="msg-send-mode">
-                <option value="draft">存为草稿</option>
-                <option value="now">立即发送</option>
-                <option value="scheduled">定时发送</option>
-              </select>
-            </div>
-          </div>
-          <div class="kb-field" id="field-scheduled" style="display:none;">
-            <label class="kb-field-label" for="msg-scheduled-at">定时发送时间</label>
-            <input type="datetime-local" class="kb-input" id="msg-scheduled-at">
-            <p class="kb-field-hint">到达该时间后消息自动对目标用户可见</p>
-          </div>
-          <div class="kb-field">
-            <label class="kb-field-label" for="msg-target">目标用户</label>
-            <select class="kb-select" id="msg-target">
-              <option value="all">全部用户</option>
-              <option value="custom">指定用户（输入用户 ID，逗号分隔）</option>
-            </select>
-            <input type="text" class="kb-input" id="msg-target-ids" placeholder="user_id1, user_id2" style="display:none;margin-top:8px;">
-          </div>
-        </div>
-        <div class="kb-modal-foot">
-          <button class="kb-btn kb-btn-secondary" type="button" data-close>取消</button>
-          <button class="kb-btn kb-btn-primary" type="button" id="btn-submit-message">保存</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- 查看消息详情模态框 -->
-    <div class="kb-modal-mask" id="modal-view" hidden>
-      <div class="kb-modal" role="dialog" aria-modal="true" aria-labelledby="modal-view-title">
-        <div class="kb-modal-head">
-          <h3 class="kb-modal-title" id="modal-view-title">消息详情</h3>
-          <button class="kb-modal-close" type="button" data-close>&times;</button>
-        </div>
-        <div class="kb-modal-body" id="view-body"></div>
-        <div class="kb-modal-foot">
-          <button class="kb-btn kb-btn-secondary" type="button" data-close>关闭</button>
-        </div>
       </div>
     </div>
 
@@ -588,25 +534,56 @@ a:hover { color: var(--kb-primary-700); }
       })();
 
       const esc = KBRefiner.escapeHtml;
-      const { Messages } = KBRefiner;
 
-      const TYPE_TAG = {
-        system: '<span class="kb-tag kb-tag-info">系统通知</span>',
-        task: '<span class="kb-tag kb-tag-primary">任务通知</span>',
-        maintenance: '<span class="kb-tag kb-tag-warning">维护公告</span>',
-        security: '<span class="kb-tag kb-tag-error">安全告警</span>',
-      };
-      const STATUS_TAG = {
-        sent: '<span class="kb-status kb-status-success">已发送</span>',
-        draft: '<span class="kb-status kb-status-pending">草稿</span>',
-        scheduled: '<span class="kb-status kb-status-running">已定时</span>',
-        revoked: '<span class="kb-status kb-status-error">已撤回</span>',
-      };
+      // ===== 动作类型中文映射 =====
+      function beautifyAction(action) {
+        const map = {
+          'auth.login.success': '登录成功',
+          'auth.login.failed': '登录失败',
+          'user.created': '创建用户',
+          'user.updated': '更新用户资料',
+          'user.role_changed': '变更角色',
+          'user.deleted': '删除用户',
+          'user.password_reset': '重置密码',
+          'settings.updated': '修改系统设置',
+          'access.rule_created': '新增访问规则',
+          'access.rule_deleted': '删除访问规则',
+          'access.toggled': '切换访问开关',
+          'message.created': '新建消息',
+          'message.sent': '发送消息',
+          'message.revoked': '撤回消息',
+          'message.deleted': '删除消息',
+          'message.cancelled': '取消定时',
+          'message.updated': '编辑消息',
+          'task.cancelled': '取消任务',
+          'task.batch': '批量操作任务',
+        };
+        return map[action] || action || '—';
+      }
+
       const fmtTime = ts => {
         if (!ts) return '—';
         const d = new Date(ts * 1000);
         const p = x => String(x).padStart(2, '0');
         return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+      };
+
+      const roleTagClass = r => {
+        if (r === 'super_admin') return 'kb-audit-role-super';
+        if (r === 'admin') return 'kb-audit-role-admin';
+        return 'kb-audit-role-user';
+      };
+      const roleLabel = r => {
+        if (r === 'super_admin') return '超级管理员';
+        if (r === 'admin') return '管理员';
+        if (r === 'user') return '普通用户';
+        return r || '—';
+      };
+
+      const truncate = (s, n) => {
+        if (!s) return '';
+        s = String(s);
+        return s.length > n ? s.slice(0, n) + '…' : s;
       };
 
       // ===== 权限守卫 =====
@@ -628,247 +605,94 @@ a:hover { color: var(--kb-primary-700); }
         window.location.href = '/admin/login';
       });
 
-      // ===== 列表加载与渲染（前端分页） =====
-      const PAGE_SIZE = 10;
+      // ===== 列表加载与分页 =====
+      const PAGE_SIZE = 20;
       let currentPage = 1;
-      let allMsgs = [];  // 最近一次列表缓存（查看/编辑复用）
+      let totalPages = 1;
+      let totalCount = 0;
 
-      async function loadMessages() {
-        const tbody = document.getElementById('messages-tbody');
-        let data;
+      async function loadAuditLogs() {
+        const tbody = document.getElementById('audit-tbody');
+        tbody.innerHTML = `<tr><td colspan="8" class="kb-text-muted" style="text-align:center;padding:40px;">加载中...</td></tr>`;
+        const user_keyword = document.getElementById('audit-user-keyword').value.trim();
+        const action = document.getElementById('audit-action').value;
+        const days = Number(document.getElementById('audit-days').value) || 0;
+
+        const params = new URLSearchParams({
+          page: currentPage,
+          limit: PAGE_SIZE,
+        });
+        if (user_keyword) params.set('user_keyword', user_keyword);
+        if (action) params.set('action', action);
+        if (days > 0) params.set('days', String(days));
+
         try {
-          data = await Messages.list({
-            type: document.getElementById('filter-type').value,
-            status: document.getElementById('filter-status').value,
-            search: document.getElementById('input-message-search').value.trim(),
-          });
-        } catch (e) {
-          tbody.innerHTML = `<tr><td colspan="6" class="kb-text-muted" style="text-align:center;padding:40px;">${esc(e.message)}</td></tr>`;
-          return;
-        }
-        const all = data.messages || [];
-        allMsgs = all;
-        document.getElementById('messages-total').textContent = `共 ${data.total} 条`;
-        renderPage(all);
-        renderPager(all);
-      }
+          const resp = await KBRefiner.request(`/api/admin/audit-logs?${params.toString()}`, { method: 'GET' });
+          const logs = (resp && resp.logs) || [];
+          totalCount = (resp && typeof resp.total === 'number') ? resp.total : logs.length;
+          totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+          if (currentPage > totalPages) currentPage = totalPages;
 
-      function renderPage(all) {
-        const tbody = document.getElementById('messages-tbody');
-        const totalPages = Math.max(1, Math.ceil(all.length / PAGE_SIZE));
-        if (currentPage > totalPages) currentPage = totalPages;
-        const rows = all.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
-        if (!rows.length) {
-          tbody.innerHTML = '<tr><td colspan="6" class="kb-text-muted" style="text-align:center;padding:40px;">暂无消息</td></tr>';
-          return;
-        }
-        tbody.innerHTML = rows.map(m => {
-          // 目标用户展示
-          let target;
-          if (m.target_display === '全部用户') {
-            target = `<span class="kb-msg-target-all"><i data-lucide="users" class="kb-msg-target-icon"></i>全部用户</span>`;
-          } else {
-            const name = String(m.target_display || '-');
-            target = `<span class="kb-font-semibold">${esc(name)}</span>`;
-          }
-          // 按状态给操作按钮
-          let actions = [`<button class="kb-btn kb-btn-ghost kb-btn-sm" type="button" data-act="view" data-id="${esc(m.id)}">查看</button>`];
-          if (m.status === 'draft') {
-            actions.push(`<button class="kb-btn kb-btn-ghost kb-btn-sm" type="button" data-act="send" data-id="${esc(m.id)}">发送</button>`);
-            actions.push(`<button class="kb-btn kb-btn-ghost kb-btn-sm" type="button" data-act="edit" data-id="${esc(m.id)}">编辑</button>`);
-            actions.push(`<button class="kb-btn kb-btn-ghost kb-btn-sm kb-text-error" type="button" data-act="delete" data-id="${esc(m.id)}">删除</button>`);
-          } else if (m.status === 'scheduled') {
-            actions.push(`<button class="kb-btn kb-btn-ghost kb-btn-sm kb-text-error" type="button" data-act="cancel" data-id="${esc(m.id)}">取消定时</button>`);
-          } else if (m.status === 'sent') {
-            actions.push(`<button class="kb-btn kb-btn-ghost kb-btn-sm kb-text-error" type="button" data-act="revoke" data-id="${esc(m.id)}">撤回</button>`);
-          }
-          return `
-          <tr>
-            <td><div class="kb-msg-title kb-truncate" title="${esc(m.title)}">${esc(m.title)}</div></td>
-            <td>${TYPE_TAG[m.type] || esc(m.type)}</td>
-            <td>${STATUS_TAG[m.status] || esc(m.status)}</td>
-            <td>${target}</td>
-            <td class="kb-text-muted kb-text-sm">${fmtTime(m.status === 'scheduled' ? m.scheduled_at : m.sent_at)}${m.status === 'scheduled' ? '（定时）' : ''}</td>
-            <td><div class="kb-msg-actions">${actions.join('')}</div></td>
-          </tr>`;
-        }).join('');
-        lucide.createIcons();
-      }
+          document.getElementById('audit-total').textContent = `共 ${totalCount} 条`;
+          document.getElementById('audit-page-info').textContent = `${currentPage} / ${totalPages}`;
+          document.getElementById('btn-prev').disabled = currentPage <= 1;
+          document.getElementById('btn-next').disabled = currentPage >= totalPages;
 
-      function renderPager(all) {
-        const totalPages = Math.max(1, Math.ceil(all.length / PAGE_SIZE));
-        document.getElementById('page-info').textContent = `共 ${all.length} 条 · 每页 ${PAGE_SIZE} 条`;
-        const group = document.getElementById('page-group');
-        if (totalPages <= 1) { group.innerHTML = ''; return; }
-        let html = `<button class="kb-page-btn" type="button" data-page="${currentPage - 1}" ${currentPage === 1 ? 'disabled' : ''} aria-label="上一页"><i data-lucide="chevron-left"></i></button>`;
-        for (let i = 1; i <= totalPages; i++) {
-          html += `<button class="kb-page-btn ${i === currentPage ? 'is-active' : ''}" type="button" data-page="${i}">${i}</button>`;
-        }
-        html += `<button class="kb-page-btn" type="button" data-page="${currentPage + 1}" ${currentPage === totalPages ? 'disabled' : ''} aria-label="下一页"><i data-lucide="chevron-right"></i></button>`;
-        group.innerHTML = html;
-        lucide.createIcons();
-      }
-
-      document.getElementById('page-group').addEventListener('click', e => {
-        const btn = e.target.closest('button[data-page]');
-        if (!btn || btn.disabled) return;
-        currentPage = Number(btn.dataset.page);
-        loadMessages();
-      });
-
-      // ===== 行操作（事件委托） =====
-      document.getElementById('messages-tbody').addEventListener('click', async e => {
-        const btn = e.target.closest('button[data-act]');
-        if (!btn) return;
-        const { act, id } = btn.dataset;
-        try {
-          if (act === 'view') {
-            showView(id);
-          } else if (act === 'send') {
-            if (!confirm('确认立即发送该消息？')) return;
-            await Messages.send(id);
-          } else if (act === 'revoke') {
-            if (!confirm('撤回后用户端将不再展示该消息，确认撤回？')) return;
-            await Messages.revoke(id);
-          } else if (act === 'cancel') {
-            if (!confirm('取消定时后消息将转为草稿，确认取消？')) return;
-            await Messages.cancelSchedule(id);
-          } else if (act === 'delete') {
-            if (!confirm('删除后不可恢复，确认删除？')) return;
-            await Messages.remove(id);
-          } else if (act === 'edit') {
-            openEdit(id);
+          if (!logs.length) {
+            tbody.innerHTML = `<tr><td colspan="8" class="kb-text-muted" style="text-align:center;padding:40px;">暂无审计记录</td></tr>`;
             return;
           }
-          if (act !== 'view') await loadMessages();
-        } catch (err) {
-          alert(err.message || '操作失败');
-        }
-      });
 
-      // ===== 查看详情 =====
-      function showView(id) {
-        const body = document.getElementById('view-body');
-        const m = allMsgs.find(x => x.id === id);
-        if (!m) { alert('消息不存在'); return; }
-          body.innerHTML = `
-            <div style="margin-bottom:12px;">
-              <div class="kb-font-semibold" style="font-size:1.05rem;">${esc(m.title)}</div>
-              <div class="kb-text-muted kb-text-sm" style="margin-top:4px;">${TYPE_TAG[m.type] || esc(m.type)} · ${STATUS_TAG[m.status] || esc(m.status)} · 目标：${esc(m.target_display)}</div>
-              <div class="kb-text-muted kb-text-sm" style="margin-top:2px;">创建：${fmtTime(m.created_at)}${m.sent_at ? ' · 发送：' + fmtTime(m.sent_at) : ''}${m.scheduled_at ? ' · 定时：' + fmtTime(m.scheduled_at) : ''}</div>
-            </div>
-            <div style="white-space:pre-wrap;word-break:break-word;color:var(--kb-neutral-700);line-height:1.7;">${esc(m.content) || '<span class="kb-text-muted">（无内容）</span>'}</div>`;
-        openModal('modal-view');
+          tbody.innerHTML = logs.map(log => {
+            const userPrefix = (log.user_id || '').toString().slice(0, 8);
+            const objType = esc(log.object_type || log.target_type || '--');
+            const objId = esc(log.object_id || log.target_id || '--');
+            const detailRaw = log.detail || '';
+            const detailShort = esc(truncate(detailRaw, 80));
+            const detailFull = detailRaw ? esc(String(detailRaw)) : '';
+            const titleAttr = detailFull ? ` title="${detailFull}"` : '';
+            const ip = log.ip ? esc(String(log.ip)) : '--';
+            return `<tr>
+              <td class="kb-text-secondary kb-text-sm">${fmtTime(log.created_at)}</td>
+              <td>
+                <div class="kb-font-semibold">${esc(log.username || '--')}</div>
+                <div class="kb-text-muted kb-text-xs">${userPrefix ? '(' + userPrefix + ')' : ''}</div>
+              </td>
+              <td><span class="kb-tag ${roleTagClass(log.role)}">${esc(roleLabel(log.role))}</span></td>
+              <td class="kb-font-semibold">${esc(beautifyAction(log.action))}</td>
+              <td class="kb-text-secondary kb-text-sm">${objType}</td>
+              <td class="kb-text-secondary kb-text-sm">${objId}</td>
+              <td class="kb-text-secondary kb-text-sm"${titleAttr}>${detailShort || '--'}</td>
+              <td class="kb-text-secondary kb-text-sm">${ip}</td>
+            </tr>`;
+          }).join('');
+          lucide.createIcons();
+        } catch (e) {
+          tbody.innerHTML = `<tr><td colspan="8" class="kb-text-error" style="text-align:center;padding:40px;">${esc(e.message || '加载失败')}</td></tr>`;
+        }
       }
 
-      // ===== 新建 / 编辑 =====
-      let editingId = null;
-
-      function openModal(id) { document.getElementById(id).hidden = false; }
-      function closeModal(id) { document.getElementById(id).hidden = true; }
-
-      function resetForm() {
-        editingId = null;
-        document.getElementById('modal-edit-title').textContent = '新建消息';
-        document.getElementById('msg-title').value = '';
-        document.getElementById('msg-content').value = '';
-        document.getElementById('msg-type').value = 'system';
-        document.getElementById('msg-send-mode').value = 'draft';
-        document.getElementById('msg-scheduled-at').value = '';
-        document.getElementById('msg-target').value = 'all';
-        document.getElementById('msg-target-ids').value = '';
-        document.getElementById('msg-target-ids').style.display = 'none';
-        document.getElementById('field-scheduled').style.display = 'none';
-      }
-
-      document.getElementById('btn-new-message').addEventListener('click', () => {
-        resetForm();
-        openModal('modal-edit');
+      document.getElementById('btn-audit-refresh').addEventListener('click', () => {
+        currentPage = 1;
+        loadAuditLogs();
       });
-
-      function openEdit(id) {
-        const m = allMsgs.find(x => x.id === id);
-        if (!m) { alert('消息不存在'); return; }
-        if (m.status !== 'draft') { alert('仅草稿可编辑'); return; }
-          resetForm();
-          editingId = id;
-          document.getElementById('modal-edit-title').textContent = '编辑消息';
-          document.getElementById('msg-title').value = m.title;
-          document.getElementById('msg-content').value = m.content || '';
-          document.getElementById('msg-type').value = m.type;
-          document.getElementById('msg-target').value = m.target_users === 'all' ? 'all' : 'custom';
-          if (m.target_users !== 'all') {
-            document.getElementById('msg-target-ids').style.display = '';
-            document.getElementById('msg-target-ids').value = (m.target_users || []).join(', ');
-          }
-        openModal('modal-edit');
-      }
-
-      document.getElementById('msg-send-mode').addEventListener('change', e => {
-        document.getElementById('field-scheduled').style.display = e.target.value === 'scheduled' ? '' : 'none';
+      document.getElementById('audit-action').addEventListener('change', () => { currentPage = 1; loadAuditLogs(); });
+      document.getElementById('audit-days').addEventListener('change', () => { currentPage = 1; loadAuditLogs(); });
+      let _tKwd = null;
+      document.getElementById('audit-user-keyword').addEventListener('input', () => {
+        clearTimeout(_tKwd);
+        _tKwd = setTimeout(() => { currentPage = 1; loadAuditLogs(); }, 400);
       });
-      document.getElementById('msg-target').addEventListener('change', e => {
-        document.getElementById('msg-target-ids').style.display = e.target.value === 'custom' ? '' : 'none';
+      document.getElementById('btn-prev').addEventListener('click', () => {
+        if (currentPage > 1) { currentPage--; loadAuditLogs(); }
       });
-
-      document.getElementById('btn-submit-message').addEventListener('click', async () => {
-        const title = document.getElementById('msg-title').value.trim();
-        if (!title) { alert('请输入消息标题'); return; }
-        const mode = document.getElementById('msg-send-mode').value;
-        const targetSel = document.getElementById('msg-target').value;
-        let target = 'all';
-        if (targetSel === 'custom') {
-          const ids = document.getElementById('msg-target-ids').value.split(',').map(s => s.trim()).filter(Boolean);
-          if (!ids.length) { alert('请输入至少一个用户 ID'); return; }
-          target = ids;
-        }
-        let scheduledAt = null;
-        if (mode === 'scheduled') {
-          const v = document.getElementById('msg-scheduled-at').value;
-          if (!v) { alert('请选择定时发送时间'); return; }
-          scheduledAt = Math.floor(new Date(v).getTime() / 1000);
-          if (scheduledAt <= Date.now() / 1000) { alert('定时时间必须晚于当前时间'); return; }
-        }
-        const payload = {
-          title,
-          content: document.getElementById('msg-content').value,
-          type: document.getElementById('msg-type').value,
-          target_users: target,
-        };
-        try {
-          if (editingId) {
-            await Messages.update(editingId, payload);
-          } else {
-            payload.send_now = mode === 'now';
-            payload.scheduled_at = scheduledAt;
-            await Messages.create(payload);
-          }
-          closeModal('modal-edit');
-          await loadMessages();
-        } catch (err) {
-          alert(err.message || '保存失败');
-        }
+      document.getElementById('btn-next').addEventListener('click', () => {
+        if (currentPage < totalPages) { currentPage++; loadAuditLogs(); }
       });
-
-      // 模态框关闭
-      document.querySelectorAll('.kb-modal-mask').forEach(mask => {
-        mask.addEventListener('click', e => {
-          if (e.target === mask || e.target.closest('[data-close]')) mask.hidden = true;
-        });
-      });
-
-      // 筛选联动
-      let searchTimer = null;
-      document.getElementById('input-message-search').addEventListener('input', () => {
-        clearTimeout(searchTimer);
-        searchTimer = setTimeout(() => { currentPage = 1; loadMessages(); }, 300);
-      });
-      document.getElementById('filter-type').addEventListener('change', () => { currentPage = 1; loadMessages(); });
-      document.getElementById('filter-status').addEventListener('change', () => { currentPage = 1; loadMessages(); });
 
       // ===== 初始化 =====
       (async () => {
-        if (await guard()) await loadMessages();
+        if (await guard()) await loadAuditLogs();
       })();
     </script>
 
@@ -1110,21 +934,22 @@ a:hover { color: var(--kb-primary-700); }
       flex-direction: column;
       gap: var(--kb-space-6);
     }
+    .kb-page-title-block { padding: 0 2px; }
 
-    /* ===== 消息列表卡片 ===== */
-    .kb-message-card { display: flex; flex-direction: column; }
-    .kb-message-header {
+    /* ===== 审计卡片 ===== */
+    .kb-audit-card { display: flex; flex-direction: column; }
+    .kb-audit-header {
       flex-wrap: wrap;
       gap: var(--kb-space-4);
       align-items: center;
     }
-    .kb-message-title-wrap {
+    .kb-audit-title-wrap {
       display: flex;
       align-items: center;
       gap: var(--kb-space-3);
       min-width: 0;
     }
-    .kb-message-title {
+    .kb-audit-title {
       font-size: 1.0625rem;
       font-weight: 700;
       color: var(--kb-neutral-900);
@@ -1156,192 +981,90 @@ a:hover { color: var(--kb-primary-700); }
       pointer-events: none;
     }
     .kb-search-input {
-      width: 240px;
+      width: 220px;
       padding-left: 36px;
     }
 
-    /* 消息表格 */
-    .kb-message-table-wrap { overflow-x: auto; padding: 0; }
-    .kb-message-table { min-width: 880px; }
-    .kb-message-table td { vertical-align: middle; }
-    .kb-message-table tbody tr:last-child td { border-bottom: none; }
-    .kb-msg-title {
-      font-weight: 600;
-      color: var(--kb-neutral-900);
-      max-width: 360px;
+    /* 审计表格 */
+    .kb-audit-table-wrap {
+      overflow-x: auto;
+      padding: 0;
+      max-height: 60vh;
     }
-    .kb-msg-actions {
-      display: flex;
-      align-items: center;
-      gap: var(--kb-space-1);
-      flex-wrap: wrap;
+    .kb-audit-table-wrap table thead th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
     }
-    .kb-msg-target-all {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      color: var(--kb-neutral-500);
-      font-size: 0.8125rem;
-    }
-    .kb-msg-target-icon { width: 14px; height: 14px; }
-    .kb-msg-target-user {
-      display: flex;
-      align-items: center;
-      gap: var(--kb-space-2);
-    }
-    .kb-msg-target-avatar {
-      width: 26px;
-      height: 26px;
-      border-radius: 50%;
-      background: var(--kb-primary-100);
-      color: var(--kb-primary-700);
-      font-weight: 700;
-      font-size: 0.6875rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-    }
+    .kb-audit-table { min-width: 1100px; }
+    .kb-audit-table tbody tr:last-child td { border-bottom: none; }
 
     /* 分页 */
-    .kb-message-pagination {
-      padding: var(--kb-space-4) var(--kb-space-6);
-      border-top: 1px solid var(--kb-border);
+    .kb-audit-pagination {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: var(--kb-space-4);
-      flex-wrap: wrap;
+      padding: var(--kb-space-4) var(--kb-space-6);
+      border-top: 1px solid var(--kb-border);
     }
     .kb-page-info {
-      font-size: 0.8125rem;
-      color: var(--kb-neutral-500);
+      font-size: 0.875rem;
+      color: var(--kb-neutral-600);
+      font-variant-numeric: tabular-nums;
     }
     .kb-page-group {
       display: inline-flex;
       align-items: center;
-      gap: var(--kb-space-1);
+      gap: var(--kb-space-2);
     }
     .kb-page-btn {
-      min-width: 32px;
-      height: 32px;
-      padding: 0 var(--kb-space-2);
-      border: 1px solid var(--kb-border);
-      background: var(--kb-neutral-0);
-      color: var(--kb-neutral-600);
-      border-radius: var(--kb-radius-medium);
-      font-family: var(--kb-font-sans);
-      font-size: 0.8125rem;
-      font-weight: 600;
-      cursor: pointer;
       display: inline-flex;
       align-items: center;
-      justify-content: center;
+      gap: 4px;
+      padding: 6px 12px;
+      border-radius: var(--kb-radius-medium);
+      border: 1px solid var(--kb-border);
+      background: var(--kb-neutral-0);
+      color: var(--kb-neutral-700);
+      font-size: 0.8125rem;
+      font-weight: 500;
+      cursor: pointer;
       transition: all 0.15s ease;
     }
-    .kb-page-btn svg { width: 16px; height: 16px; }
-    .kb-page-btn:hover:not(:disabled):not(.is-active) {
-      border-color: var(--kb-primary-400);
-      color: var(--kb-primary-700);
-      background: var(--kb-primary-50);
-    }
-    .kb-page-btn.is-active {
-      background: var(--kb-primary);
-      border-color: var(--kb-primary);
-      color: var(--kb-primary-foreground);
+    .kb-page-btn:hover:not(:disabled) {
+      background: var(--kb-neutral-50);
+      border-color: var(--kb-neutral-300);
     }
     .kb-page-btn:disabled {
       opacity: 0.5;
       cursor: not-allowed;
     }
+    .kb-page-btn svg { width: 14px; height: 14px; }
 
-    .kb-search-icon { width: 16px !important; height: 16px !important; }
-    .kb-sidebar-nav-icon,
-    .kb-sidebar-logout .kb-sidebar-nav-icon { width: 18px !important; height: 18px !important; }
-    .kb-admin-hamburger svg { width: 18px !important; height: 18px !important; }
-    .kb-breadcrumb-sep { width: 14px !important; height: 14px !important; }
-    .kb-msg-target-icon { width: 14px !important; height: 14px !important; }
-
-    /* ===== 响应式 ===== */
     @media (max-width: 1024px) {
-      :root { --kb-sidebar-width: var(--kb-sidebar-collapsed); }
-      .kb-sidebar-brand-text,
-      .kb-sidebar-nav-label,
-      .kb-sidebar-user-text,
-      .kb-sidebar-logout .kb-sidebar-nav-label { display: none; }
-      .kb-sidebar-head { justify-content: center; padding: var(--kb-space-4) var(--kb-space-2); }
-      .kb-sidebar-nav-item,
-      .kb-sidebar-logout { justify-content: center; padding: 12px 8px; }
-      .kb-sidebar-user { justify-content: center; padding: 8px 4px; }
-      .kb-admin-content { padding: var(--kb-space-5); }
-      .kb-filter-bar { width: 100%; }
-      .kb-filter-select { flex: 1; min-width: 120px; }
-      .kb-search-input { width: 100%; flex: 1; min-width: 160px; }
+      .kb-search-input { width: 180px; }
+      .kb-filter-select { min-width: 110px; }
     }
-
     @media (max-width: 768px) {
       .kb-admin-shell { grid-template-columns: 1fr; }
       .kb-admin-sidebar {
         position: fixed;
         left: 0;
         top: 0;
-        width: 240px;
         transform: translateX(-100%);
-        transition: transform 0.25s ease;
+        transition: transform 0.2s ease;
         box-shadow: var(--kb-shadow-float);
       }
       .kb-admin-sidebar.is-open { transform: translateX(0); }
-      .kb-sidebar-brand-text,
-      .kb-sidebar-nav-label,
-      .kb-sidebar-user-text,
-      .kb-sidebar-logout .kb-sidebar-nav-label { display: block; }
-      .kb-sidebar-head { justify-content: flex-start; padding: var(--kb-space-5); }
-      .kb-sidebar-nav-item,
-      .kb-sidebar-logout { justify-content: flex-start; padding: 10px 12px; }
-      .kb-sidebar-user { justify-content: flex-start; padding: 8px 12px; }
-      .kb-admin-hamburger { display: inline-flex; }
+      .kb-admin-hamburger { display: flex; }
+      .kb-admin-content { padding: var(--kb-space-4); }
       .kb-admin-topbar { padding: 0 var(--kb-space-4); }
-      .kb-admin-content { padding: var(--kb-space-4); gap: var(--kb-space-4); }
-      .kb-breadcrumb-item:first-child { display: none; }
-      .kb-message-header { flex-direction: column; align-items: stretch; }
-      .kb-message-title-wrap { justify-content: space-between; }
-      .kb-message-pagination { justify-content: center; }
-      .kb-page-info { width: 100%; text-align: center; }
-    }
-
-    /* ===== 模态框 ===== */
-    .kb-modal-mask {
-      position: fixed; inset: 0; z-index: 1000;
-      background: rgba(15, 23, 42, 0.45);
-      display: flex; align-items: center; justify-content: center;
-      padding: var(--kb-space-4);
-    }
-    .kb-modal-mask[hidden] { display: none; }
-    .kb-modal {
-      background: var(--kb-card); border-radius: var(--kb-radius-large);
-      box-shadow: var(--kb-shadow-float); width: 100%; max-width: 560px;
-      max-height: 90vh; display: flex; flex-direction: column;
-    }
-    .kb-modal-head {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: var(--kb-space-5) var(--kb-space-6);
-      border-bottom: 1px solid var(--kb-border);
-    }
-    .kb-modal-title { font-size: 1.05rem; font-weight: 600; }
-    .kb-modal-close {
-      background: none; border: none; font-size: 1.4rem; line-height: 1;
-      cursor: pointer; color: var(--kb-neutral-400); padding: 4px;
-    }
-    .kb-modal-close:hover { color: var(--kb-neutral-700); }
-    .kb-modal-body { padding: var(--kb-space-6); overflow-y: auto; }
-    .kb-modal-foot {
-      display: flex; justify-content: flex-end; gap: var(--kb-space-3);
-      padding: var(--kb-space-4) var(--kb-space-6);
-      border-top: 1px solid var(--kb-border);
-    }
-    .kb-modal .kb-field { margin-bottom: var(--kb-space-4); }
-    .kb-modal .kb-form-grid {
-      display: grid; grid-template-columns: 1fr 1fr; gap: var(--kb-space-4);
+      .kb-filter-bar { width: 100%; }
+      .kb-search-wrap { flex: 1; }
+      .kb-search-input { width: 100%; flex: 1; }
+      .kb-audit-pagination { flex-direction: column; align-items: stretch; }
+      .kb-page-group { justify-content: space-between; }
     }
     </style>
 </body>

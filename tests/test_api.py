@@ -21,13 +21,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi.testclient import TestClient
 
 from kbrefiner.main import app
-from kbrefiner.api import routes
+from kbrefiner.api import deps, routes
 from kbrefiner.api.ws_manager import manager
 from kbrefiner.config import Settings, get_settings
 from kbrefiner.core.llm import DeepSeekClient, LLMConfig
 from kbrefiner.core.pipeline import Pipeline, PipelineConfig
-from kbrefiner.db import TaskStore
+from kbrefiner.db import AuditStore, PasswordResetStore, SettingsStore, TaskStore, UserStore
 from kbrefiner.models import KbDocument, DocType, Stage1Output, Stage2Output, Stage3Output, Stage4Output
+from kbrefiner import auth as _auth
 
 
 def _make_mock_pipeline_output() -> KbDocument:
@@ -602,6 +603,150 @@ class TestReportPage(unittest.TestCase):
         tasks = self.client.get("/api/tasks").json()
         t = next(x for x in tasks["tasks"] if x["task_id"] == "task_rep2")
         self.assertEqual(t["token_consumed"], 1234)
+
+
+# =====================================================================
+# FR-5: POST /api/tasks/batch 批量操作（cancel/delete/retry，仅管理员）
+# =====================================================================
+
+class TestFR5BatchTasks(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        import os
+        cls._orig_secret = os.environ.get("AUTH_SECRET")
+        os.environ["AUTH_SECRET"] = "batch-test-secret"
+        _auth._reset_secret_cache()
+        cls._orig_deps_user = deps._user_store
+        cls._orig_deps_task = deps._task_store
+        cls._orig_deps_settings = deps._settings_store
+        cls._orig_deps_audit = deps._audit_store
+        cls._orig_deps_reset = deps._password_reset_store
+        cls._orig_routes_task = routes._task_store
+
+    @classmethod
+    def tearDownClass(cls):
+        import os
+        if cls._orig_secret is None:
+            os.environ.pop("AUTH_SECRET", None)
+        else:
+            os.environ["AUTH_SECRET"] = cls._orig_secret
+        _auth._reset_secret_cache()
+        deps._user_store = cls._orig_deps_user
+        deps._task_store = cls._orig_deps_task
+        deps._settings_store = cls._orig_deps_settings
+        deps._audit_store = cls._orig_deps_audit
+        deps._password_reset_store = cls._orig_deps_reset
+        routes._task_store = cls._orig_routes_task
+
+    def setUp(self):
+        self.temp = TemporaryDirectory()
+        db = str(Path(self.temp.name) / "t.db")
+        self.task_store = TaskStore(db)
+        self.user_store = UserStore(db)
+        self.settings_store = SettingsStore(db)
+        self.audit_store = AuditStore(db)
+        self.pw_reset_store = PasswordResetStore(db)
+        # 全部注入
+        deps._task_store = self.task_store
+        routes._task_store = self.task_store
+        deps._user_store = self.user_store
+        deps._settings_store = self.settings_store
+        deps._audit_store = self.audit_store
+        deps._password_reset_store = self.pw_reset_store
+
+        # 创建超级管理员 + 普通用户
+        self.super_admin = self.user_store.create(
+            "s@x.com", "s", "pass1234", role="super_admin")
+        self.user = self.user_store.create(
+            "u@x.com", "u", "pass1234", role="user")
+
+        s = Settings(
+            _env_file=None,
+            upload_dir=str(Path(self.temp.name) / "uploads"),
+            output_dir=str(Path(self.temp.name) / "outputs"),
+            llm_api_key="test-key",
+        )
+        app.dependency_overrides[get_settings] = lambda: s
+        self.client = TestClient(app)
+        # 登录超级管理员
+        r = self.client.post("/api/auth/login", json={"email": "s@x.com", "password": "pass1234"})
+        self.assertEqual(r.status_code, 200, r.text)
+
+    def tearDown(self):
+        app.dependency_overrides.clear()
+        for store in (self.task_store, self.user_store, self.settings_store,
+                      self.audit_store, self.pw_reset_store):
+            store.close()
+        self.temp.cleanup()
+
+    # ===== 辅助 =====
+
+    def _post(self, action, ids):
+        return self.client.post("/api/tasks/batch", json={"action": action, "ids": ids})
+
+    def test_batch_requires_admin(self):
+        # 未登录客户端
+        nc = TestClient(app)
+        resp = nc.post("/api/tasks/batch", json={"action": "delete", "ids": ["x"]})
+        self.assertEqual(resp.status_code, 401)
+
+    def test_batch_invalid_action_400(self):
+        resp = self._post("rename", ["t1"])
+        self.assertEqual(resp.status_code, 400)
+
+    def test_batch_empty_ids_422(self):
+        resp = self.client.post("/api/tasks/batch", json={"action": "delete", "ids": []})
+        self.assertEqual(resp.status_code, 422)
+
+    def test_batch_delete_existing_and_missing(self):
+        self.task_store["d1"] = {"status": "completed", "filename": "a.pdf", "file_size": 10}
+        self.task_store["d2"] = {"status": "failed", "filename": "b.pdf", "file_size": 10}
+        self.assertIsNotNone(self.task_store.get("d1"))
+        resp = self._post("delete", ["d1", "d2", "nope"])
+        self.assertEqual(resp.status_code, 200, resp.text)
+        data = resp.json()
+        self.assertEqual(data["success"], 2)
+        self.assertEqual(data["skipped"], 1)  # nope 不存在
+        self.assertIsNone(self.task_store.get("d1"))
+        self.assertIsNone(self.task_store.get("d2"))
+
+    def test_batch_cancel_pending_and_processing(self):
+        self.task_store["cp"] = {"status": "pending", "filename": "a.pdf", "file_size": 10}
+        self.task_store["cr"] = {"status": "processing", "filename": "b.pdf", "file_size": 10}
+        self.task_store["cd"] = {"status": "completed", "filename": "c.pdf", "file_size": 10}
+        resp = self._post("cancel", ["cp", "cr", "cd"])
+        self.assertEqual(resp.status_code, 200, resp.text)
+        data = resp.json()
+        self.assertEqual(data["success"], 2)
+        self.assertEqual(data["skipped"], 1)  # completed 跳过
+        self.assertEqual(self.task_store.get("cp")["status"], "cancelled")
+        self.assertEqual(self.task_store.get("cr")["status"], "cancelled")
+
+    def test_batch_retry_failed_and_cancelled(self):
+        self.task_store["rf"] = {"status": "failed", "filename": "a.pdf", "file_size": 10, "error": "x"}
+        self.task_store["rc"] = {"status": "cancelled", "filename": "b.pdf", "file_size": 10}
+        self.task_store["rp"] = {"status": "pending", "filename": "c.pdf", "file_size": 10}
+        resp = self._post("retry", ["rf", "rc", "rp"])
+        self.assertEqual(resp.status_code, 200, resp.text)
+        data = resp.json()
+        self.assertEqual(data["success"], 2)
+        self.assertEqual(data["skipped"], 1)
+        self.assertEqual(self.task_store.get("rf")["status"], "pending")
+        self.assertIsNone(self.task_store.get("rf").get("error"))
+        self.assertEqual(self.task_store.get("rc")["status"], "pending")
+
+    def test_batch_cancel_not_found_recorded(self):
+        resp = self._post("cancel", ["missing1", "missing2"])
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(len(data["errors"]), 2)
+        self.assertEqual(data["errors"][0]["error"], "not_found")
+
+    def test_batch_over_200_400(self):
+        ids = [f"t{i}" for i in range(201)]
+        resp = self._post("delete", ids)
+        self.assertEqual(resp.status_code, 400)
 
 
 if __name__ == "__main__":

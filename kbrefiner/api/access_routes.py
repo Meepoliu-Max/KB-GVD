@@ -12,12 +12,18 @@
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from kbrefiner.db import AccessStore, SettingsStore, UserStore
+from kbrefiner.db import AccessStore, AuditStore, SettingsStore, UserStore
 
-from .deps import get_access_store, get_settings_store, get_user_store, require_admin
+from .deps import (
+    get_access_store,
+    get_audit_store,
+    get_settings_store,
+    get_user_store,
+    require_admin,
+)
 
 router = APIRouter(prefix="/api/admin", tags=["黑白名单"])
 
@@ -73,8 +79,10 @@ async def get_access(
 @router.put("/access/toggle")
 async def toggle_access(
     body: ToggleRequest,
+    request: Request,
     admin: dict = Depends(require_admin),
     settings_store: SettingsStore = Depends(get_settings_store),
+    audit_store: AuditStore = Depends(get_audit_store),
 ):
     """启用/停用某类校验。开关影响全局访问，仅超级管理员可操作。"""
     if admin.get("role") != "super_admin":
@@ -82,14 +90,23 @@ async def toggle_access(
     if body.type not in _TOGGLE_KEYS:
         raise HTTPException(status_code=400, detail=f"非法类型: {body.type}")
     settings_store.set(_TOGGLE_KEYS[body.type], body.enabled, updated_by=admin["id"])
+    try:
+        audit_store.record(
+            user=admin, action="access.toggled", target_type="access_rules",
+            detail=f"{body.type}:{body.enabled}", request=request,
+        )
+    except Exception:
+        pass
     return {"ok": True, "type": body.type, "enabled": body.enabled}
 
 
 @router.post("/access/rules", status_code=201)
 async def create_rule(
     body: RuleCreateRequest,
+    request: Request,
     admin: dict = Depends(require_admin),
     access_store: AccessStore = Depends(get_access_store),
+    audit_store: AuditStore = Depends(get_audit_store),
 ):
     """添加访问规则。value 格式校验见 AccessStore.validate_value。"""
     try:
@@ -98,17 +115,33 @@ async def create_rule(
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+    try:
+        audit_store.record(
+            user=admin, action="access.rule_created", target_type="access_rules",
+            target_id=rule["id"], detail=f"{body.type}:{body.value}", request=request,
+        )
+    except Exception:
+        pass
     return rule
 
 
 @router.delete("/access/rules/{rule_id}")
 async def delete_rule(
     rule_id: str,
-    _admin: dict = Depends(require_admin),
+    request: Request,
+    admin: dict = Depends(require_admin),
     access_store: AccessStore = Depends(get_access_store),
+    audit_store: AuditStore = Depends(get_audit_store),
 ):
     rule = access_store.get(rule_id)
     if not rule:
         raise HTTPException(status_code=404, detail=f"规则 {rule_id} 不存在")
     access_store.delete(rule_id)
+    try:
+        audit_store.record(
+            user=admin, action="access.rule_deleted", target_type="access_rules",
+            target_id=rule_id, request=request,
+        )
+    except Exception:
+        pass
     return {"ok": True, "message": "已删除"}

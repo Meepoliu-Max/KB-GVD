@@ -968,6 +968,10 @@ a:hover { color: var(--kb-primary-700); }
             <i data-lucide="shield" class="kb-admin-nav-icon"></i>
             <span class="kb-admin-nav-label">黑白名单</span>
           </a>
+          <a class="kb-admin-nav-item" href="/admin/audit-logs" data-dom-id="nav-audit-logs">
+            <i data-lucide="clipboard-list" class="kb-admin-nav-icon"></i>
+            <span class="kb-admin-nav-label">操作审计</span>
+          </a>
           <a class="kb-admin-nav-item active" href="/admin/settings" aria-current="page">
             <i data-lucide="settings" class="kb-admin-nav-icon"></i>
             <span class="kb-admin-nav-label">系统设置</span>
@@ -1256,6 +1260,11 @@ a:hover { color: var(--kb-primary-700); }
                     <input id="upload-results" type="text" class="kb-input" value="/data/kbrefiner/results" data-dom-id="upload-results">
                     <p class="kb-field-hint">处理完成后的结果文件输出路径</p>
                   </div>
+                  <div class="kb-field kb-field-full">
+                    <label class="kb-field-label" for="storage-tmp-dir">临时文件目录</label>
+                    <input id="storage-tmp-dir" type="text" class="kb-input" value="/data/kbrefiner/tmp" data-dom-id="storage-tmp-dir">
+                    <p class="kb-field-hint">解析器过程文件暂存位置；改动需重启生效</p>
+                  </div>
                   <div class="kb-field">
                     <label class="kb-field-label" for="disk-max">最大磁盘占用 (GB)</label>
                     <input id="disk-max" type="number" class="kb-input" value="500" min="0" data-dom-id="disk-max">
@@ -1442,6 +1451,7 @@ a:hover { color: var(--kb-primary-700); }
         // 存储（env 当前值）
         $('upload-root').value = cfg.storage.upload_dir;
         $('upload-results').value = cfg.storage.output_dir;
+        if ($('storage-tmp-dir') && cfg.storage.tmp_dir != null) $('storage-tmp-dir').value = cfg.storage.tmp_dir;
         $('disk-max').value = cfg.storage.disk_max_gb;
         $('disk-warn').value = cfg.storage.disk_warn_percent;
         document.getElementById('disk-usage-tag').textContent = `已用 ${cfg.storage.disk_used_gb} GB`;
@@ -1498,6 +1508,7 @@ a:hover { color: var(--kb-primary-700); }
         payload.storage = {
           upload_dir: $('upload-root').value.trim(),
           output_dir: $('upload-results').value.trim(),
+          tmp_dir: ($('storage-tmp-dir') || { value: '' }).value.trim(),
           disk_max_gb: Number($('disk-max').value),
           disk_warn_percent: Number($('disk-warn').value),
         };

@@ -20,19 +20,23 @@ from pathlib import Path
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, WebSocket, WebSocketDisconnect
+from pydantic import BaseModel, Field
 
 from kbrefiner.config import Settings, get_settings
 from kbrefiner.core.llm import DeepSeekClient
 from kbrefiner.core.pipeline import Pipeline, PipelineConfig
 from kbrefiner.core.sensitive import SensitiveDetector
-from kbrefiner.db import TaskStore
+from kbrefiner.db import AuditStore, TaskStore
 
 from .deps import (
     check_ip_allowed,
+    get_audit_store,
     get_current_user,
     get_llm_client,
     get_sensitive_detector,
     get_settings_store,
+    get_task_store,
+    require_admin,
 )
 from .ws_manager import make_progress_callback, manager, push_error, push_result
 
@@ -51,6 +55,13 @@ _TASK_PROCESSING = "processing"
 _TASK_COMPLETED = "completed"
 _TASK_FAILED = "failed"
 _TASK_CANCELLED = "cancelled"
+
+_BATCH_ACTIONS = {"cancel", "delete", "retry"}
+
+
+class _BatchTasksRequest(BaseModel):
+    action: str = Field(..., description="批量操作：cancel / delete / retry")
+    ids: list[str] = Field(..., min_length=1, description="任务 ID 列表（最多 200）")
 
 # 阶段落盘文件（用于估算真实进度）
 _STAGE_FILES = ("stage1", "stage2", "stage3", "stage4", "final")
@@ -603,7 +614,12 @@ async def list_tasks(
 
 
 @router.post("/task/{task_id}/cancel")
-async def cancel_task(task_id: str):
+async def cancel_task(
+    task_id: str,
+    request: Request,
+    user: Optional[dict] = Depends(get_current_user),
+    audit_store: AuditStore = Depends(get_audit_store),
+):
     """取消正在处理的任务。
 
     仅对 async_mode 的后台任务有效。
@@ -634,7 +650,99 @@ async def cancel_task(task_id: str):
     except Exception:
         pass
 
+    # FR-6.2: 审计点
+    try:
+        audit_store.record(
+            user=user, action="task.cancelled", target_type="task",
+            target_id=task_id, request=request,
+        )
+    except Exception:
+        pass
+
     return {"task_id": task_id, "status": _TASK_CANCELLED, "message": "任务已取消"}
+
+
+@router.post("/tasks/batch")
+async def batch_tasks(
+    body: _BatchTasksRequest,
+    request: Request,
+    _admin: dict = Depends(require_admin),
+    task_store: TaskStore = Depends(get_task_store),
+    audit_store: AuditStore = Depends(get_audit_store),
+):
+    """批量操作任务（cancel/delete/retry，仅管理员）。
+
+    - cancel:  将 pending/processing 任务改为 cancelled
+    - delete:  删除任务（忽略不存在）
+    - retry:   将 failed/cancelled 任务重置为 pending（v1 只改状态，不重跑流水线）
+    """
+    if body.action not in _BATCH_ACTIONS:
+        raise HTTPException(status_code=400, detail=f"非法 action，需为 {sorted(_BATCH_ACTIONS)}")
+    if len(body.ids) > 200:
+        raise HTTPException(status_code=400, detail="单次批量最多 200 条")
+
+    success = 0
+    skipped = 0
+    errors: list[dict] = []
+
+    for tid in body.ids:
+        try:
+            task = task_store.get(tid)
+            if body.action == "delete":
+                if task is None:
+                    skipped += 1
+                    continue
+                task_store.delete(tid)
+                success += 1
+            elif body.action == "cancel":
+                if task is None:
+                    errors.append({"id": tid, "error": "not_found"})
+                    continue
+                st = task.get("status")
+                if st in (_TASK_COMPLETED, _TASK_CANCELLED):
+                    skipped += 1
+                    continue
+                bg = _background_tasks.get(tid)
+                if bg and not bg.done():
+                    bg.cancel()
+                task_store.update_status(tid, _TASK_CANCELLED, error="批量取消")
+                try:
+                    await push_error(tid, "任务已被管理员批量取消")
+                except Exception:
+                    pass
+                success += 1
+            elif body.action == "retry":
+                if task is None:
+                    errors.append({"id": tid, "error": "not_found"})
+                    continue
+                st = task.get("status")
+                if st not in (_TASK_FAILED, _TASK_CANCELLED):
+                    skipped += 1
+                    continue
+                task_store.update_status(tid, _TASK_PENDING, error=None)
+                success += 1
+        except HTTPException:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            errors.append({"id": tid, "error": str(exc)[:120]})
+
+    # FR-6.2: 批量审计
+    try:
+        audit_store.record(
+            user=_admin, action=f"task.batch_{body.action}", target_type="task",
+            detail=f"ids={len(body.ids)};success={success};skipped={skipped};errors={len(errors)}",
+            request=request,
+        )
+    except Exception:
+        pass
+
+    return {
+        "action": body.action,
+        "total": len(body.ids),
+        "success": success,
+        "skipped": skipped,
+        "errors": errors,
+    }
 
 
 @router.websocket("/ws/{task_id}")

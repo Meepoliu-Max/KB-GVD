@@ -395,6 +395,10 @@ a:hover { color: var(--kb-primary-700); }
             <i data-lucide="shield" class="kb-sidebar-nav-icon"></i>
             <span class="kb-sidebar-nav-label">黑白名单</span>
           </a>
+          <a class="kb-sidebar-nav-item" href="/admin/audit-logs" data-dom-id="nav-audit-logs">
+            <i data-lucide="clipboard-list" class="kb-sidebar-nav-icon"></i>
+            <span class="kb-sidebar-nav-label">操作审计</span>
+          </a>
           <a class="kb-sidebar-nav-item" href="/admin/settings" data-dom-id="nav-settings">
             <i data-lucide="settings" class="kb-sidebar-nav-icon"></i>
             <span class="kb-sidebar-nav-label">系统设置</span>
@@ -492,9 +496,32 @@ a:hover { color: var(--kb-primary-700); }
                 <div class="kb-stat-card-icon kb-stat-card-icon--error">
                   <i data-lucide="alert-triangle"></i>
                 </div>
+                <span class="kb-stat-card-help" title="异常 = 失败 + 已取消" tabindex="0" aria-label="异常任务说明">
+                  <i data-lucide="help-circle" style="width:14px;height:14px;"></i>
+                </span>
               </div>
               <div class="kb-stat-card-value" id="stat-failed">--</div>
               <div class="kb-stat-card-label">异常任务数</div>
+            </div>
+
+            <div class="kb-stat-card">
+              <div class="kb-stat-card-top">
+                <div class="kb-stat-card-icon kb-stat-card-icon--success">
+                  <i data-lucide="activity"></i>
+                </div>
+              </div>
+              <div class="kb-stat-card-value" id="stat-active-users">--</div>
+              <div class="kb-stat-card-label">活跃用户 <span class="kb-stat-card-sub" id="stat-active-today">今日 --</span></div>
+            </div>
+
+            <div class="kb-stat-card">
+              <div class="kb-stat-card-top">
+                <div class="kb-stat-card-icon kb-stat-card-icon--primary">
+                  <i data-lucide="user-plus"></i>
+                </div>
+              </div>
+              <div class="kb-stat-card-value" id="stat-new-users">--</div>
+              <div class="kb-stat-card-label">新增注册用户</div>
             </div>
           </section>
 
@@ -528,7 +555,7 @@ a:hover { color: var(--kb-primary-700); }
             <div class="kb-card-header">
               <div class="kb-chart-title-wrap">
                 <h3 class="kb-chart-title">用户消耗排行</h3>
-                <span class="kb-tag kb-tag-muted">按 Token 消耗排序</span>
+                <span class="kb-tag kb-tag-muted">Top 10</span>
               </div>
               <a class="kb-btn kb-btn-ghost kb-btn-sm" href="/admin/users">查看全部</a>
             </div>
@@ -537,12 +564,12 @@ a:hover { color: var(--kb-primary-700); }
                 <thead>
                   <tr>
                     <th style="width:56px">排名</th>
-                    <th style="width:18%">用户名</th>
-                    <th style="width:22%">邮箱</th>
+                    <th style="width:14%">用户名</th>
+                    <th style="width:20%">邮箱</th>
                     <th style="width:10%">任务数</th>
-                    <th style="width:12%">上传文档数</th>
-                    <th style="width:12%">Token 消耗</th>
-                    <th style="width:20%">最后活跃时间</th>
+                    <th style="width:12%">上传数</th>
+                    <th style="width:14%">Token消耗</th>
+                    <th style="width:20%">最近活跃</th>
                   </tr>
                 </thead>
                 <tbody id="rank-tbody">
@@ -600,13 +627,44 @@ a:hover { color: var(--kb-primary-700); }
 
       // ===== 统计卡片 =====
       async function loadStats(days) {
-        const s = await KBRefiner.Admin.stats();
-        document.getElementById('stat-tasks').textContent = fmtNum(s.tasks.total);
-        document.getElementById('stat-uploads').textContent = fmtNum(s.upload_total);
-        document.getElementById('stat-tokens').textContent = fmtToken(s.tokens.total);
-        document.getElementById('stat-users').textContent = fmtNum(s.users.total);
-        document.getElementById('stat-failed').textContent = fmtNum(s.tasks.failed);
-        drawTrendCharts(s.trends || []);
+        const qs = new URLSearchParams();
+        if (days) qs.set('trend_days', String(days));
+        const url = '/api/admin/stats' + (qs.toString() ? '?' + qs.toString() : '');
+        let s;
+        try {
+          const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
+          if (!r.ok) throw new Error('stats HTTP ' + r.status);
+          const json = await r.json();
+          s = (json && json.data) ? json.data : json;
+        } catch (e) {
+          // 回落到 SDK 封装（若存在）
+          try { s = await KBRefiner.Admin.stats(); } catch (_) { s = {}; }
+        }
+        const tasks = s.tasks || {};
+        const users = s.users || {};
+        document.getElementById('stat-tasks').textContent = fmtNum(tasks.total ?? s.tasks_total ?? 0);
+        document.getElementById('stat-uploads').textContent = fmtNum(s.upload_total ?? 0);
+        document.getElementById('stat-tokens').textContent = fmtToken((s.tokens && s.tokens.total) ?? s.token_total ?? 0);
+        document.getElementById('stat-users').textContent = fmtNum(users.total ?? s.user_total ?? 0);
+        // 异常任务 = 失败 + 已取消
+        const failedNum = Number(tasks.failed ?? s.tasks_failed ?? 0);
+        const cancelledNum = Number(tasks.cancelled ?? s.tasks_cancelled ?? 0);
+        document.getElementById('stat-failed').textContent = fmtNum(failedNum + cancelledNum);
+        // 活跃用户 + 今日活跃
+        const activeTotal = Number(users.active ?? s.active_users ?? 0);
+        const activeToday = Number(users.today ?? s.active_users_today ?? 0);
+        document.getElementById('stat-active-users').textContent = fmtNum(activeTotal);
+        const todaySub = document.getElementById('stat-active-today');
+        if (todaySub) todaySub.textContent = `今日 ${activeTotal ? activeToday : '--'}`;
+        // 新增注册
+        document.getElementById('stat-new-users').textContent = fmtNum(Number(users.new ?? s.new_users ?? 0));
+        // 排行：优先 data.user_rankings（loadRank 会读取同样的缓存方式）
+        if (s.user_rankings) window.__dashboardRankings = s.user_rankings;
+        drawTrendCharts(s.trends || s.task_trends || []);
+        if (s.token_trends && typeof drawBarChart === 'function') {
+          // 后端如果分离返回 token_trends 时重绘
+          try { drawBarChart('chart-tokens', s.token_trends, d => d.token_total); } catch (_) {}
+        }
       }
 
       // ===== 趋势图（折线 + 柱状） =====
@@ -689,24 +747,49 @@ a:hover { color: var(--kb-primary-700); }
 
       // ===== 用户消耗排行 =====
       async function loadRank() {
-        const { users } = await KBRefiner.Admin.listUsers();
         const tbody = document.getElementById('rank-tbody');
-        const sorted = users.filter(u => u.token_consumed > 0)
-          .sort((a, b) => b.token_consumed - a.token_consumed).slice(0, 10);
-        if (!sorted.length) {
+        let list = null;
+        if (Array.isArray(window.__dashboardRankings)) list = window.__dashboardRankings.slice(0, 10);
+        if (!list) {
+          try {
+            const r = await fetch('/api/admin/stats?trend_days=30', { headers: { 'Accept': 'application/json' } });
+            if (r.ok) {
+              const json = await r.json();
+              const d = (json && json.data) ? json.data : json;
+              if (Array.isArray(d.user_rankings)) list = d.user_rankings.slice(0, 10);
+            }
+          } catch (_) { /* 忽略 */ }
+        }
+        if (!list) {
+          try {
+            const { users } = await KBRefiner.Admin.listUsers();
+            list = (users || []).filter(u => Number(u.token_consumed || 0) > 0)
+              .sort((a, b) => Number(b.token_consumed || 0) - Number(a.token_consumed || 0)).slice(0, 10);
+          } catch (_) { list = []; }
+        }
+        if (!list.length) {
           tbody.innerHTML = '<tr><td colspan="7" class="kb-text-muted" style="text-align:center;padding:32px;">暂无消耗记录</td></tr>';
           return;
         }
-        tbody.innerHTML = sorted.map((u, i) => `
-          <tr>
+        const dash = v => (v === null || v === undefined || v === 0) ? '--' : v;
+        tbody.innerHTML = list.map((u, i) => {
+          const uid = u.user_id || u.id || '';
+          return `<tr class="kb-rank-row" data-user-id="${esc(uid)}" title="查看用户详情">
             <td><span class="kb-rank-badge ${i < 3 ? 'kb-rank-badge--' + (i + 1) : ''}">${i + 1}</span></td>
             <td><div class="kb-rank-user"><div class="kb-rank-avatar ${i < 3 ? 'kb-rank-avatar--' + (i + 1) : ''}">${esc((u.username || '?')[0])}</div><span class="kb-font-semibold">${esc(u.username || '-')}</span></div></td>
-            <td class="kb-text-muted kb-text-sm">${esc(u.email)}</td>
-            <td class="kb-font-semibold">${fmtNum(u.task_count)}</td>
-            <td>${fmtNum(u.upload_count)}</td>
-            <td><span class="kb-font-bold kb-text-primary">${fmtToken(u.token_consumed)}</span></td>
-            <td class="kb-text-muted kb-text-sm">${fmtTime(u.last_active_at)}</td>
-          </tr>`).join('');
+            <td class="kb-text-muted kb-text-sm">${esc(u.email || '--')}</td>
+            <td class="kb-font-semibold">${dash(fmtNum(u.task_count))}</td>
+            <td>${dash(fmtNum(u.upload_count))}</td>
+            <td><span class="kb-font-bold kb-text-primary">${dash(fmtToken(u.token_consumed))}</span></td>
+            <td class="kb-text-muted kb-text-sm">${u.last_active_at ? fmtTime(u.last_active_at) : '--'}</td>
+          </tr>`;
+        }).join('');
+        tbody.querySelectorAll('tr.kb-rank-row').forEach(row => {
+          row.addEventListener('click', () => {
+            const uid = row.getAttribute('data-user-id');
+            if (uid) window.location.href = `/admin/users/${encodeURIComponent(uid)}`;
+          });
+        });
       }
 
       async function refresh() {
@@ -994,7 +1077,7 @@ a:hover { color: var(--kb-primary-700); }
     /* 统计卡片 */
     .kb-stat-grid {
       display: grid;
-      grid-template-columns: repeat(5, 1fr);
+      grid-template-columns: repeat(3, 1fr);
       gap: var(--kb-space-4);
     }
     .kb-stat-card {
@@ -1028,6 +1111,18 @@ a:hover { color: var(--kb-primary-700); }
     .kb-stat-card-icon--warning { background: var(--kb-state-warning-bg); color: var(--kb-state-warning-text); }
     .kb-stat-card-icon--success { background: var(--kb-state-success-bg); color: var(--kb-state-success-text); }
     .kb-stat-card-icon--error { background: var(--kb-state-error-bg); color: var(--kb-state-error-text); }
+    .kb-stat-card-help {
+      color: var(--kb-neutral-400);
+      cursor: help;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      transition: color 0.15s ease;
+    }
+    .kb-stat-card-help:hover { color: var(--kb-neutral-600); }
 
     .kb-stat-trend {
       display: inline-flex;
@@ -1050,6 +1145,14 @@ a:hover { color: var(--kb-primary-700); }
     .kb-stat-card-label {
       font-size: 0.8125rem;
       color: var(--kb-neutral-500);
+      display: flex;
+      align-items: center;
+      gap: var(--kb-space-2);
+    }
+    .kb-stat-card-sub {
+      font-size: 0.75rem;
+      color: var(--kb-neutral-400);
+      font-weight: 500;
     }
 
     /* 图表区 */
@@ -1106,6 +1209,13 @@ a:hover { color: var(--kb-primary-700); }
     .kb-rank-table-wrap { overflow-x: auto; padding: 0; }
     .kb-rank-table { min-width: 880px; }
     .kb-rank-table tbody td { vertical-align: middle; }
+    .kb-rank-table tbody tr.kb-rank-row {
+      cursor: pointer;
+      transition: background-color 0.15s ease;
+    }
+    .kb-rank-table tbody tr.kb-rank-row:hover td {
+      background: var(--kb-primary-50);
+    }
     .kb-rank-badge {
       display: inline-flex;
       align-items: center;

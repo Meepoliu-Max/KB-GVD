@@ -18,12 +18,13 @@ from __future__ import annotations
 import time
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from kbrefiner.db import MessageStore, UserStore
+from kbrefiner.db import AuditStore, MessageStore, UserStore
 
 from .deps import (
+    get_audit_store,
     get_current_user,
     get_message_store,
     get_user_store,
@@ -100,9 +101,11 @@ async def list_messages(
 @router.post("/admin/messages", status_code=201)
 async def create_message(
     body: MessageCreateRequest,
+    request: Request,
     admin: dict = Depends(require_admin),
     message_store: MessageStore = Depends(get_message_store),
     user_store: UserStore = Depends(get_user_store),
+    audit_store: AuditStore = Depends(get_audit_store),
 ):
     """创建消息：send_now 立即发送；scheduled_at 定时；否则存草稿。"""
     if body.type not in _TYPE_LABELS:
@@ -126,6 +129,14 @@ async def create_message(
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+    try:
+        audit_store.record(
+            user=admin, action="message.created", target_type="message",
+            target_id=msg["id"], detail=f"type:{body.type};status:{status}",
+            request=request,
+        )
+    except Exception:
+        pass
     return msg
 
 
@@ -145,9 +156,11 @@ async def get_message(
 async def update_message(
     message_id: str,
     body: MessageUpdateRequest,
-    _admin: dict = Depends(require_admin),
+    request: Request,
+    admin: dict = Depends(require_admin),
     message_store: MessageStore = Depends(get_message_store),
     user_store: UserStore = Depends(get_user_store),
+    audit_store: AuditStore = Depends(get_audit_store),
 ):
     """编辑消息（仅草稿可改）。"""
     msg = message_store.get(message_id)
@@ -163,14 +176,23 @@ async def update_message(
         message_id, title=body.title, content=body.content,
         msg_type=body.type, target_users=target,
     )
+    try:
+        audit_store.record(
+            user=admin, action="message.updated", target_type="message",
+            target_id=message_id, request=request,
+        )
+    except Exception:
+        pass
     return message_store.get(message_id)
 
 
 @router.post("/admin/messages/{message_id}/send")
 async def send_message(
     message_id: str,
-    _admin: dict = Depends(require_admin),
+    request: Request,
+    admin: dict = Depends(require_admin),
     message_store: MessageStore = Depends(get_message_store),
+    audit_store: AuditStore = Depends(get_audit_store),
 ):
     """立即发送（草稿/已定时 → 已发送）。"""
     msg = message_store.get(message_id)
@@ -181,14 +203,23 @@ async def send_message(
     if msg["status"] == "revoked":
         raise HTTPException(status_code=400, detail="已撤回的消息不能再次发送")
     message_store.set_status(message_id, "sent")
+    try:
+        audit_store.record(
+            user=admin, action="message.sent", target_type="message",
+            target_id=message_id, request=request,
+        )
+    except Exception:
+        pass
     return {"ok": True, "message": "已发送"}
 
 
 @router.post("/admin/messages/{message_id}/revoke")
 async def revoke_message(
     message_id: str,
-    _admin: dict = Depends(require_admin),
+    request: Request,
+    admin: dict = Depends(require_admin),
     message_store: MessageStore = Depends(get_message_store),
+    audit_store: AuditStore = Depends(get_audit_store),
 ):
     """撤回已发送消息（用户端不再展示）。"""
     msg = message_store.get(message_id)
@@ -197,14 +228,23 @@ async def revoke_message(
     if msg["status"] != "sent":
         raise HTTPException(status_code=400, detail="仅已发送的消息可撤回")
     message_store.set_status(message_id, "revoked")
+    try:
+        audit_store.record(
+            user=admin, action="message.revoked", target_type="message",
+            target_id=message_id, request=request,
+        )
+    except Exception:
+        pass
     return {"ok": True, "message": "已撤回"}
 
 
 @router.post("/admin/messages/{message_id}/cancel")
 async def cancel_schedule(
     message_id: str,
-    _admin: dict = Depends(require_admin),
+    request: Request,
+    admin: dict = Depends(require_admin),
     message_store: MessageStore = Depends(get_message_store),
+    audit_store: AuditStore = Depends(get_audit_store),
 ):
     """取消定时 → 转为草稿。"""
     msg = message_store.get(message_id)
@@ -213,20 +253,36 @@ async def cancel_schedule(
     if msg["status"] != "scheduled":
         raise HTTPException(status_code=400, detail="仅定时消息可取消定时")
     message_store.set_status(message_id, "draft")
+    try:
+        audit_store.record(
+            user=admin, action="message.schedule_cancelled", target_type="message",
+            target_id=message_id, request=request,
+        )
+    except Exception:
+        pass
     return {"ok": True, "message": "已取消定时，转为草稿"}
 
 
 @router.delete("/admin/messages/{message_id}")
 async def delete_message(
     message_id: str,
-    _admin: dict = Depends(require_admin),
+    request: Request,
+    admin: dict = Depends(require_admin),
     message_store: MessageStore = Depends(get_message_store),
+    audit_store: AuditStore = Depends(get_audit_store),
 ):
     """删除消息（不限状态）。"""
     msg = message_store.get(message_id)
     if not msg:
         raise HTTPException(status_code=404, detail=f"消息 {message_id} 不存在")
     message_store.delete(message_id)
+    try:
+        audit_store.record(
+            user=admin, action="message.deleted", target_type="message",
+            target_id=message_id, request=request,
+        )
+    except Exception:
+        pass
     return {"ok": True, "message": "已删除"}
 
 

@@ -18,7 +18,9 @@ from kbrefiner.core.llm import DeepSeekClient, LLMConfig
 from kbrefiner.core.sensitive import SensitiveDetector
 from kbrefiner.db import (
     AccessStore,
+    AuditStore,
     MessageStore,
+    PasswordResetStore,
     SettingsStore,
     TaskStore,
     UserStore,
@@ -32,6 +34,8 @@ _task_store = TaskStore("./data/tasks.db")
 _settings_store = SettingsStore("./data/tasks.db")
 _message_store = MessageStore("./data/tasks.db")
 _access_store = AccessStore("./data/tasks.db")
+_password_reset_store = PasswordResetStore("./data/tasks.db")
+_audit_store = AuditStore("./data/tasks.db")
 
 
 def get_user_store() -> UserStore:
@@ -57,6 +61,16 @@ def get_message_store() -> MessageStore:
 def get_access_store() -> AccessStore:
     """访问规则存储单例。"""
     return _access_store
+
+
+def get_password_reset_store() -> PasswordResetStore:
+    """密码重置令牌存储单例。"""
+    return _password_reset_store
+
+
+def get_audit_store() -> AuditStore:
+    """审计日志存储单例。"""
+    return _audit_store
 
 
 # =====================================================================
@@ -157,6 +171,8 @@ __all__ = [
     "get_settings_store",
     "get_message_store",
     "get_access_store",
+    "get_password_reset_store",
+    "get_audit_store",
     "get_current_user",
     "require_admin",
     "runtime_setting",

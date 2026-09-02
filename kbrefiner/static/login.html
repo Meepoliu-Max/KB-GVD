@@ -460,6 +460,7 @@ a:hover { color: var(--kb-primary-700); }
                 <i data-lucide="mail" class="kb-login-input-icon"></i>
                 <input id="login-email" name="email" type="email" class="kb-input kb-login-input" placeholder="请输入邮箱地址" autocomplete="email">
               </div>
+              <span class="kb-text-error kb-text-sm" id="err-email" style="display:block;margin-top:6px;min-height:18px;"></span>
             </div>
 
             <!-- 密码输入 -->
@@ -469,6 +470,7 @@ a:hover { color: var(--kb-primary-700); }
                 <i data-lucide="lock" class="kb-login-input-icon"></i>
                 <input id="login-password" name="password" type="password" class="kb-input kb-login-input" placeholder="请输入密码" autocomplete="current-password">
               </div>
+              <span class="kb-text-error kb-text-sm" id="err-password" style="display:block;margin-top:6px;min-height:18px;"></span>
             </div>
 
             <!-- 记住我 + 忘记密码 -->
@@ -533,17 +535,45 @@ a:hover { color: var(--kb-primary-700); }
         showError(msg || '该功能暂未开放，请联系管理员创建账号');
       }
       document.getElementById('link-forgot').addEventListener('click',
-        e => soon(e, '暂不支持自助找回密码，请联系管理员重置'));
+        e => { e.preventDefault(); location.href = '/forgot'; });
       document.getElementById('btn-feishu-login').addEventListener('click',
         e => soon(e, '飞书登录暂未开通，请使用邮箱登录'));
 
-      async function doLogin() {
-        const email = document.getElementById('login-email').value.trim();
-        const password = document.getElementById('login-password').value;
-        if (!email || !password) {
-          showError('请输入邮箱和密码');
-          return;
+      const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+      const emailInput = document.getElementById('login-email');
+      const pwdInput = document.getElementById('login-password');
+      const errEmail = document.getElementById('err-email');
+      const errPassword = document.getElementById('err-password');
+
+      function validateEmail() {
+        const v = emailInput.value.trim();
+        if (!EMAIL_RE.test(v)) {
+          errEmail.textContent = '请输入正确的邮箱格式';
+          return false;
         }
+        errEmail.textContent = '';
+        return true;
+      }
+      function validatePassword() {
+        if (pwdInput.value.length < 1) {
+          errPassword.textContent = '请输入密码';
+          return false;
+        }
+        errPassword.textContent = '';
+        return true;
+      }
+      emailInput.addEventListener('blur', validateEmail);
+      pwdInput.addEventListener('blur', validatePassword);
+      emailInput.addEventListener('input', () => { if (errEmail.textContent) validateEmail(); });
+      pwdInput.addEventListener('input', () => { if (errPassword.textContent) validatePassword(); });
+
+      async function doLogin() {
+        const okE = validateEmail();
+        const okP = validatePassword();
+        if (!okE) { emailInput.focus(); return; }
+        if (!okP) { pwdInput.focus(); return; }
+        const email = emailInput.value.trim();
+        const password = pwdInput.value;
         const btn = document.getElementById('btn-login');
         const btnText = document.getElementById('btn-login-text');
         btn.disabled = true;
@@ -561,7 +591,7 @@ a:hover { color: var(--kb-primary-700); }
       }
 
       document.getElementById('btn-login').addEventListener('click', doLogin);
-      document.getElementById('login-password').addEventListener('keydown', e => {
+      pwdInput.addEventListener('keydown', e => {
         if (e.key === 'Enter') doLogin();
       });
 

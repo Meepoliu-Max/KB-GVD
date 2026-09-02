@@ -395,6 +395,10 @@ a:hover { color: var(--kb-primary-700); }
             <i data-lucide="shield" class="kb-sidebar-nav-icon"></i>
             <span class="kb-sidebar-nav-label">黑白名单</span>
           </a>
+          <a class="kb-sidebar-nav-item" href="/admin/audit-logs" data-dom-id="nav-audit-logs">
+            <i data-lucide="clipboard-list" class="kb-sidebar-nav-icon"></i>
+            <span class="kb-sidebar-nav-label">操作审计</span>
+          </a>
           <a class="kb-sidebar-nav-item" href="/admin/settings" data-dom-id="nav-settings">
             <i data-lucide="settings" class="kb-sidebar-nav-icon"></i>
             <span class="kb-sidebar-nav-label">系统设置</span>
@@ -463,6 +467,9 @@ a:hover { color: var(--kb-primary-700); }
                   </button>
                   <button class="kb-btn kb-btn-secondary kb-btn-sm" type="button" id="btn-reset-pwd">
                     <i data-lucide="key-round" class="kb-btn-icon"></i>重置密码
+                  </button>
+                  <button class="kb-btn kb-btn-primary kb-btn-sm" type="button" id="btn-gen-reset-link">
+                    <i data-lucide="link-2" class="kb-btn-icon"></i>生成重置链接
                   </button>
                   <button class="kb-btn kb-btn-danger-ghost kb-btn-sm" type="button" id="btn-toggle-status">
                     <i data-lucide="ban" class="kb-btn-icon"></i><span id="btn-toggle-text">禁用用户</span>
@@ -588,6 +595,30 @@ a:hover { color: var(--kb-primary-700); }
       </div>
     </div>
 
+    <!-- 重置链接模态框 -->
+    <div class="kb-modal-mask" id="modal-reset-link" hidden aria-hidden="true">
+      <div class="kb-modal-reset-link" role="dialog" aria-modal="true" aria-labelledby="reset-link-title">
+        <div class="kb-modal-head">
+          <h3 class="kb-modal-title" id="reset-link-title">重置链接已生成</h3>
+          <button class="kb-modal-close" type="button" data-close="modal-reset-link" aria-label="关闭">&times;</button>
+        </div>
+        <div class="kb-modal-body">
+          <label class="kb-modal-label" for="reset-link-input">一次性重置链接</label>
+          <div class="kb-reset-link-row">
+            <input type="text" id="reset-link-input" class="kb-input" readonly value="">
+            <button class="kb-btn kb-btn-primary kb-btn-sm" type="button" id="btn-copy-reset-link">
+              <i data-lucide="copy" style="width:14px;height:14px;"></i>复制
+            </button>
+          </div>
+          <p class="kb-reset-link-tip" id="reset-link-status">请复制后安全分发</p>
+          <p class="kb-reset-link-hint">24 小时内有效，仅可使用一次；请安全分发</p>
+        </div>
+        <div class="kb-modal-foot">
+          <button class="kb-btn kb-btn-secondary" type="button" data-close="modal-reset-link">关闭</button>
+        </div>
+      </div>
+    </div>
+
     <script src="/static/js/kbrefiner.js"></script>
     <script>
       lucide.createIcons();
@@ -637,6 +668,31 @@ a:hover { color: var(--kb-primary-700); }
         failed: '<span class="kb-status kb-status-error">失败</span>',
         cancelled: '<span class="kb-status kb-status-warning">已取消</span>',
       };
+
+      function beautifyAction(action) {
+        const MAP = {
+          'auth.login.success': '登录成功',
+          'auth.login.failed': '登录失败',
+          'user.created': '创建用户',
+          'user.updated': '更新用户资料',
+          'user.role_changed': '变更角色',
+          'user.deleted': '删除用户',
+          'user.password_reset': '重置密码',
+          'settings.updated': '修改系统设置',
+          'access.rule_created': '新增访问规则',
+          'access.rule_deleted': '删除访问规则',
+          'access.toggled': '切换访问开关',
+          'message.created': '新建消息',
+          'message.sent': '发送消息',
+          'message.revoked': '撤回消息',
+          'message.updated': '编辑消息',
+          'message.deleted': '删除消息',
+          'message.cancelled': '取消定时发送',
+          'task.cancelled': '取消任务',
+          'task.batch': '批量操作任务',
+        };
+        return MAP[action] || action || '未知操作';
+      }
 
       const userId = decodeURIComponent(location.pathname.split('/').pop());
       let currentUser = null;
@@ -709,13 +765,13 @@ a:hover { color: var(--kb-primary-700); }
           </tr>`).join('');
       }
 
-      // 今日/本周/本月统计与近7天趋势（按任务列表前端聚合）
+      // 今日/本周/本月统计与近7天趋势（优先使用后端 trend_7d）
       async function loadExtraStats() {
         let data;
         try {
           data = await KBRefiner.Admin.listTasks();
-        } catch (e) { return; }
-        const mine = data.tasks.filter(t => t.user_id === userId);
+        } catch (e) { data = null; }
+        const mine = data && data.tasks ? data.tasks.filter(t => t.user_id === userId) : [];
         const now = new Date();
         const p = x => String(x).padStart(2, '0');
         const today = `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}`;
@@ -737,23 +793,56 @@ a:hover { color: var(--kb-primary-700); }
         document.getElementById('d-week-tasks').textContent = weekTasks;
         document.getElementById('d-month-tokens').textContent = fmtToken(monthTokens);
 
-        // 操作日志：以任务创建记录近似
-        const recent = (profile.recent_tasks || []).slice(0, 6);
-        const timeline = document.getElementById('u-timeline');
-        timeline.innerHTML = recent.length ? recent.map(t => `
-          <li class="kb-timeline-item">
-            <div class="kb-timeline-dot"></div>
-            <div class="kb-timeline-content">
-              <div class="kb-timeline-time">${fmtTime(t.created_at)}</div>
-              <div class="kb-timeline-text">创建任务「${esc(t.filename)}」（${TASK_STATUS[t.status] || esc(t.status || '-')}）</div>
-            </div>
-          </li>`).join('') : '<li class="kb-timeline-item"><div class="kb-timeline-dot"></div><div class="kb-timeline-content"><div class="kb-timeline-text kb-text-muted">暂无记录</div></div></li>';
+        // 操作日志：真实 API
+        await loadAuditTimeline();
 
-        // 近7天 Token 折线
-        drawChart(byDay);
+        // 近7天 Token 折线：优先 profile.trend_7d（数组长度=7）
+        drawChart(profile && Array.isArray(profile.trend_7d) && profile.trend_7d.length === 7
+          ? { _fromApi: true, _arr: profile.trend_7d }
+          : byDay);
       }
 
-      function drawChart(byDay) {
+      async function loadAuditTimeline() {
+        const timeline = document.getElementById('u-timeline');
+        let logs = [];
+        try {
+          const qs = new URLSearchParams({ user_id: userId, limit: 20 });
+          const r = await fetch(`/api/admin/audit-logs?${qs.toString()}`, { headers: { 'Accept': 'application/json' } });
+          if (r.ok) {
+            const json = await r.json();
+            logs = (json && Array.isArray(json.logs)) ? json.logs : (json && json.data && Array.isArray(json.data.logs) ? json.data.logs : []);
+          }
+        } catch (_) { logs = []; }
+        if (!logs.length) {
+          // 近似从任务兜底
+          const recent = (profile.recent_tasks || []).slice(0, 6);
+          timeline.innerHTML = recent.length ? recent.map(t => `
+            <li class="kb-timeline-item">
+              <div class="kb-timeline-dot"></div>
+              <div class="kb-timeline-content">
+                <div class="kb-timeline-time">${fmtTime(t.created_at)}</div>
+                <div class="kb-timeline-text">创建任务「${esc(t.filename)}」（${TASK_STATUS[t.status] || esc(t.status || '-')}）</div>
+              </div>
+            </li>`).join('') : '<li class="kb-timeline-item"><div class="kb-timeline-dot"></div><div class="kb-timeline-content"><div class="kb-timeline-text kb-text-muted">暂无操作日志</div></div></li>';
+          return;
+        }
+        timeline.innerHTML = logs.map(log => {
+          const detailRaw = log.detail || '';
+          const detailShort = typeof detailRaw === 'string' && detailRaw.length > 120
+            ? detailRaw.slice(0, 120) + '…' : (detailRaw || '');
+          const ipText = log.ip ? ` · 来自 IP ${esc(log.ip)}` : '';
+          return `<li class="kb-timeline-item">
+            <div class="kb-timeline-dot"></div>
+            <div class="kb-timeline-content">
+              <div class="kb-timeline-time">${fmtTime(log.created_at)}</div>
+              <div class="kb-timeline-title kb-font-semibold">${esc(beautifyAction(log.action))}</div>
+              <div class="kb-timeline-text kb-text-muted kb-text-sm">${esc(detailShort)}${ipText}</div>
+            </div>
+          </li>`;
+        }).join('');
+      }
+
+      function drawChart(src) {
         const el = document.getElementById('u-chart');
         const days = [];
         for (let i = 6; i >= 0; i--) {
@@ -761,7 +850,12 @@ a:hover { color: var(--kb-primary-700); }
           const p = x => String(x).padStart(2, '0');
           days.push(`${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`);
         }
-        const values = days.map(dk => byDay[dk] || 0);
+        let values;
+        if (src && src._fromApi) {
+          values = src._arr.map(x => Number((x && x.token_total != null) ? x.token_total : x) || 0);
+        } else {
+          values = days.map(dk => (src || {})[dk] || 0);
+        }
         const max = Math.max(1, ...values);
         const niceMax = Math.ceil(max / 5) * 5 || 5;
         let grid = '', yaxis = '';
@@ -774,7 +868,10 @@ a:hover { color: var(--kb-primary-700); }
         const step = 540 / 6;
         const y = v => 260 - (v / niceMax) * 240;
         const pts = values.map((v, i) => `${40 + i * step},${y(v)}`);
-        const xlabels = days.map((dk, i) => `<text x="${40 + i * step}" y="282" text-anchor="middle">${esc(dk.slice(5))}</text>`).join('');
+        const xlabels = days.map((dk, i) => {
+          const label = i === 6 ? '今日' : `D-${6 - i}`;
+          return `<text x="${40 + i * step}" y="282" text-anchor="middle">${esc(label)}</text>`;
+        }).join('');
         el.innerHTML = `
           <svg class="kb-chart-svg" viewBox="0 0 600 300" role="img" aria-label="Token 消耗趋势折线图">
             <g class="kb-chart-grid">${grid}</g>
@@ -822,6 +919,75 @@ a:hover { color: var(--kb-primary-700); }
           await KBRefiner.Admin.updateUser(userId, { status: next });
           loadDetail();
         } catch (err) { alert(err.message || '操作失败'); }
+      });
+
+      // ===== 生成重置链接 =====
+      function openResetLinkModal() {
+        const mask = document.getElementById('modal-reset-link');
+        if (mask) {
+          mask.hidden = false;
+          mask.setAttribute('aria-hidden', 'false');
+        }
+      }
+      function closeResetLinkModal() {
+        const mask = document.getElementById('modal-reset-link');
+        if (mask) {
+          mask.hidden = true;
+          mask.setAttribute('aria-hidden', 'true');
+        }
+      }
+      document.querySelectorAll('[data-close="modal-reset-link"]').forEach(btn => {
+        btn.addEventListener('click', closeResetLinkModal);
+      });
+      document.getElementById('modal-reset-link').addEventListener('click', e => {
+        if (e.target && e.target.id === 'modal-reset-link') closeResetLinkModal();
+      });
+      document.getElementById('btn-copy-reset-link').addEventListener('click', async () => {
+        const input = document.getElementById('reset-link-input');
+        const status = document.getElementById('reset-link-status');
+        const text = input.value;
+        try {
+          await navigator.clipboard.writeText(text);
+          status.textContent = '已复制到剪贴板';
+          status.className = 'kb-reset-link-tip kb-text-success';
+        } catch (_) {
+          try {
+            input.select();
+            input.setSelectionRange(0, text.length);
+            document.execCommand('copy');
+            status.textContent = '请手动复制（已选中文本）';
+            status.className = 'kb-reset-link-tip kb-text-warning';
+          } catch (__) {
+            status.textContent = '请手动复制';
+            status.className = 'kb-reset-link-tip kb-text-warning';
+          }
+        }
+      });
+      document.getElementById('btn-gen-reset-link').addEventListener('click', async () => {
+        const btn = document.getElementById('btn-gen-reset-link');
+        btn.disabled = true;
+        try {
+          const r = await fetch(`/api/admin/users/${encodeURIComponent(userId)}/reset-link`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          });
+          if (!r.ok) {
+            const err = await r.json().catch(() => ({}));
+            throw new Error((err && err.detail) || `请求失败 (${r.status})`);
+          }
+          const json = await r.json();
+          const resetUrl = (json && (json.reset_url || (json.data && json.data.reset_url))) || '';
+          document.getElementById('reset-link-input').value = resetUrl;
+          const status = document.getElementById('reset-link-status');
+          status.textContent = '请复制后安全分发';
+          status.className = 'kb-reset-link-tip kb-text-muted';
+          openResetLinkModal();
+          lucide.createIcons();
+        } catch (e) {
+          alert(e.message || '生成重置链接失败');
+        } finally {
+          btn.disabled = false;
+        }
       });
 
       // ===== 初始化 =====
@@ -1351,6 +1517,73 @@ a:hover { color: var(--kb-primary-700); }
     .kb-timeline-text {
       font-size: 0.875rem;
       color: var(--kb-neutral-700);
+    }
+    .kb-timeline-title { font-size: 0.9375rem; color: var(--kb-neutral-900); }
+
+    /* ===== 重置链接模态框 ===== */
+    .kb-modal-mask {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(15, 23, 42, 0.45);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: var(--kb-space-4);
+    }
+    .kb-modal-mask:not([hidden]) { display: flex; }
+    .kb-modal-reset-link {
+      width: 100%;
+      max-width: 520px;
+      background: var(--kb-neutral-0);
+      border-radius: var(--kb-radius-large);
+      box-shadow: var(--kb-shadow-float);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .kb-modal-reset-link .kb-modal-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: var(--kb-space-5) var(--kb-space-6);
+      border-bottom: 1px solid var(--kb-border);
+    }
+    .kb-modal-reset-link .kb-modal-title { font-size: 1.125rem; margin: 0; }
+    .kb-modal-reset-link .kb-modal-close {
+      width: 32px; height: 32px;
+      display: inline-flex; align-items: center; justify-content: center;
+      border-radius: var(--kb-radius-medium);
+      border: none; background: transparent;
+      color: var(--kb-neutral-500);
+      font-size: 1.5rem;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .kb-modal-reset-link .kb-modal-close:hover { background: var(--kb-neutral-100); color: var(--kb-neutral-900); }
+    .kb-modal-reset-link .kb-modal-body {
+      padding: var(--kb-space-6);
+      display: flex; flex-direction: column; gap: var(--kb-space-3);
+    }
+    .kb-modal-reset-link .kb-modal-label {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--kb-neutral-700);
+    }
+    .kb-reset-link-row {
+      display: flex; align-items: center; gap: var(--kb-space-2);
+    }
+    .kb-reset-link-row .kb-input { flex: 1; font-family: var(--kb-font-mono); font-size: 0.8125rem; }
+    .kb-reset-link-tip {
+      font-size: 0.8125rem;
+      color: var(--kb-neutral-500);
+    }
+    .kb-reset-link-hint {
+      font-size: 0.75rem;
+      color: var(--kb-neutral-500);
+      margin: 0;
+    }
+    .kb-modal-reset-link .kb-modal-foot {
+      padding: var(--kb-space-4) var(--kb-space-6) var(--kb-space-6);
+      display: flex; justify-content: flex-end; gap: var(--kb-space-3);
+      border-top: 1px solid transparent;
     }
 
     /* 详情页响应式 */

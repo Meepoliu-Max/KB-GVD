@@ -55,6 +55,10 @@ class SettingsStore:
         "login_lock_minutes": 30,       # 锁定时长（分钟）
         "session_timeout_minutes": 30,  # v1 仅存储（令牌有效期由 .env 控制）
         "audit_log_enabled": True,      # v1 仅存储（审计落库后续迭代）
+        # ===== 存储路径 =====
+        "tmp_dir": "",                  # 临时文件目录（上传后解析用）
+        "disk_max_gb": 500,             # 最大磁盘占用 (GB)（PRD §9.7.6）
+        "disk_warn_percent": 80,        # 磁盘告警阈值 (%)
     }
 
     def __init__(self, db_path: str | Path = "./data/tasks.db"):

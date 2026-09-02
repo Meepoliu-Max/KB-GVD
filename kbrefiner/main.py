@@ -203,6 +203,51 @@ async def admin_settings_page(request: Request):
     return FileResponse(static_dir / "admin-settings.html")
 
 
+# ===== P8: 新增 3 个页面路由 + 忘记密码闭环 =====
+
+
+@app.get("/forgot")
+async def forgot_password_page():
+    """忘记密码申请页（无需鉴权；MVP 提示联系管理员生成重置链接）。"""
+    return FileResponse(static_dir / "forgot-password.html")
+
+
+@app.get("/reset")
+async def reset_page():
+    """密码重置页（无需鉴权，token 由链接带参传入前端）。"""
+    return FileResponse(static_dir / "reset.html")
+
+
+@app.get("/reset-password")
+async def reset_password_page():
+    """密码重置页别名（兼容旧链接，实际与 /reset 共用同一页面）。"""
+    return FileResponse(static_dir / "reset.html")
+
+
+@app.get("/admin/tasks")
+async def admin_tasks_page(request: Request):
+    """任务管理页（含批量操作入口）。"""
+    resp = _guard_admin_page(request)
+    if resp:
+        return resp
+    target = static_dir / "admin-tasks.html"
+    if not target.exists():
+        target = static_dir / "admin-dashboard.html"
+    return FileResponse(target)
+
+
+@app.get("/admin/audit-logs")
+async def admin_audit_logs_page(request: Request):
+    """审计日志页。"""
+    resp = _guard_admin_page(request)
+    if resp:
+        return resp
+    target = static_dir / "admin-audit-logs.html"
+    if not target.exists():
+        target = static_dir / "admin-dashboard.html"
+    return FileResponse(target)
+
+
 @app.get("/{page}")
 async def static_page(request: Request, page: str):
     """提供设计系统页面（require_login 开启时未登录跳登录页）。"""

@@ -197,6 +197,59 @@ class TaskStore:
             for r in rows
         ]
 
+    def user_daily_trend(
+        self, user_id: str, days: int = 7
+    ) -> list[dict[str, Any]]:
+        """某用户近 N 天（含今日，本地时区）每日任务数与 Token 消耗趋势。
+
+        返回长度恒为 days 的列表，按日期升序（days-1 天前 ~ 今日），
+        空日期填 0。
+
+        Returns:
+            [{"date": "2026-08-26", "task_count": 0, "token_total": 0},
+             {"date": "2026-08-27", "task_count": 3, "token_total": 12000},
+             ... ]  # 长度 = days，升序
+        """
+        now_ts = time.time()
+        since = now_ts - days * 86400
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT date(created_at, 'unixepoch', 'localtime') AS d, "
+                "COUNT(*) AS task_count, "
+                "COALESCE(SUM(token_consumed), 0) AS token_total "
+                "FROM tasks WHERE user_id = ? AND created_at >= ? "
+                "GROUP BY d ORDER BY d",
+                (user_id, since),
+            ).fetchall()
+        stats_map = {
+            r["d"]: {
+                "task_count": int(r["task_count"] or 0),
+                "token_total": int(r["token_total"] or 0),
+            }
+            for r in rows
+        }
+        # 生成本地时区 N 天的日期字符串（从 days-1 天前到今日，升序）
+        now = time.localtime()
+        today_start = time.mktime(
+            time.struct_time(
+                (now.tm_year, now.tm_mon, now.tm_mday, 0, 0, 0, 0, 0, -1)
+            )
+        )
+        result: list[dict[str, Any]] = []
+        for i in range(days - 1, -1, -1):
+            ts = today_start - i * 86400
+            lt = time.localtime(ts)
+            date_str = f"{lt.tm_year:04d}-{lt.tm_mon:02d}-{lt.tm_mday:02d}"
+            s = stats_map.get(date_str, {"task_count": 0, "token_total": 0})
+            result.append(
+                {
+                    "date": date_str,
+                    "task_count": s["task_count"],
+                    "token_total": s["token_total"],
+                }
+            )
+        return result
+
     def daily_user_stats(self, user_id: str) -> dict[str, int]:
         """某用户今日（本地时区）任务数 / 上传文档数 / Token 消耗（配额执法用）。"""
         now = time.localtime()

@@ -461,10 +461,19 @@ a:hover { color: var(--kb-primary-700); }
               </div>
             </div>
 
+            <!-- 批量操作条 -->
+            <div id="batch-bar" style="display:none;align-items:center;gap:12px;padding:10px 24px;border-bottom:1px solid var(--kb-border);background:var(--kb-primary-50);">
+              <span class="kb-tag kb-tag-info">已选 <span id="batch-count">0</span> 项</span>
+              <button class="kb-btn kb-btn-secondary kb-btn-sm" type="button" data-op="cancel">批量取消</button>
+              <button class="kb-btn kb-btn-secondary kb-btn-sm" type="button" data-op="retry">批量重试</button>
+              <button class="kb-btn kb-btn-sm" type="button" data-op="delete" style="background:var(--kb-state-error);color:#fff;border-color:transparent;">批量删除</button>
+            </div>
+
             <div class="kb-card-body kb-task-table-wrap">
               <table class="kb-table kb-task-table">
                 <thead>
                   <tr>
+                    <th style="width:40px;"><input type="checkbox" id="batch-select-all" class="kb-chk"></th>
                     <th style="width:30%">任务名称</th>
                     <th style="width:12%">文档数</th>
                     <th style="width:14%">当前阶段</th>
@@ -762,6 +771,7 @@ a:hover { color: var(--kb-primary-700); }
             ? `/task-completed?task_id=${t.task_id}&name=${encodeURIComponent(t.filename || '')}`
             : `/task-detail?task_id=${t.task_id}&name=${encodeURIComponent(t.filename || '')}`;
           return `<tr class="kb-task-row" data-task-id="${t.task_id}">
+            <td style="width:40px;"><input type="checkbox" class="batch-row-check" value="${t.task_id}"></td>
             <td>
               <div class="kb-task-name">
                 <i data-lucide="file-text" class="kb-task-icon"></i>
@@ -779,7 +789,7 @@ a:hover { color: var(--kb-primary-700); }
             </td>
             <td><a class="kb-btn kb-btn-ghost kb-btn-sm" href="${detailHref}">查看</a></td>
           </tr>`;
-        }).join('') || `<tr><td colspan="6"><div class="kb-empty">暂无任务记录</div></td></tr>`;
+        }).join('') || `<tr><td colspan="7"><div class="kb-empty">暂无任务记录</div></td></tr>`;
 
         taskCardsContainer.innerHTML = _tasks.map(t => {
           const s = STATUS_MAP[t.status] || STATUS_MAP.pending;
@@ -865,7 +875,109 @@ a:hover { color: var(--kb-primary-700); }
           if (statusLabel && statusEl !== statusLabel) visible = false;
           card.style.display = visible ? '' : 'none';
         });
+        updateBatchBar();
       }
+
+      // ===== 批量操作 =====
+      const OP_LABEL = { cancel: '批量取消', retry: '批量重试', delete: '批量删除' };
+
+      function updateBatchBar() {
+        const bar = document.getElementById('batch-bar');
+        const countEl = document.getElementById('batch-count');
+        const selAll = document.getElementById('batch-select-all');
+        const checks = document.querySelectorAll('.batch-row-check');
+        const visibleChecks = Array.from(checks).filter(c => c.closest('tr').style.display !== 'none');
+        const checked = document.querySelectorAll('.batch-row-check:checked');
+        const n = checked.length;
+        countEl.textContent = n;
+        bar.style.display = n > 0 ? 'flex' : 'none';
+        if (selAll && visibleChecks.length > 0) {
+          selAll.checked = visibleChecks.length > 0 && visibleChecks.every(c => c.checked);
+          selAll.indeterminate = visibleChecks.some(c => c.checked) && !selAll.checked;
+        } else if (selAll) {
+          selAll.checked = false;
+          selAll.indeterminate = false;
+        }
+      }
+
+      function clearBatchSelection() {
+        document.querySelectorAll('.batch-row-check').forEach(c => c.checked = false);
+        const selAll = document.getElementById('batch-select-all');
+        if (selAll) selAll.checked = false;
+        updateBatchBar();
+      }
+
+      function showToast(msg, type) {
+        // 简单的页面 toast
+        let t = document.getElementById('kb-toast');
+        if (!t) {
+          t = document.createElement('div');
+          t.id = 'kb-toast';
+          Object.assign(t.style, {
+            position: 'fixed', top: '24px', left: '50%', transform: 'translateX(-50%)',
+            zIndex: '9999', padding: '12px 20px', borderRadius: '8px',
+            boxShadow: 'var(--kb-shadow-float)', fontSize: '0.875rem',
+            fontWeight: '600', color: '#fff', transition: 'opacity 0.3s',
+            opacity: '0', pointerEvents: 'none', maxWidth: '520px',
+            lineHeight: '1.5', whiteSpace: 'pre-wrap',
+          });
+          document.body.appendChild(t);
+        }
+        const bg = type === 'success' ? 'var(--kb-state-success)'
+          : type === 'error' ? 'var(--kb-state-error)'
+          : 'var(--kb-neutral-800)';
+        t.style.background = bg;
+        t.textContent = msg;
+        t.style.opacity = '1';
+        clearTimeout(t._to);
+        t._to = setTimeout(() => { t.style.opacity = '0'; }, 3500);
+      }
+
+      async function batchOp(op) {
+        const checked = document.querySelectorAll('.batch-row-check:checked');
+        const ids = Array.from(checked).map(i => i.value).filter(Boolean);
+        if (!ids.length) return;
+        const label = OP_LABEL[op] || op;
+        const ok = window.confirm(`确认对 ${ids.length} 条任务执行「${label}」吗？此操作不可撤销。`);
+        if (!ok) return;
+        try {
+          const resp = await KBRefiner.request('/api/tasks/batch', {
+            method: 'POST',
+            body: JSON.stringify({ task_ids: ids, op: op })
+          });
+          const results = resp?.results || [];
+          const okN = results.filter(r => r && r.status === 'ok').length;
+          const skN = results.filter(r => r && r.status === 'skipped').length;
+          const erN = results.filter(r => r && r.status === 'error').length;
+          let msg = `成功 ${okN} / 跳过 ${skN} / 失败 ${erN}`;
+          if (erN > 0) {
+            const errs = results.filter(r => r && r.status === 'error').map(r => `${r.task_id}: ${r.reason || '未知错误'}`).join('\n');
+            msg += `\n错误详情：\n${errs}`;
+          }
+          showToast(msg, erN > 0 ? 'error' : 'success');
+        } catch (e) {
+          showToast(`批量操作失败：${e.message || '未知错误'}`, 'error');
+        } finally {
+          clearBatchSelection();
+          setTimeout(() => loadTasks(), 500);
+        }
+      }
+
+      // 事件绑定（绑定到容器委托 + 全选）
+      document.addEventListener('change', (e) => {
+        const t = e.target;
+        if (t && t.id === 'batch-select-all') {
+          const visible = Array.from(document.querySelectorAll('.batch-row-check')).filter(c => c.closest('tr').style.display !== 'none');
+          visible.forEach(c => c.checked = t.checked);
+          updateBatchBar();
+        } else if (t && t.classList && t.classList.contains('batch-row-check')) {
+          updateBatchBar();
+        }
+      });
+      document.addEventListener('click', (e) => {
+        const btn = e.target.closest('#batch-bar button[data-op]');
+        if (btn) { batchOp(btn.getAttribute('data-op')); }
+      });
     </script>
 
     <style id="critical-layout">

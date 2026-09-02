@@ -5,21 +5,23 @@
 
 设置即时生效项：配额 / 允许文件类型 / 通知开关 / LLM 覆盖 /
 强制登录 / 注册开关 / 登录锁定。
-重启生效项：存储路径（uploads / outputs）。
+重启生效项：存储路径（uploads / outputs / tmp_dir）。
 仅存储项（v1 不做实际动作）：通知推送渠道、会话超时、审计落库。
 """
 from __future__ import annotations
 
+import json
 import os
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from kbrefiner.config import Settings, get_settings
-from kbrefiner.db import SettingsStore, TaskStore, UserStore
+from kbrefiner.db import AuditStore, SettingsStore, TaskStore, UserStore
 
 from .deps import (
+    get_audit_store,
     get_settings_store,
     get_task_store,
     get_user_store,
@@ -111,6 +113,7 @@ async def get_settings_(
         "storage": {
             "upload_dir": env_settings.upload_dir,
             "output_dir": env_settings.output_dir,
+            "tmp_dir": str(all_cfg.get("tmp_dir") or ""),
             "disk_max_gb": all_cfg.get("disk_max_gb", 500),
             "disk_warn_percent": all_cfg.get("disk_warn_percent", 80),
             "disk_used_gb": _disk_usage_gb(),
@@ -152,8 +155,10 @@ _SECURITY_FIELDS = {"login_fail_limit", "login_lock_minutes", "session_timeout_m
 @router.put("/settings")
 async def update_settings(
     body: SettingsUpdateRequest,
+    request: Request,
     admin: dict = Depends(require_admin),
     settings_store: SettingsStore = Depends(get_settings_store),
+    audit_store: AuditStore = Depends(get_audit_store),
 ):
     """更新系统设置（仅超级管理员）。配额数值必须非负。"""
     if admin.get("role") != "super_admin":
@@ -222,6 +227,9 @@ async def update_settings(
             updates["upload_dir"] = str(s["upload_dir"]).strip()
         if "output_dir" in s and s["output_dir"]:
             updates["output_dir"] = str(s["output_dir"]).strip()
+        # FR-3: tmp_dir，只要键存在就写入（允许空串）
+        if "tmp_dir" in s:
+            updates["tmp_dir"] = str(s["tmp_dir"]).strip()
         for k in ("disk_max_gb", "disk_warn_percent"):
             if k in s:
                 v = s[k]
@@ -242,4 +250,15 @@ async def update_settings(
 
     for k, v in updates.items():
         settings_store.set(k, v, updated_by=admin["id"])
+
+    # FR-6.2: 审计日志（best-effort）
+    try:
+        audit_store.record(
+            user=admin, action="settings.updated", target_type="settings",
+            detail=json.dumps(sorted(updates.keys()), ensure_ascii=False),
+            request=request,
+        )
+    except Exception:
+        pass
+
     return {"ok": True, "updated_keys": sorted(updates.keys()), "message": "设置已保存"}

@@ -379,6 +379,9 @@ a:hover { color: var(--kb-primary-700); }
           <a class="kb-admin-nav-item" href="/admin/access" data-dom-id="nav-access">
             <i data-lucide="shield"></i><span>黑白名单</span>
           </a>
+          <a class="kb-admin-nav-item" href="/admin/audit-logs" data-nav="audit-logs">
+            <i data-lucide="clipboard-list"></i><span>操作审计</span>
+          </a>
           <a class="kb-admin-nav-item" href="/admin/settings" data-dom-id="nav-settings">
             <i data-lucide="settings"></i><span>系统设置</span>
           </a>
@@ -436,15 +439,23 @@ a:hover { color: var(--kb-primary-700); }
         <div class="kb-modal-field">
           <label class="kb-modal-label" for="add-user-name">用户名</label>
           <input type="text" id="add-user-name" name="name" class="kb-input" placeholder="请输入用户名" data-dom-id="input-add-user-name">
+          <span id="err-add-user-name" class="kb-text-error kb-text-sm" style="display:block;margin-top:4px;min-height:1em;"></span>
         </div>
         <div class="kb-modal-field">
           <label class="kb-modal-label" for="add-user-email">邮箱</label>
           <input type="email" id="add-user-email" name="email" class="kb-input" placeholder="请输入邮箱地址" data-dom-id="input-add-user-email">
+          <span id="err-add-user-email" class="kb-text-error kb-text-sm" style="display:block;margin-top:4px;min-height:1em;"></span>
         </div>
         <div class="kb-modal-field">
           <label class="kb-modal-label" for="add-user-password">密码</label>
           <input type="password" id="add-user-password" name="password" class="kb-input" placeholder="请输入初始密码" data-dom-id="input-add-user-password">
           <p class="kb-modal-hint">用户首次登录后可自行修改</p>
+          <span id="err-add-user-password" class="kb-text-error kb-text-sm" style="display:block;margin-top:4px;min-height:1em;"></span>
+        </div>
+        <div class="kb-modal-field">
+          <label class="kb-modal-label" for="add-user-confirm-password">确认密码</label>
+          <input type="password" id="add-user-confirm-password" name="confirm_password" class="kb-input" placeholder="请再次输入初始密码" data-dom-id="input-add-user-confirm-password">
+          <span id="err-add-user-confirm-password" class="kb-text-error kb-text-sm" style="display:block;margin-top:4px;min-height:1em;"></span>
         </div>
         <div class="kb-modal-field">
           <label class="kb-modal-label" for="add-user-role">角色</label>
@@ -453,6 +464,7 @@ a:hover { color: var(--kb-primary-700); }
             <option value="admin">管理员</option>
             <option value="super_admin">超级管理员</option>
           </select>
+          <span id="err-add-user-role" class="kb-text-error kb-text-sm" style="display:block;margin-top:4px;min-height:1em;"></span>
         </div>
         <div class="kb-modal-field">
           <label class="kb-modal-label" for="add-user-status">状态</label>
@@ -460,6 +472,7 @@ a:hover { color: var(--kb-primary-700); }
             <option value="active" selected>启用</option>
             <option value="disabled">禁用</option>
           </select>
+          <span id="err-add-user-status" class="kb-text-error kb-text-sm" style="display:block;margin-top:4px;min-height:1em;"></span>
         </div>
       </form>
       <div class="kb-modal-footer">
@@ -509,17 +522,95 @@ a:hover { color: var(--kb-primary-700); }
         window.location.href = '/admin/login';
       });
 
+      // ===== 添加用户表单校验 =====
+      const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+      const VALID_ROLES = ['user', 'admin', 'super_admin'];
+      const VALID_STATUS = ['active', 'disabled'];
+
+      function setAddUserError(field, msg) {
+        const el = document.getElementById('err-add-user-' + field);
+        if (el) el.textContent = msg || '';
+      }
+
+      function validateAddUserName() {
+        const v = document.getElementById('add-user-name').value.trim();
+        if (v.length < 2) { setAddUserError('name', '用户名至少 2 个字符'); return false; }
+        setAddUserError('name', ''); return true;
+      }
+      function validateAddUserEmail() {
+        const v = document.getElementById('add-user-email').value.trim();
+        if (!EMAIL_RE.test(v)) { setAddUserError('email', '请输入正确的邮箱格式'); return false; }
+        setAddUserError('email', ''); return true;
+      }
+      function validateAddUserPassword() {
+        const v = document.getElementById('add-user-password').value;
+        if (v.length < 6) { setAddUserError('password', '密码至少 6 位'); return false; }
+        setAddUserError('password', ''); return true;
+      }
+      function validateAddUserConfirm() {
+        const p1 = document.getElementById('add-user-password').value;
+        const p2 = document.getElementById('add-user-confirm-password').value;
+        if (p1 !== p2) { setAddUserError('confirm-password', '两次输入密码不一致'); return false; }
+        setAddUserError('confirm-password', ''); return true;
+      }
+      function validateAddUserRole() {
+        const v = document.getElementById('add-user-role').value;
+        if (!v || !VALID_ROLES.includes(v)) { setAddUserError('role', '请选择角色'); return false; }
+        setAddUserError('role', ''); return true;
+      }
+      function validateAddUserStatus() {
+        const v = document.getElementById('add-user-status').value;
+        if (!v || !VALID_STATUS.includes(v)) { setAddUserError('status', '请选择状态'); return false; }
+        setAddUserError('status', ''); return true;
+      }
+      function validateAddUserAll() {
+        const r1 = validateAddUserName();
+        const r2 = validateAddUserEmail();
+        const r3 = validateAddUserPassword();
+        const r4 = validateAddUserConfirm();
+        const r5 = validateAddUserRole();
+        const r6 = validateAddUserStatus();
+        return r1 && r2 && r3 && r4 && r5 && r6;
+      }
+
+      document.getElementById('add-user-name').addEventListener('blur', validateAddUserName);
+      document.getElementById('add-user-name').addEventListener('input', validateAddUserName);
+      document.getElementById('add-user-email').addEventListener('blur', validateAddUserEmail);
+      document.getElementById('add-user-email').addEventListener('input', validateAddUserEmail);
+      document.getElementById('add-user-password').addEventListener('blur', validateAddUserPassword);
+      document.getElementById('add-user-password').addEventListener('input', function () {
+        validateAddUserPassword();
+        if (document.getElementById('add-user-confirm-password').value.length > 0) validateAddUserConfirm();
+      });
+      document.getElementById('add-user-confirm-password').addEventListener('blur', validateAddUserConfirm);
+      document.getElementById('add-user-confirm-password').addEventListener('input', validateAddUserConfirm);
+      document.getElementById('add-user-role').addEventListener('change', validateAddUserRole);
+      document.getElementById('add-user-status').addEventListener('change', validateAddUserStatus);
+
       // ===== 提交添加用户 =====
       document.querySelector('[data-dom-id="btn-confirm-add-user"]').addEventListener('click', async () => {
+        if (!validateAddUserAll()) {
+          // focus to first error field
+          const order = ['name', 'email', 'password', 'confirm-password', 'role', 'status'];
+          for (const f of order) {
+            const el = document.getElementById('err-add-user-' + f);
+            if (el && el.textContent) {
+              const input = document.getElementById(
+                f === 'confirm-password' ? 'add-user-confirm-password' :
+                (f === 'role' ? 'add-user-role' : f === 'status' ? 'add-user-status' : 'add-user-' + f)
+              );
+              if (input) input.focus();
+              break;
+            }
+          }
+          return;
+        }
+
         const username = document.getElementById('add-user-name').value.trim();
         const email = document.getElementById('add-user-email').value.trim();
         const password = document.getElementById('add-user-password').value;
         const role = document.getElementById('add-user-role').value;
         const status = document.getElementById('add-user-status').value;
-
-        if (!username) return alert('请输入用户名');
-        if (!email || !email.includes('@')) return alert('请输入合法邮箱');
-        if (password.length < 6) return alert('初始密码至少 6 位');
 
         const btn = document.querySelector('[data-dom-id="btn-confirm-add-user"]');
         btn.disabled = true;

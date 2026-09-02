@@ -627,10 +627,12 @@ a:hover { color: var(--kb-primary-700); }
               <div class="kb-upload-text">点击或拖拽文件到此处上传</div>
               <div class="kb-upload-hint">支持 PDF / Word / Markdown，单个文件不超过 50MB</div>
             </div>
+            <span class="kb-text-error kb-text-sm" id="err-file" style="display:block;margin-top:8px;min-height:18px;"></span>
           </div>
           <div class="kb-form-group">
             <label class="kb-label" for="task-name">任务名称</label>
             <input type="text" class="kb-input" id="task-name" placeholder="例如：产品手册_2024_Q3">
+            <span class="kb-text-error kb-text-sm" id="err-name" style="display:block;margin-top:8px;min-height:18px;"></span>
           </div>
         </div>
         <div class="kb-modal-footer">
@@ -648,16 +650,52 @@ a:hover { color: var(--kb-primary-700); }
       let _selectedFile = null;
       let _fileId = null;
 
+      const MAX_FILE_BYTES = 50 * 1024 * 1024;
+      const ALLOWED_EXT = new Set(['pdf', 'docx', 'md', 'txt', 'markdown']);
+
       const uploadZone = document.getElementById('task-upload');
       const fileInput = document.createElement('input');
       fileInput.type = 'file';
-      fileInput.accept = '.pdf,.docx,.pptx,.xlsx,.png,.jpg,.jpeg,.bmp,.md,.markdown,.txt';
+      fileInput.accept = '.pdf,.docx,.md,.markdown,.txt';
       fileInput.style.display = 'none';
       uploadZone.appendChild(fileInput);
 
       const taskNameInput = document.getElementById('task-name');
       const btnConfirm = document.querySelector('[data-dom-id="btn-confirm-new-task"]');
       const btnCancel = document.querySelector('[data-dom-id="btn-cancel-new-task"]');
+      const errFile = document.getElementById('err-file');
+      const errName = document.getElementById('err-name');
+
+      function validateTaskNew(fInput, nameInput) {
+        const errors = [];
+        const files = fInput ? fInput.files : (_selectedFile ? [_selectedFile] : []);
+        if (!files || files.length === 0) {
+          errors.push({ field: 'file', msg: '请先选择要上传的文件' });
+        } else {
+          const f = files[0];
+          const dot = f.name.lastIndexOf('.');
+          const ext = dot >= 0 ? f.name.slice(dot + 1).toLowerCase() : '';
+          if (!ALLOWED_EXT.has(ext)) {
+            errors.push({ field: 'file', msg: '不支持的文件类型，仅允许 PDF/DOCX/MD/TXT' });
+          } else if (f.size > MAX_FILE_BYTES) {
+            errors.push({ field: 'file', msg: '文件大小超过限制：50MB' });
+          }
+        }
+        if (!nameInput.value.trim()) {
+          errors.push({ field: 'name', msg: '请输入任务名称' });
+        }
+        return { ok: errors.length === 0, errors };
+      }
+
+      function applyValidation() {
+        const { ok, errors } = validateTaskNew(fileInput, taskNameInput);
+        const fileErr = errors.find(e => e.field === 'file');
+        const nameErr = errors.find(e => e.field === 'name');
+        errFile.textContent = fileErr ? fileErr.msg : '';
+        errName.textContent = nameErr ? nameErr.msg : '';
+        btnConfirm.disabled = !ok;
+        return { ok, errors };
+      }
 
       // ===== 上传区域交互 =====
       uploadZone.addEventListener('click', () => fileInput.click());
@@ -676,7 +714,10 @@ a:hover { color: var(--kb-primary-700); }
         uploadZone.style.borderColor = '';
         uploadZone.style.background = '';
         if (e.dataTransfer.files.length) {
-          fileInput.files = e.dataTransfer.files;
+          // DataTransfer.files 是 FileList 只读对象，直接用第一个即可
+          const dt = new DataTransfer();
+          dt.items.add(e.dataTransfer.files[0]);
+          fileInput.files = dt.files;
           onFileSelected();
         }
       });
@@ -696,15 +737,28 @@ a:hover { color: var(--kb-primary-700); }
         if (!taskNameInput.value) {
           taskNameInput.value = file.name.replace(/\.[^.]+$/, '');
         }
+        applyValidation();
       }
+
+      taskNameInput.addEventListener('input', applyValidation);
+
+      // 初始校验按钮禁用
+      applyValidation();
 
       // ===== 确认创建 =====
       btnConfirm.addEventListener('click', async () => {
-        if (!_selectedFile) {
-          alert('请先选择要上传的文件');
+        const { ok } = applyValidation();
+        if (!ok) {
+          if (errFile.textContent) uploadZone.focus?.();
+          else if (errName.textContent) taskNameInput.focus();
           return;
         }
-        const taskName = taskNameInput.value.trim() || _selectedFile.name;
+        if (!_selectedFile) {
+          errFile.textContent = '请先选择要上传的文件';
+          btnConfirm.disabled = true;
+          return;
+        }
+        const taskName = taskNameInput.value.trim();
         btnConfirm.disabled = true;
         btnConfirm.textContent = '上传中...';
 

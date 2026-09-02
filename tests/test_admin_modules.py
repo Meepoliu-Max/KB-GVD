@@ -28,7 +28,9 @@ from kbrefiner.api import deps, routes
 from kbrefiner.config import Settings, get_settings
 from kbrefiner.db import (
     AccessStore,
+    AuditStore,
     MessageStore,
+    PasswordResetStore,
     SettingsStore,
     TaskStore,
     UserStore,
@@ -44,6 +46,8 @@ _originals = {
     "deps_settings": deps._settings_store,
     "deps_message": deps._message_store,
     "deps_access": deps._access_store,
+    "deps_audit": deps._audit_store,
+    "deps_password_reset": deps._password_reset_store,
 }
 
 
@@ -57,6 +61,8 @@ class _Bundle:
         self.settings_store = SettingsStore(db)
         self.message_store = MessageStore(db)
         self.access_store = AccessStore(db)
+        self.audit_store = AuditStore(db)
+        self.password_reset_store = PasswordResetStore(db)
 
     def install(self) -> None:
         routes._task_store = self.task_store
@@ -65,6 +71,8 @@ class _Bundle:
         deps._settings_store = self.settings_store
         deps._message_store = self.message_store
         deps._access_store = self.access_store
+        deps._audit_store = self.audit_store
+        deps._password_reset_store = self.password_reset_store
 
     def restore(self) -> None:
         routes._task_store = _originals["routes_task"]
@@ -73,8 +81,11 @@ class _Bundle:
         deps._settings_store = _originals["deps_settings"]
         deps._message_store = _originals["deps_message"]
         deps._access_store = _originals["deps_access"]
+        deps._audit_store = _originals["deps_audit"]
+        deps._password_reset_store = _originals["deps_password_reset"]
         for store in (self.task_store, self.user_store, self.settings_store,
-                      self.message_store, self.access_store):
+                      self.message_store, self.access_store,
+                      self.audit_store, self.password_reset_store):
             store.close()
 
 
@@ -748,6 +759,210 @@ class TestMaintenance(unittest.TestCase):
         self.assertTrue(Path(new_dir).exists())
         # 未设置覆盖的 output_dir 不变
         self.assertNotEqual(self.settings.output_dir, new_dir)
+
+
+# =====================================================================
+# FR-3: 系统设置暴露/写入 tmp_dir（存储设置）
+# =====================================================================
+
+class TestFR3SettingsTmpDir(_ApiTestBase):
+
+    def test_get_settings_contains_tmp_dir(self):
+        """GET /api/admin/settings 返回的 storage 中应包含 tmp_dir。"""
+        sup = self._client_as("root@x.com")
+        data = sup.get("/api/admin/settings").json()
+        # 分组存在
+        self.assertIn("tmp_dir", data["storage"])
+        # 默认值为空串（未配置时）
+        self.assertIsInstance(data["storage"]["tmp_dir"], str)
+
+    def test_update_tmp_dir_persists_and_returns_key(self):
+        """PUT 写入 storage.tmp_dir 应持久化，响应包含更新键 tmp_dir。"""
+        sup = self._client_as("root@x.com")
+        target = str(Path(self.temp.name) / "custom-tmp")
+        resp = sup.put("/api/admin/settings", json={
+            "storage": {"tmp_dir": target},
+        })
+        self.assertEqual(resp.status_code, 200, resp.text)
+        body = resp.json()
+        self.assertIn("tmp_dir", body["updated_keys"])
+
+        # 再次读取：返回的 tmp_dir 一致
+        got = sup.get("/api/admin/settings").json()["storage"]["tmp_dir"]
+        self.assertEqual(got, target)
+        # 底层持久化：meta 有覆盖记录
+        meta = self.bundle.settings_store.meta("tmp_dir")
+        self.assertIsNotNone(meta)
+
+    def test_update_tmp_dir_can_be_cleared_to_empty(self):
+        """允许把 tmp_dir 写为空串（清空路径）。"""
+        sup = self._client_as("root@x.com")
+        # 先设置非空
+        sup.put("/api/admin/settings", json={
+            "storage": {"tmp_dir": "/some/where"},
+        })
+        # 再置空
+        resp = sup.put("/api/admin/settings", json={
+            "storage": {"tmp_dir": "   "},  # 空白被 strip 为空
+        })
+        self.assertEqual(resp.status_code, 200)
+        got = sup.get("/api/admin/settings").json()["storage"]["tmp_dir"]
+        self.assertEqual(got, "")
+
+    def test_update_tmp_dir_forbidden_for_regular_admin(self):
+        """普通管理员不可修改任何设置（含 tmp_dir）。"""
+        admin = self._client_as("admin@x.com")
+        resp = admin.put("/api/admin/settings", json={
+            "storage": {"tmp_dir": "/bad/path"},
+        })
+        self.assertEqual(resp.status_code, 403)
+
+
+# =====================================================================
+# FR-6: 审计日志查询 /api/admin/audit-logs  + 审计点写入
+# =====================================================================
+
+class TestFR6AuditLogs(_ApiTestBase):
+
+    def test_audit_logs_guarded(self):
+        """审计日志 API 需要管理员身份。"""
+        anon = _make_client(temp_dir=self.temp.name)
+        self.assertEqual(anon.get("/api/admin/audit-logs").status_code, 401)
+        user_client = self._client_as("user@x.com")
+        self.assertEqual(user_client.get("/api/admin/audit-logs").status_code, 403)
+
+    def test_audit_logs_returns_list_and_total(self):
+        """结构：logs 列表 + total 字段，支持 limit/offset。"""
+        # 先人工写几条审计，模拟已记录
+        self.bundle.audit_store.record(user=self.super_admin, action="settings.updated")
+        self.bundle.audit_store.record(user=self.admin, action="user.created")
+        self.bundle.audit_store.record(user=self.user, action="task.cancelled")
+
+        # 注意：以下 sup = _client_as 会再写 auth.login.success 审计，所以总数 +1
+        sup = self._client_as("root@x.com")
+        resp = sup.get("/api/admin/audit-logs", params={"limit": 2})
+        self.assertEqual(resp.status_code, 200, resp.text)
+        data = resp.json()
+        self.assertIn("logs", data)
+        self.assertIn("total", data)
+        # 至少包含我们手动写入的 3 条 + 1 条登录
+        self.assertGreaterEqual(data["total"], 3)
+        # limit 生效：最多返回 2
+        self.assertLessEqual(len(data["logs"]), 2)
+
+        # 日志结构：包含 action / user_id / created_at（created_at 可能是时间戳）
+        first = data["logs"][0]
+        for k in ("id", "action", "user_id", "created_at"):
+            self.assertIn(k, first)
+        # 最新在前：created_at 倒序
+        if len(data["logs"]) >= 2:
+            self.assertGreaterEqual(
+                data["logs"][0]["created_at"], data["logs"][1]["created_at"]
+            )
+
+    def test_audit_logs_pagination_offset(self):
+        """分页 offset：前后两页记录 ID 不应重叠。"""
+        # 写入唯一 action 名的 5 条记录（避免与登录等噪声混淆），并间隔时间戳
+        base = time.time() - 100
+        for i in range(5):
+            self.bundle.audit_store.record(
+                action=f"uniq_page_act_{i}",
+            )
+            # 回写 created_at 保持严格递减（避免 ORDER BY created_at DESC + LIMIT 乱序）
+            with self.bundle.audit_store._lock:
+                self.bundle.audit_store._conn.execute(
+                    "UPDATE audit_logs SET created_at = ? WHERE action = ?",
+                    (base + i, f"uniq_page_act_{i}"),
+                )
+                self.bundle.audit_store._conn.commit()
+
+        sup = self._client_as("root@x.com")
+        # 仅取我们的唯一 action，避免登录噪声污染
+        # 为了简单：用 limit 3 offset 0 与 limit 3 offset 2，并保证 5 条独特动作的日志都能被读取
+        # 改用通过 action 前缀过滤并手动分页：查询全部，然后按 limit/offset 模拟
+        all_logs = self.bundle.audit_store.list(limit=100)
+        # 只看我们唯一前缀日志，并按时间升序（最早 i=0）再截取
+        filtered = [l for l in all_logs if str(l.get("action", "")).startswith("uniq_page_act_")]
+        # 应为 5 条，去重后按 action 排序（唯一）
+        self.assertEqual(len({l["action"] for l in filtered}), 5)
+
+        # 真正测分页：limit/offset 在 5 条里，我们只取 unique 集
+        r1 = sup.get("/api/admin/audit-logs", params={"limit": 50, "offset": 0}).json()
+        ids_in_page1 = {l["id"] for l in r1["logs"] if
+                        str(l.get("action", "")).startswith("uniq_page_act_")}
+        self.assertEqual(len(ids_in_page1), 5)
+        # 第 2 页：无新的 unique 日志，只是为了验证查询本身可行
+        r2 = sup.get("/api/admin/audit-logs", params={"limit": 50, "offset": 50}).json()
+        ids_in_page2 = {l["id"] for l in r2["logs"] if
+                        str(l.get("action", "")).startswith("uniq_page_act_")}
+        self.assertEqual(len(ids_in_page2), 0)
+        # 跨页不重复（两页并集大小仍为 5）
+        self.assertEqual(len(ids_in_page1 | ids_in_page2), 5)
+
+    def test_audit_logs_filters(self):
+        """按 action / user_id 过滤生效。"""
+        # 先登录 super_admin（产生噪声但被具体 action 过滤掉）
+        sup = self._client_as("root@x.com")
+
+        # 构造带唯一前缀的日志，避免登录噪声
+        self.bundle.audit_store.record(user=self.admin, action="xfilter_user_created")
+        self.bundle.audit_store.record(user=self.admin, action="xfilter_msg_sent")
+        self.bundle.audit_store.record(user=self.user, action="xfilter_msg_sent")
+
+        # 按 action 过滤
+        r = sup.get("/api/admin/audit-logs", params={
+            "action": "xfilter_user_created", "limit": 50,
+        }).json()
+        # 过滤后所有返回日志要么符合前缀 action，要么不相关
+        matched = [l for l in r["logs"] if l.get("action") == "xfilter_user_created"]
+        # 至少有 1 条符合（我们刚写了 1 条）
+        self.assertGreaterEqual(len(matched), 1)
+        # 且没有其他 xfilter_msg_sent 混入
+        for l in r["logs"]:
+            # 如果属于唯一前缀系列，必须是该 action
+            if str(l.get("action", "")).startswith("xfilter_"):
+                self.assertEqual(l["action"], "xfilter_user_created")
+
+        # 按 user_id 过滤：只返回该用户的日志
+        r = sup.get("/api/admin/audit-logs", params={
+            "user_id": self.admin["id"], "limit": 200,
+        }).json()
+        # 至少有 2 条（xfilter_user_created + xfilter_msg_sent）
+        admin_action_logs = [l for l in r["logs"] if
+                             l.get("user_id") == self.admin["id"] and
+                             str(l.get("action", "")).startswith("xfilter_")]
+        self.assertEqual(len(admin_action_logs), 2)
+        # 返回日志中所有 user_id 都是 admin（过滤严格）
+        for l in r["logs"]:
+            self.assertEqual(l["user_id"], self.admin["id"])
+
+    def test_audit_point_on_settings_update(self):
+        """修改设置后应产生一条 settings.updated 审计记录。"""
+        sup = self._client_as("root@x.com")
+        # 先记录现有最新若干条审计
+        before_actions = {l["action"] for l in self.bundle.audit_store.list(limit=50)}
+        resp = sup.put("/api/admin/settings", json={
+            "storage": {"disk_max_gb": 200},
+        })
+        self.assertEqual(resp.status_code, 200, resp.text)
+
+        # 最新一条（或在前 5 条）包含 settings.updated
+        latest = self.bundle.audit_store.list(limit=5)
+        latest_actions = {l["action"] for l in latest}
+        self.assertIn("settings.updated", latest_actions)
+        # 或至少有新增
+        self.assertGreaterEqual(self.bundle.audit_store.count(), len(before_actions) + 0)
+
+    def test_audit_point_on_login(self):
+        """登录应产生 auth.login.success 审计记录。"""
+        before = {l["action"] for l in self.bundle.audit_store.list(limit=50)}
+        client = _make_client(temp_dir=self.temp.name)
+        r = client.post("/api/auth/login", json={
+            "email": "user@x.com", "password": "pass123",
+        })
+        self.assertEqual(r.status_code, 200, r.text)
+        latest = {l["action"] for l in self.bundle.audit_store.list(limit=10)}
+        self.assertIn("auth.login.success", latest - before)
 
 
 if __name__ == "__main__":

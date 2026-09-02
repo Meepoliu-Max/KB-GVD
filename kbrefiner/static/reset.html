@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>注册 - KBRefiner</title>
+    <title>设置新密码 - KBRefiner</title>
     <style id="theme-vars">
 /* 知序 KBRefiner — 产品前端设计系统 */
 
@@ -203,72 +203,6 @@ a:hover { color: var(--kb-primary-700); }
 .kb-tag-info { background: var(--kb-state-info-bg); color: #0369a1; }
 .kb-tag-muted { background: var(--kb-neutral-100); color: var(--kb-neutral-600); }
 
-.kb-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.8125rem;
-  font-weight: 600;
-}
-
-.kb-status::before {
-  content: "";
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-}
-
-.kb-status-pending::before { background: var(--kb-neutral-400); }
-.kb-status-running::before { background: var(--kb-state-info); }
-.kb-status-success::before { background: var(--kb-state-success); }
-.kb-status-warning::before { background: var(--kb-state-warning); }
-.kb-status-error::before { background: var(--kb-state-error); }
-
-.kb-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.875rem;
-}
-
-.kb-table th,
-.kb-table td {
-  padding: var(--kb-space-3) var(--kb-space-4);
-  text-align: left;
-  border-bottom: 1px solid var(--kb-border);
-}
-
-.kb-table th {
-  font-weight: 600;
-  color: var(--kb-neutral-600);
-  background: var(--kb-neutral-50);
-  font-size: 0.8125rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-.kb-table tr:hover td { background: var(--kb-neutral-50); }
-
-.kb-progress {
-  width: 100%;
-  height: 8px;
-  background: var(--kb-neutral-200);
-  border-radius: 9999px;
-  overflow: hidden;
-}
-
-.kb-progress-bar {
-  height: 100%;
-  background: linear-gradient(90deg, var(--kb-primary-500), var(--kb-primary-600));
-  border-radius: 9999px;
-  transition: width 0.4s ease;
-}
-
-.kb-empty {
-  text-align: center;
-  padding: var(--kb-space-12) var(--kb-space-6);
-  color: var(--kb-neutral-500);
-}
-
 .kb-text-muted { color: var(--kb-neutral-500); }
 .kb-text-secondary { color: var(--kb-neutral-600); }
 .kb-text-primary { color: var(--kb-primary); }
@@ -279,11 +213,6 @@ a:hover { color: var(--kb-primary-700); }
 .kb-font-bold { font-weight: 700; }
 .kb-text-sm { font-size: 0.875rem; }
 .kb-text-xs { font-size: 0.75rem; }
-.kb-truncate {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.1/dist/index.global.js"></script>
     <script src="https://unpkg.com/lucide@1.8.0/dist/umd/lucide.min.js"></script>
@@ -308,8 +237,6 @@ a:hover { color: var(--kb-primary-700); }
   }
   @layer base {
     body { background: var(--kb-background); color: var(--kb-foreground); }
-    td, th { @apply break-words; word-break: break-all; word-break: auto-phrase; }
-    th { @apply whitespace-nowrap; }
   }
     </style>
     <style id="semantic-token-fallback">
@@ -440,8 +367,8 @@ a:hover { color: var(--kb-primary-700); }
         </div>
       </aside>
 
-      <!-- 右侧登录表单区 -->
-      <main class="kb-login-main" aria-labelledby="login-title">
+      <!-- 右侧重置密码表单区 -->
+      <main class="kb-login-main" aria-labelledby="reset-title">
         <!-- 移动端品牌头（仅 ≤768px 显示） -->
         <div class="kb-login-mobile-brand">
           <div class="kb-login-brand-icon kb-login-brand-icon-sm">知序</div>
@@ -449,66 +376,65 @@ a:hover { color: var(--kb-primary-700); }
         </div>
 
         <div class="kb-login-form-wrap">
-          <h1 id="login-title" class="kb-login-title">创建账号</h1>
-          <p class="kb-login-subtitle">注册以开始使用 KBRefiner</p>
+          <h1 id="reset-title" class="kb-login-title">设置新密码</h1>
+          <p class="kb-login-subtitle">请输入您的新密码（至少 6 位）。<span class="kb-text-muted" style="font-size:0.8125rem;display:block;margin-top:2px;">重置链接仅可使用一次。</span></p>
 
           <div class="kb-login-card">
-            <!-- 用户名输入 -->
-            <div class="kb-login-field">
-              <label class="kb-login-label" for="reg-username">用户名</label>
-              <div class="kb-login-input-wrap">
-                <i data-lucide="user" class="kb-login-input-icon"></i>
-                <input id="reg-username" name="username" type="text" class="kb-input kb-login-input" placeholder="请输入用户名（2-32 字符）" autocomplete="username" maxlength="32">
+            <!-- 链接无效横幅（无 token 时显示） -->
+            <div class="kb-login-alert" role="alert" id="reset-invalid" style="display:none;">
+              <i data-lucide="alert-circle" class="kb-login-alert-icon"></i>
+              <div>
+                <strong>重置链接无效</strong>，请重新向管理员申请。
+                <div style="margin-top:8px;">
+                  <a href="/login" class="kb-text-primary kb-font-semibold">→ 返回登录</a>
+                </div>
               </div>
-              <span class="kb-text-error kb-text-sm" id="err-username" style="display:block;margin-top:6px;min-height:18px;"></span>
             </div>
 
-            <!-- 邮箱输入 -->
-            <div class="kb-login-field">
-              <label class="kb-login-label" for="reg-email">邮箱</label>
-              <div class="kb-login-input-wrap">
-                <i data-lucide="mail" class="kb-login-input-icon"></i>
-                <input id="reg-email" name="email" type="email" class="kb-input kb-login-input" placeholder="请输入邮箱地址" autocomplete="email">
-              </div>
-              <span class="kb-text-error kb-text-sm" id="err-email" style="display:block;margin-top:6px;min-height:18px;"></span>
+            <!-- 成功提示（默认隐藏） -->
+            <div class="kb-login-alert kb-login-alert-success" role="status" id="reset-success" style="display:none;">
+              <i data-lucide="check-circle-2" class="kb-login-alert-icon"></i>
+              <span>密码已修改，3 秒后自动跳转到登录页…</span>
             </div>
-
-            <!-- 密码输入 -->
-            <div class="kb-login-field">
-              <label class="kb-login-label" for="reg-password">密码</label>
-              <div class="kb-login-input-wrap">
-                <i data-lucide="lock" class="kb-login-input-icon"></i>
-                <input id="reg-password" name="password" type="password" class="kb-input kb-login-input" placeholder="请输入密码（至少 6 位）" autocomplete="new-password">
-              </div>
-              <span class="kb-text-error kb-text-sm" id="err-password" style="display:block;margin-top:6px;min-height:18px;"></span>
-            </div>
-
-            <!-- 确认密码 -->
-            <div class="kb-login-field">
-              <label class="kb-login-label" for="reg-password2">确认密码</label>
-              <div class="kb-login-input-wrap">
-                <i data-lucide="lock" class="kb-login-input-icon"></i>
-                <input id="reg-password2" name="password2" type="password" class="kb-input kb-login-input" placeholder="请再次输入密码" autocomplete="new-password">
-              </div>
-              <span class="kb-text-error kb-text-sm" id="err-password2" style="display:block;margin-top:6px;min-height:18px;"></span>
-            </div>
-
-            <!-- 主注册按钮 -->
-            <button class="kb-btn kb-btn-primary kb-login-btn" type="submit" id="btn-register">
-              <span id="btn-register-text">注册</span>
-            </button>
 
             <!-- 错误提示（默认隐藏） -->
-            <div class="kb-login-alert" role="alert" id="login-error" style="display:none;">
+            <div class="kb-login-alert" role="alert" id="reset-error" style="display:none;">
               <i data-lucide="alert-circle" class="kb-login-alert-icon"></i>
-              <span id="login-error-text">注册失败，请重试。</span>
+              <span id="reset-error-text">重置失败，请稍后重试。</span>
             </div>
-          </div>
 
-          <!-- 登录引导 -->
-          <p class="kb-login-register">
-            已有账号？<a href="/login" class="kb-login-register-link">返回登录</a>
-          </p>
+            <div id="reset-form-wrap">
+              <!-- 新密码输入 -->
+              <div class="kb-login-field">
+                <label class="kb-login-label" for="new-password">新密码</label>
+                <div class="kb-login-input-wrap">
+                  <i data-lucide="lock" class="kb-login-input-icon"></i>
+                  <input id="new-password" name="new_password" type="password" class="kb-input kb-login-input" placeholder="请输入新密码" autocomplete="new-password">
+                </div>
+                <span class="kb-text-error kb-text-sm" id="err-new-password" style="display:block;margin-top:6px;min-height:18px;"></span>
+              </div>
+
+              <!-- 确认新密码输入 -->
+              <div class="kb-login-field">
+                <label class="kb-login-label" for="confirm-password">确认新密码</label>
+                <div class="kb-login-input-wrap">
+                  <i data-lucide="lock" class="kb-login-input-icon"></i>
+                  <input id="confirm-password" name="confirm_password" type="password" class="kb-input kb-login-input" placeholder="请再次输入新密码" autocomplete="new-password">
+                </div>
+                <span class="kb-text-error kb-text-sm" id="err-confirm-password" style="display:block;margin-top:6px;min-height:18px;"></span>
+              </div>
+
+              <!-- 主提交按钮 -->
+              <button class="kb-btn kb-btn-primary kb-login-btn" type="button" id="btn-reset-submit">
+                <span id="btn-reset-text">提交新密码</span>
+              </button>
+            </div>
+
+            <!-- 底部 link -->
+            <p class="kb-login-back-link">
+              我没有重置链接，<a href="/login">返回登录</a>
+            </p>
+          </div>
 
           <!-- 版权声明 -->
           <p class="kb-login-copyright">© 2026 知序 KBRefiner</p>
@@ -520,108 +446,112 @@ a:hover { color: var(--kb-primary-700); }
     <script>
       lucide.createIcons();
 
-      const errBox = document.getElementById('login-error');
-      const errText = document.getElementById('login-error-text');
+      const invalidBox = document.getElementById('reset-invalid');
+      const successBox = document.getElementById('reset-success');
+      const errBox = document.getElementById('reset-error');
+      const errText = document.getElementById('reset-error-text');
+      const formWrap = document.getElementById('reset-form-wrap');
+      const newPwd = document.getElementById('new-password');
+      const confirmPwd = document.getElementById('confirm-password');
+      const errNewPwd = document.getElementById('err-new-password');
+      const errConfirmPwd = document.getElementById('err-confirm-password');
+      const submitBtn = document.getElementById('btn-reset-submit');
+      const submitText = document.getElementById('btn-reset-text');
+
+      // 从 URL 解析 token 参数
+      function getToken() {
+        try {
+          const params = new URLSearchParams(location.search);
+          return params.get('token') || '';
+        } catch (e) {
+          return '';
+        }
+      }
+
+      const TOKEN = getToken();
+      const TOKEN_VALID = !!TOKEN;
+
+      function initPage() {
+        if (!TOKEN_VALID) {
+          invalidBox.style.display = 'flex';
+          formWrap.style.display = 'none';
+          submitBtn.disabled = true;
+          return;
+        }
+      }
+      initPage();
 
       function showError(msg) {
         errText.textContent = msg;
         errBox.style.display = 'flex';
+        successBox.style.display = 'none';
       }
-      function clearError() { errBox.style.display = 'none'; }
+      function hideError() { errBox.style.display = 'none'; }
 
-      function _err(field, msg) {
-        const el = document.getElementById('err-' + field);
-        if (el) el.textContent = msg || '';
+      function validateNewPassword() {
+        const v = newPwd.value;
+        if (v.length < 6) {
+          errNewPwd.textContent = '密码至少 6 位';
+          return false;
+        }
+        errNewPwd.textContent = '';
+        return true;
       }
-      function validateRegUsername() {
-        const v = document.getElementById('reg-username').value.trim();
-        if (!v || v.length < 2) { _err('username', '用户名至少 2 个字符'); return false; }
-        if (v.length > 32) { _err('username', '用户名不能超过 32 个字符'); return false; }
-        _err('username', ''); return true;
+
+      function validateConfirm() {
+        if (confirmPwd.value.length === 0) {
+          errConfirmPwd.textContent = '请再次输入新密码';
+          return false;
+        }
+        if (newPwd.value !== confirmPwd.value) {
+          errConfirmPwd.textContent = '两次输入密码不一致';
+          return false;
+        }
+        errConfirmPwd.textContent = '';
+        return true;
       }
-      const _EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
-      function validateRegEmail() {
-        const v = document.getElementById('reg-email').value.trim();
-        if (!v) { _err('email', '请输入邮箱地址'); return false; }
-        if (!_EMAIL_RE.test(v)) { _err('email', '请输入正确的邮箱格式'); return false; }
-        _err('email', ''); return true;
-      }
-      function validateRegPassword() {
-        const v = document.getElementById('reg-password').value;
-        if (!v || v.length < 6) { _err('password', '密码至少 6 位'); return false; }
-        _err('password', ''); return true;
-      }
-      function validateRegConfirm() {
-        const p1 = document.getElementById('reg-password').value;
-        const p2 = document.getElementById('reg-password2').value;
-        if (!p2) { _err('password2', '请再次输入密码'); return false; }
-        if (p1 !== p2) { _err('password2', '两次输入的密码不一致'); return false; }
-        _err('password2', ''); return true;
-      }
-      function validateRegisterAll() {
-        const r1 = validateRegUsername();
-        const r2 = validateRegEmail();
-        const r3 = validateRegPassword();
-        const r4 = validateRegConfirm();
-        return r1 && r2 && r3 && r4;
-      }
-      document.getElementById('reg-username').addEventListener('blur', validateRegUsername);
-      document.getElementById('reg-username').addEventListener('input', validateRegUsername);
-      document.getElementById('reg-email').addEventListener('blur', validateRegEmail);
-      document.getElementById('reg-email').addEventListener('input', validateRegEmail);
-      document.getElementById('reg-password').addEventListener('blur', validateRegPassword);
-      document.getElementById('reg-password').addEventListener('input', function () {
-        validateRegPassword();
-        if (document.getElementById('reg-password2').value.length > 0) validateRegConfirm();
+
+      newPwd.addEventListener('blur', validateNewPassword);
+      newPwd.addEventListener('input', () => {
+        if (errNewPwd.textContent) validateNewPassword();
+        if (confirmPwd.value) validateConfirm();
       });
-      document.getElementById('reg-password2').addEventListener('blur', validateRegConfirm);
-      document.getElementById('reg-password2').addEventListener('input', validateRegConfirm);
+      confirmPwd.addEventListener('blur', validateConfirm);
+      confirmPwd.addEventListener('input', () => {
+        if (errConfirmPwd.textContent) validateConfirm();
+      });
 
-      async function doRegister() {
-        clearError();
-        if (!validateRegisterAll()) return;
-        const username = document.getElementById('reg-username').value.trim();
-        const email = document.getElementById('reg-email').value.trim();
-        const password = document.getElementById('reg-password').value;
-        const password2 = document.getElementById('reg-password2').value;
-        const btn = document.getElementById('btn-register');
-        const btnText = document.getElementById('btn-register-text');
-        btn.disabled = true;
-        btnText.textContent = '注册中...';
-        errBox.style.display = 'none';
+      async function doReset() {
+        hideError();
+        const ok1 = validateNewPassword();
+        const ok2 = validateConfirm();
+        if (!ok1) { newPwd.focus(); return; }
+        if (!ok2) { confirmPwd.focus(); return; }
+
+        submitBtn.disabled = true;
+        submitText.textContent = '提交中...';
         try {
-          const resp = await fetch('/api/auth/register', {
+          const payload = { token: TOKEN, new_password: newPwd.value };
+          // 真实调用，失败时走 catch 展示后端 detail
+          const resp = await KBRefiner.request('/api/auth/reset-password', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, email, password }),
+            body: JSON.stringify(payload)
           });
-          if (!resp.ok) {
-            const err = await resp.json().catch(() => ({}));
-            throw new Error(err.detail || `注册失败 (${resp.status})`);
-          }
-          // 注册成功后自动登录
-          await KBRefiner.Auth.login(email, password);
-          window.location.href = '/task-list';
+          successBox.style.display = 'flex';
+          formWrap.style.display = 'none';
+          setTimeout(() => { window.location.href = '/login'; }, 3000);
         } catch (e) {
-          showError(e.message || '注册失败，请重试');
+          showError(e.message || 'token 无效或已使用/已过期');
         } finally {
-          btn.disabled = false;
-          btnText.textContent = '注册';
+          submitBtn.disabled = false;
+          submitText.textContent = '提交新密码';
         }
       }
 
-      document.getElementById('btn-register').addEventListener('click', doRegister);
-      document.getElementById('reg-password2').addEventListener('keydown', e => {
-        if (e.key === 'Enter') doRegister();
+      document.getElementById('btn-reset-submit').addEventListener('click', doReset);
+      confirmPwd.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && TOKEN_VALID) doReset();
       });
-
-      // 已登录用户直接进入任务列表
-      (async () => {
-        try {
-          const { user } = await KBRefiner.Auth.me();
-          if (user) window.location.href = '/task-list';
-        } catch (e) { /* 忽略 */ }
-      })();
     </script>
 
     <style id="critical-layout">
@@ -771,7 +701,7 @@ a:hover { color: var(--kb-primary-700); }
 
     .kb-login-form-wrap {
       width: 100%;
-      max-width: 400px;
+      max-width: 420px;
     }
     .kb-login-title {
       font-size: 1.75rem;
@@ -794,10 +724,10 @@ a:hover { color: var(--kb-primary-700); }
     }
 
     .kb-login-field {
-      margin-bottom: var(--kb-space-5);
+      margin-bottom: var(--kb-space-4);
     }
     .kb-login-field:last-of-type {
-      margin-bottom: var(--kb-space-4);
+      margin-bottom: var(--kb-space-5);
     }
     .kb-login-label {
       display: block;
@@ -823,35 +753,6 @@ a:hover { color: var(--kb-primary-700); }
       padding-left: 40px;
     }
 
-    .kb-login-options {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: var(--kb-space-5);
-    }
-    .kb-login-remember {
-      display: flex;
-      align-items: center;
-      gap: var(--kb-space-2);
-      font-size: 0.875rem;
-      color: var(--kb-neutral-700);
-      cursor: pointer;
-      user-select: none;
-    }
-    .kb-login-checkbox {
-      width: 16px;
-      height: 16px;
-      accent-color: var(--kb-primary-600);
-      cursor: pointer;
-    }
-    .kb-login-forgot {
-      font-size: 0.8125rem;
-      color: var(--kb-primary-600);
-    }
-    .kb-login-forgot:hover {
-      color: var(--kb-primary-700);
-    }
-
     .kb-login-btn {
       width: 100%;
       background: var(--kb-primary-600);
@@ -868,7 +769,7 @@ a:hover { color: var(--kb-primary-700); }
 
     .kb-login-alert {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       gap: var(--kb-space-2);
       background: var(--kb-state-error-bg);
       border: 1px solid #fecaca;
@@ -876,69 +777,46 @@ a:hover { color: var(--kb-primary-700); }
       padding: 12px 16px;
       color: #b91c1c;
       font-size: 0.8125rem;
-      margin-bottom: var(--kb-space-4);
+      margin-bottom: var(--kb-space-5);
     }
     .kb-login-alert-icon {
       width: 16px;
       height: 16px;
       flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .kb-login-alert strong {
+      color: inherit;
+      font-weight: 700;
+      margin-right: 2px;
+    }
+    .kb-login-alert-success {
+      background: var(--kb-state-success-bg);
+      border-color: #a7f3d0;
+      color: #047857;
+      align-items: flex-start;
+    }
+    .kb-login-alert-success .kb-login-alert-icon {
+      color: #047857;
     }
 
-    .kb-login-divider {
-      display: flex;
-      align-items: center;
-      gap: var(--kb-space-3);
-      margin: var(--kb-space-4) 0;
-    }
-    .kb-login-divider-line {
-      flex: 1;
-      height: 1px;
-      background: var(--kb-border);
-    }
-    .kb-login-divider-text {
-      font-size: 0.75rem;
-      color: var(--kb-neutral-500);
-      white-space: nowrap;
-    }
-
-    .kb-login-feishu {
-      width: 100%;
-      background: var(--kb-neutral-0);
-      border: 1px solid var(--kb-border);
-      color: var(--kb-neutral-700);
-      border-radius: 8px;
-      padding: 12px;
-      font-weight: 600;
-      font-size: 0.875rem;
-    }
-    .kb-login-feishu:hover {
-      background: var(--kb-neutral-50);
-      border-color: var(--kb-neutral-300);
-    }
-    .kb-login-feishu-icon {
-      width: 16px;
-      height: 16px;
-      color: var(--kb-neutral-700);
-    }
-
-    .kb-login-register {
+    .kb-login-back-link {
       text-align: center;
-      margin-top: var(--kb-space-6);
       font-size: 0.875rem;
       color: var(--kb-neutral-500);
     }
-    .kb-login-register-link {
+    .kb-login-back-link a {
       color: var(--kb-primary-600);
       font-weight: 600;
-      margin-left: 4px;
+      margin-left: 2px;
     }
-    .kb-login-register-link:hover {
+    .kb-login-back-link a:hover {
       color: var(--kb-primary-700);
     }
 
     .kb-login-copyright {
       text-align: center;
-      margin-top: var(--kb-space-4);
+      margin-top: var(--kb-space-6);
       font-size: 0.75rem;
       color: var(--kb-neutral-400);
     }
@@ -947,7 +825,6 @@ a:hover { color: var(--kb-primary-700); }
     .kb-login-feature-icon { width: 20px !important; height: 20px !important; }
     .kb-login-input-icon { width: 18px !important; height: 18px !important; }
     .kb-login-alert-icon { width: 16px !important; height: 16px !important; }
-    .kb-login-feishu-icon { width: 16px !important; height: 16px !important; }
 
     /* ===== 响应式：≤768px 隐藏左侧 ===== */
     @media (max-width: 768px) {

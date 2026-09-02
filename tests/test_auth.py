@@ -22,7 +22,7 @@ from fastapi.testclient import TestClient
 from kbrefiner import auth as auth_mod
 from kbrefiner.api import deps, routes
 from kbrefiner.config import Settings, get_settings
-from kbrefiner.db import SettingsStore, TaskStore, UserStore
+from kbrefiner.db import AuditStore, PasswordResetStore, SettingsStore, TaskStore, UserStore
 from kbrefiner.main import app
 
 # 真实存储（测试结束后恢复）
@@ -30,6 +30,8 @@ _original_task_store = routes._task_store
 _original_user_store = deps._user_store
 _original_deps_task_store = deps._task_store
 _original_settings_store = deps._settings_store
+_original_audit_store = deps._audit_store
+_original_password_reset_store = deps._password_reset_store
 
 
 class _StoreBundle:
@@ -40,6 +42,8 @@ class _StoreBundle:
         self.task_store = TaskStore(db)
         self.user_store = UserStore(db)
         self.settings_store = SettingsStore(db)
+        self.audit_store = AuditStore(db)
+        self.password_reset_store = PasswordResetStore(db)
 
     def install(self) -> None:
         routes._task_store = self.task_store
@@ -48,15 +52,21 @@ class _StoreBundle:
         # 隔离运行时设置：否则真实库的 DB 覆盖（如 access_require_login）
         # 会压过测试注入的 .env 值
         deps._settings_store = self.settings_store
+        deps._audit_store = self.audit_store
+        deps._password_reset_store = self.password_reset_store
 
     def restore(self) -> None:
         routes._task_store = _original_task_store
         deps._task_store = _original_deps_task_store
         deps._user_store = _original_user_store
         deps._settings_store = _original_settings_store
+        deps._audit_store = _original_audit_store
+        deps._password_reset_store = _original_password_reset_store
         self.task_store.close()
         self.user_store.close()
         self.settings_store.close()
+        self.audit_store.close()
+        self.password_reset_store.close()
 
 
 def _make_client(*, require_login: bool = False, temp_dir: str = ".") -> TestClient:
@@ -682,6 +692,184 @@ class TestCliCreateSuperuser(_AuthApiTestBase):
         self.assertEqual(r1.exit_code, 0)
         r2 = CliRunner().invoke(cli, args, input="root1234\n")
         self.assertNotEqual(r2.exit_code, 0)
+
+
+# =====================================================================
+# FR-1: admin_stats 扩展字段（active_users / abnormal_tasks / user_rankings）
+# =====================================================================
+
+class TestFR1AdminStatsExtra(_AuthApiTestBase):
+
+    def test_stats_contains_fr1_fields(self):
+        uid = self.users["user"]["id"]
+        aid = self.users["admin"]["id"]
+        store = self.bundle.task_store
+        # 一步完成所有字段（避免第二次 __setitem__ 缺少 status 时被置回 pending）
+        store["t1"] = {
+            "status": "completed", "filename": "a.pdf", "file_size": 10,
+            "user_id": uid, "created_at": time.time(), "token_consumed": 300,
+        }
+        store["t2"] = {
+            "status": "failed", "filename": "b.pdf", "file_size": 10,
+            "user_id": uid, "created_at": time.time(),
+            "error": "解析失败: 文件损坏",
+        }
+        store["t3"] = {
+            "status": "processing", "filename": "c.pdf", "file_size": 10,
+            "user_id": aid, "created_at": time.time() - 3 * 3600,
+            "token_consumed": 50,
+        }
+        store["t4"] = {
+            "status": "completed", "filename": "d.pdf", "file_size": 10,
+            "user_id": aid, "created_at": time.time(), "token_consumed": 1000,
+        }
+
+        client = self._client_as("super")
+        resp = client.get("/api/admin/stats")
+        self.assertEqual(resp.status_code, 200, resp.text)
+        data = resp.json()
+
+        # FR-1 新增字段存在
+        self.assertIn("active_users", data)
+        self.assertIn("abnormal_tasks", data)
+        self.assertIn("user_rankings", data)
+
+        # active_users：2 个不同 user_id 均出现在 tasks
+        self.assertEqual(data["active_users"], 2)
+
+        # abnormal_tasks：failed(1)
+        self.assertGreaterEqual(data["abnormal_tasks"], 1)
+
+        # user_rankings：按消费 token 排序
+        rankings = data["user_rankings"]
+        self.assertIsInstance(rankings, list)
+        self.assertTrue(len(rankings) <= 10)
+        self.assertGreaterEqual(len(rankings), 2)
+        # aid 的 token 1050 > uid 的 300
+        ranking_ids = [r["user_id"] for r in rankings]
+        self.assertLess(ranking_ids.index(aid), ranking_ids.index(uid))
+        # 结构校验
+        for r in rankings[:3]:
+            for k in ("user_id", "username", "task_count", "token_consumed"):
+                self.assertIn(k, r)
+
+
+# =====================================================================
+# FR-2: 用户详情 trend_7d（最近 7 天任务趋势）
+# =====================================================================
+
+class TestFR2UserDetailTrend7d(_AuthApiTestBase):
+
+    def test_user_detail_contains_trend_7d(self):
+        uid = self.users["user"]["id"]
+        store = self.bundle.task_store
+        # 用 __setitem__ 设置 user_id + created_at（含 2 条当天任务）
+        now = time.time()
+        store["t101"] = {
+            "status": "completed", "filename": "a.pdf", "file_size": 10,
+            "user_id": uid, "created_at": now, "token_consumed": 150,
+        }
+        store["t102"] = {
+            "status": "failed", "filename": "b.pdf", "file_size": 10,
+            "user_id": uid, "created_at": now - 3600,
+        }
+        # 旧任务（超过 7 天）：不应出现在趋势统计里，但应计入用户总任务
+        store["t_old"] = {
+            "status": "completed", "filename": "old.pdf", "file_size": 10,
+            "user_id": uid, "created_at": now - 30 * 86400,
+        }
+
+        client = self._client_as("super")
+        resp = client.get(f"/api/admin/users/{uid}")
+        self.assertEqual(resp.status_code, 200, resp.text)
+        data = resp.json()
+        self.assertIn("trend_7d", data)
+
+        trend = data["trend_7d"]
+        # 应为最近 7 天，每天一条记录
+        self.assertEqual(len(trend), 7)
+        # 结构
+        for d in trend:
+            for k in ("date", "task_count", "token_consumed"):
+                self.assertIn(k, d)
+        # 最近 7 天至少 2 条任务
+        total = sum(d["task_count"] for d in trend)
+        self.assertGreaterEqual(total, 2)
+        # token_consumed 至少 150（t101）
+        total_tokens = sum(d["token_consumed"] for d in trend)
+        self.assertGreaterEqual(total_tokens, 150)
+
+    def test_user_detail_404_still_works(self):
+        client = self._client_as("super")
+        resp = client.get("/api/admin/users/nosuchid")
+        self.assertEqual(resp.status_code, 404)
+
+
+# =====================================================================
+# FR-4: 密码重置（生成重置链接 + 消费 token 改密）
+# =====================================================================
+
+class TestFR4PasswordReset(_AuthApiTestBase):
+
+    def test_reset_link_requires_super_admin(self):
+        # 普通管理员不可发重置链接
+        client = self._client_as("admin")
+        uid = self.users["user"]["id"]
+        resp = client.post(f"/api/admin/users/{uid}/reset-link")
+        self.assertEqual(resp.status_code, 403)
+
+        # 未登录不可
+        guest = _make_client(temp_dir=self.temp.name)
+        resp = guest.post(f"/api/admin/users/{uid}/reset-link")
+        self.assertEqual(resp.status_code, 401)
+
+    def test_reset_link_success_and_consume(self):
+        client = self._client_as("super")
+        uid = self.users["user"]["id"]
+        resp = client.post(f"/api/admin/users/{uid}/reset-link")
+        self.assertEqual(resp.status_code, 200, resp.text)
+        body = resp.json()
+        self.assertIn("token", body)
+        self.assertIn("reset_url", body)
+        self.assertTrue(body["token"])
+
+        # 未消费前 verify 能读到
+        info = self.bundle.password_reset_store.verify(body["token"])
+        self.assertIsNotNone(info)
+        self.assertEqual(str(info.get("user_id")), str(uid))
+
+        # 通过 API 重置密码（无需登录）
+        guest = _make_client(temp_dir=self.temp.name)
+        resp = guest.post("/api/auth/reset-password", json={
+            "token": body["token"], "new_password": "newpass9876",
+        })
+        self.assertEqual(resp.status_code, 200, resp.text)
+
+        # 新密码可用，旧密码不可
+        self.assertIsNotNone(self.bundle.user_store.verify_login("user@x.com", "newpass9876"))
+        self.assertIsNone(self.bundle.user_store.verify_login("user@x.com", "user123"))
+
+        # token 已消费
+        self.assertIsNone(self.bundle.password_reset_store.verify(body["token"]))
+
+    def test_reset_password_invalid_token(self):
+        guest = _make_client(temp_dir=self.temp.name)
+        resp = guest.post("/api/auth/reset-password", json={
+            "token": "does-not-exist", "new_password": "helloworld8",
+        })
+        self.assertEqual(resp.status_code, 400)
+
+    def test_reset_password_short_password_422(self):
+        # 先申请一个真实 token
+        client = self._client_as("super")
+        uid = self.users["user"]["id"]
+        token = client.post(f"/api/admin/users/{uid}/reset-link").json()["token"]
+
+        guest = _make_client(temp_dir=self.temp.name)
+        resp = guest.post("/api/auth/reset-password", json={
+            "token": token, "new_password": "123",
+        })
+        self.assertEqual(resp.status_code, 422)
 
 
 if __name__ == "__main__":

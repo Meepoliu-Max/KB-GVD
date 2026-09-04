@@ -169,10 +169,10 @@ docker compose up -d
 ## FAQ
 
 **Q：支持哪些文件格式？**
-PDF / DOCX / PPTX / XLSX / 图片（PNG/JPG/BMP，图片解析需 MinerU）/ Markdown / TXT。
+PDF / DOCX / Markdown / TXT（MVP 1.0 支持的四种格式）。
 
 **Q：处理结果怎么导入 RAG 平台？**
-六种导出格式：`coze_qa` / `coze_text`（扣子表格）、`dify_qa` / `dify_text` / `dify_jsonl`（Dify）、`json`（通用）。Web 端在任务完成页选择格式下载；CLI 用 `--format` 参数。
+八种导出格式：`json`（完整元数据含质检信息）、`md`（人类可读 Markdown）、`summary_csv`（知识原子+QA 汇总表格）、`coze_qa` / `coze_text`（扣子表格）、`dify_qa` / `dify_text` / `dify_jsonl`（Dify）。Web 端在任务完成页或质检报告页选择格式下载；CLI 用 `--format` 参数。
 
 **Q：多文档批量处理？**
 CLI/SDK 逐个调用即可（各自独立任务目录互不干扰）；`partition_prefix`（P1/P2/P3...）用于多分片场景的 chunk_id 前缀隔离，Web 单文档场景无需关心。
@@ -185,4 +185,4 @@ CLI/SDK 逐个调用即可（各自独立任务目录互不干扰）；`partitio
 
 ---
 
-*文档基于 v0.3.x（2026-08）实测整理，配置项明细见 [CONFIGURATION.md](./CONFIGURATION.md)。*
+*文档基于 v1.0.0（2026-09）实测整理，配置项明细见 [CONFIGURATION.md](./CONFIGURATION.md)，部署指南见 [DEPLOYMENT.md](./DEPLOYMENT.md)。*

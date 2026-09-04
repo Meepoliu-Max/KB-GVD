@@ -111,7 +111,7 @@
 | `--parser` | `auto` | 本次运行的解析后端（覆盖 .env） |
 | `--output-dir` | `./output` | 中间结果目录（断点文件位置） |
 | `--no-checkpoint` | 关 | 本次运行禁用断点续跑 |
-| `--format` | `json` | 导出格式：coze_qa/coze_text/dify_qa/dify_text/dify_jsonl/json |
+| `--format` | `json` | 导出格式：json/md/summary_csv/coze_qa/coze_text/dify_qa/dify_text/dify_jsonl |
 | `-` | — | 管道模式，从 stdin 读 Markdown |
 
 ---
@@ -197,4 +197,4 @@ stage34_concurrency=settings.stage34_concurrency,
 
 ---
 
-*配置项与代码对应关系基于 v0.3.x（2026-08）：`config.py` / `orchestrator.py` / `deepseek_client.py` / `cli.py` / `routes.py` / `deps.py`。*
+*配置项与代码对应关系基于 v1.0.0（2026-09）：`config.py` / `orchestrator.py` / `deepseek_client.py` / `cli.py` / `routes.py` / `deps.py`。*

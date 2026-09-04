@@ -19,8 +19,8 @@ RAG 四阶流水线精度优化引擎：**Clean → Chunk → QA → Tag**
 ### 1. 安装
 
 ```bash
-git clone https://github.com/your-org/kbrefiner.git
-cd kbrefiner
+git clone https://gitee.com/meeoliu/kb-zhixu.git
+cd kb-zhixu
 pip install -e .
 ```
 
@@ -71,7 +71,7 @@ kbrefiner process document.pdf --format dify_jsonl  # Dify API 批量导入 JSON
 curl http://localhost:8000/api/export/{task_id}?format=coze_qa -o qa.csv
 ```
 
-支持的全部格式：`coze_qa` / `coze_text` / `dify_qa` / `dify_text` / `dify_jsonl` / `json`
+支持的全部格式：`coze_qa` / `coze_text` / `dify_qa` / `dify_text` / `dify_jsonl` / `json` / `md` / `summary_csv`
 
 ## CLI 命令
 

@@ -179,7 +179,12 @@ a:hover { color: var(--kb-primary-700); }
             返回
           </a>
         </div>
-        <div class="kb-top-header-right">
+        <div class="kb-top-header-right" style="display:flex;align-items:center;gap:8px;">
+          <select id="dl-format" class="kb-filter-select" style="font-size:0.8125rem;height:32px;padding:0 8px;border:1px solid var(--kb-border);border-radius:var(--kb-radius-small);background:var(--kb-card);">
+            <option value="json">JSON</option>
+            <option value="md">Markdown</option>
+            <option value="summary_csv">表格 CSV</option>
+          </select>
           <button class="kb-btn kb-btn-secondary kb-btn-sm" data-dom-id="btn-download" type="button">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             下载结果
@@ -302,7 +307,9 @@ a:hover { color: var(--kb-primary-700); }
       });
 
       btnDownload?.addEventListener('click', () => {
-        if (taskId) window.location.href = KBRefiner.API.exportUrl(taskId, 'json');
+        const fmtSel = document.getElementById('dl-format');
+        const fmt = fmtSel ? fmtSel.value : 'json';
+        if (taskId) window.location.href = KBRefiner.API.exportUrl(taskId, fmt);
       });
     </script>
 

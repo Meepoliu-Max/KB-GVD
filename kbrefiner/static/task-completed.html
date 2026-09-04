@@ -639,19 +639,27 @@ a:hover {
                     <div class="kb-export-panel" data-dom-id="export-panel">
                       <label class="kb-export-label" for="export-format">目标平台格式</label>
                       <select id="export-format" class="kb-filter-select" data-dom-id="export-format" style="flex:1;min-width:200px;">
-                        <option value="coze_qa">扣子 Coze · 问答格式（CSV）</option>
-                        <option value="coze_text">扣子 Coze · 文本格式（CSV）</option>
-                        <option value="dify_qa">Dify · 问答格式（CSV）</option>
-                        <option value="dify_text">Dify · 文本格式（CSV）</option>
-                        <option value="dify_jsonl">Dify · JSONL（分段导入）</option>
-                        <option value="json">KBRefiner 原始格式（JSON，含完整元数据）</option>
+                        <optgroup label="通用格式">
+                          <option value="json">JSON（完整元数据，含质检信息）</option>
+                          <option value="md">Markdown（人类可读，含异常清单）</option>
+                          <option value="summary_csv">表格 CSV（知识原子 + QA 汇总）</option>
+                        </optgroup>
+                        <optgroup label="扣子 Coze">
+                          <option value="coze_qa">扣子 · 问答格式（CSV）</option>
+                          <option value="coze_text">扣子 · 文本格式（CSV）</option>
+                        </optgroup>
+                        <optgroup label="Dify">
+                          <option value="dify_qa">Dify · 问答格式（CSV）</option>
+                          <option value="dify_text">Dify · 文本格式（CSV）</option>
+                          <option value="dify_jsonl">Dify · JSONL（分段导入）</option>
+                        </optgroup>
                       </select>
                       <button class="kb-btn kb-btn-secondary" data-dom-id="btn-export-download" type="button">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                         下载导出文件
                       </button>
                     </div>
-                    <div class="kb-file-meta" style="margin-top:8px;">下载后可直接在扣子 / Dify 知识库中批量导入；JSON 格式保留 5 维元数据与质检信息，供回流审阅使用。</div>
+                    <div class="kb-file-meta" style="margin-top:8px;">JSON 保留完整元数据与质检信息；Markdown 适合人工审阅；表格 CSV 可直接用 Excel 打开；扣子/Dify 格式可直接导入对应平台知识库。</div>
                   </div>
                 </div>
                 <div class="kb-card-footer kb-result-actions">

@@ -634,8 +634,18 @@ a:hover { color: var(--kb-primary-700); }
           const bell = document.getElementById('msg-bell');
           bell.hidden = false;
           const badge = document.getElementById('msg-badge');
-          badge.textContent = msgs.length > 9 ? '9+' : String(msgs.length);
-          badge.hidden = false;
+
+          // 已读追踪：localStorage 记录已读消息 ID
+          const READ_KEY = 'kb_msg_read_ids';
+          const readIds = new Set(JSON.parse(localStorage.getItem(READ_KEY) || '[]'));
+          const unreadMsgs = msgs.filter(m => !readIds.has(m.id));
+          if (unreadMsgs.length > 0) {
+            badge.textContent = unreadMsgs.length > 9 ? '9+' : String(unreadMsgs.length);
+            badge.hidden = false;
+          } else {
+            badge.hidden = true;
+          }
+
           const esc = KBRefiner.escapeHtml;
           const fmtTime = ts => {
             if (!ts) return '';
@@ -652,6 +662,12 @@ a:hover { color: var(--kb-primary-700); }
           document.getElementById('msg-bell-btn').addEventListener('click', e => {
             e.stopPropagation();
             dropdown.hidden = !dropdown.hidden;
+            // 打开铃铛时标记所有消息已读
+            if (!dropdown.hidden && unreadMsgs.length > 0) {
+              msgs.forEach(m => readIds.add(m.id));
+              localStorage.setItem(READ_KEY, JSON.stringify([...readIds]));
+              badge.hidden = true;
+            }
           });
           document.addEventListener('click', () => { dropdown.hidden = true; });
           dropdown.addEventListener('click', e => e.stopPropagation());

@@ -471,29 +471,53 @@ const KBRefiner = (() => {
       </div>
     `).join('') : '<div style="color:var(--kb-neutral-500);padding:20px;text-align:center;">暂无 QA 对</div>';
 
-    // 异常清单（后端 ExceptionList 为 9 个字符串数组字段，逐项平铺展示）
+    // 异常清单（后端 ExceptionList 为 9 个字符串数组字段，逐项平铺展示 + 操作指引）
     const excTab = container.querySelector('#tab-exceptions');
     const excList = r.exception_list || {};
-    const excLabels = {
-      content_conflicts: '内容冲突',
-      missing_info: '缺失信息',
-      vague_items: '模糊表述',
-      expired_items: '过期内容',
-      chunk_anomalies: '拆分异常',
-      truncated_items: '截断位置',
-      sensitive_items: '敏感数据',
-      low_confidence_qa: '低置信 QA',
-      terminology_pending: '术语待确认',
+    const excMeta = {
+      content_conflicts: { label: '内容冲突', desc: '同一知识点在不同位置存在矛盾或不一致', action: '查看对应知识原子，核对并修正冲突内容', tab: 'atoms' },
+      missing_info: { label: '缺失信息', desc: '原文中缺少必要的关键信息', action: '补充缺失的前提条件、参数或步骤说明', tab: 'atoms' },
+      vague_items: { label: '模糊表述', desc: '存在「适当」「相关」等模糊用语，缺乏量化标准', action: '将模糊表述替换为具体数值或明确范围', tab: 'atoms' },
+      expired_items: { label: '过期内容', desc: '引用了已过期的版本号、日期或政策', action: '更新为最新版本信息或标注「以最新文档为准」', tab: 'atoms' },
+      chunk_anomalies: { label: '拆分异常', desc: '知识原子切分边界不理想，上下文断裂', action: '重新审视分块边界，合并或重新拆分', tab: 'atoms' },
+      truncated_items: { label: '截断位置', desc: '内容在关键位置被截断，语义不完整', action: '扩展该知识原子的取文本长度或手动拼接', tab: 'atoms' },
+      sensitive_items: { label: '敏感数据', desc: '检测到可能的敏感信息（手机号/身份证等）', action: '脱敏处理或删除敏感字段后再上线', tab: 'atoms' },
+      low_confidence_qa: { label: '低置信 QA', desc: 'QA 对的置信度低于阈值，答案可能不完整', action: '逐条复核低置信 QA，人工校验答案', tab: 'qa' },
+      terminology_pending: { label: '术语待确认', desc: '出现未经术语库确认的新名词', action: '确认术语后更新术语库或添加同义词', tab: 'atoms' },
     };
     const excItems = Object.entries(excList)
       .filter(([, v]) => Array.isArray(v) && v.length)
-      .flatMap(([k, v]) => v.map(text => ({ label: excLabels[k] || k, text })));
-    excTab.innerHTML = excItems.length ? excItems.map(exc => `
-      <div style="border-left:3px solid var(--kb-state-warning);padding:8px 12px;margin:4px 0;background:var(--kb-state-warning-bg);border-radius:0 var(--kb-radius-small) var(--kb-radius-small) 0;font-size:0.8125rem;">
-        <strong>${escapeHtml(exc.label)}</strong>
-        <div>${escapeHtml(exc.text)}</div>
+      .flatMap(([k, v]) => v.map(text => ({ ...(excMeta[k] || { label: k, desc: '', action: '', tab: 'atoms' }), key: k, text })));
+    excTab.innerHTML = excItems.length ? `
+      <div style="margin-bottom:12px;padding:10px 12px;background:var(--kb-primary-50);border-radius:var(--kb-radius-medium);font-size:0.8125rem;color:var(--kb-neutral-700);">
+        共 <strong>${excItems.length}</strong> 项异常需要处理。点击任意异常项可跳转到对应内容进行修正。
       </div>
-    `).join('') : '<div style="color:var(--kb-neutral-500);padding:20px;text-align:center;">无异常项</div>';
+      ${excItems.map((exc, i) => `
+      <div class="kb-exc-item" data-exc-idx="${i}" style="border:1px solid var(--kb-state-warning);border-left:3px solid var(--kb-state-warning);padding:10px 14px;margin:6px 0;background:var(--kb-state-warning-bg);border-radius:0 var(--kb-radius-medium) var(--kb-radius-medium) 0;font-size:0.8125rem;cursor:pointer;transition:box-shadow 0.15s;" onmouseover="this.style.boxShadow='0 2px 8px rgba(245,158,11,0.15)'" onmouseout="this.style.boxShadow='none'">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+          <span style="background:var(--kb-state-warning);color:#fff;font-size:0.6875rem;padding:1px 6px;border-radius:8px;font-weight:600;">${escapeHtml(exc.label)}</span>
+          <span style="color:var(--kb-neutral-500);font-size:0.75rem;">${escapeHtml(exc.desc)}</span>
+        </div>
+        <div style="color:var(--kb-neutral-800);margin-bottom:6px;">${escapeHtml(exc.text)}</div>
+        <div style="display:flex;align-items:center;gap:4px;color:var(--kb-primary-600);font-size:0.75rem;font-weight:500;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M9 18l6-6-6-6"/></svg>
+          ${escapeHtml(exc.action)} · 点击跳转
+        </div>
+      </div>
+    `).join('')}
+    ` : '<div style="color:var(--kb-neutral-500);padding:20px;text-align:center;">无异常项，文档质量合格</div>';
+
+    // 异常项点击 → 切换到对应 Tab 并高亮
+    excTab.querySelectorAll('.kb-exc-item').forEach(el => {
+      el.addEventListener('click', () => {
+        const idx = parseInt(el.dataset.excIdx);
+        const exc = excItems[idx];
+        if (!exc) return;
+        // 切换到目标 Tab
+        const targetBtn = container.querySelector(`.kb-tab-btn[data-tab="${exc.tab}"]`);
+        if (targetBtn) targetBtn.click();
+      });
+    });
 
     // 原始 JSON
     const rawEl = container.querySelector('#tab-raw pre');

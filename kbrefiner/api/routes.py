@@ -514,6 +514,7 @@ async def export_result(
         ".csv": "text/csv",
         ".jsonl": "application/x-ndjson",
         ".json": "application/json",
+        ".md": "text/markdown; charset=utf-8",
     }
     return Response(
         content=exporter.export(doc),

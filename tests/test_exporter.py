@@ -175,7 +175,7 @@ class TestExporterRegistry(unittest.TestCase):
     def test_supported_formats_complete(self):
         self.assertEqual(
             set(SUPPORTED_FORMATS),
-            {"coze_qa", "coze_text", "dify_qa", "dify_text", "dify_jsonl", "json"},
+            {"coze_qa", "coze_text", "dify_qa", "dify_text", "dify_jsonl", "json", "md", "summary_csv"},
         )
 
     def test_export_all_returns_all_formats(self):

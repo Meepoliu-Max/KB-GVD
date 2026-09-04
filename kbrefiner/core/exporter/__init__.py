@@ -72,6 +72,12 @@ def _csv_dump(header: list[str], rows: list[list[str]]) -> str:
     return buf.getvalue()
 
 
+def _safe_str(val, fallback: str = "") -> str:
+    """安全转字符串，None 或空串返回 fallback。"""
+    s = str(val) if val else ""
+    return s if s.strip() else fallback
+
+
 # =====================================================================
 # 扣子（Coze）导出器
 # =====================================================================
@@ -196,6 +202,106 @@ class JsonExporter(BaseExporter):
 
 
 # =====================================================================
+# Markdown 导出器
+# =====================================================================
+
+
+class MarkdownExporter(BaseExporter):
+    """人类可读的 Markdown 格式，包含知识原子和 QA 对。"""
+
+    name = "md"
+    extension = ".md"
+
+    def export(self, doc: "KbDocument") -> str:
+        lines: list[str] = []
+        info = doc.document_info
+        lines.append(f"# {_safe_str(info.source, 'KBRefiner 质检报告')}")
+        lines.append("")
+        lines.append(f"> 文档类型: {info.doc_type} | 知识原子: {info.total_chunks} | QA 对: {info.total_qa_pairs}")
+        lines.append("")
+        q = doc.quality_summary
+        lines.append(f"> 覆盖率: {q.coverage_rate:.0%} | 平均置信度: {q.avg_confidence:.0%} | 异常项: {q.exception_count}")
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+        for i, atom in enumerate(doc.knowledge_atoms, 1):
+            lines.append(f"## {i}. {atom.title or atom.chunk_id or '未命名'}")
+            lines.append("")
+            meta_parts = [f"ID: {atom.chunk_id}", f"类型: {atom.doc_type}"]
+            if atom.metadata and atom.metadata.business_module:
+                meta_parts.append(f"模块: {atom.metadata.business_module}")
+            lines.append(f"*{', '.join(meta_parts)}*")
+            lines.append("")
+            lines.append(atom.content or "")
+            lines.append("")
+            if atom.qa_pairs:
+                lines.append("### QA 对")
+                lines.append("")
+                for qa in atom.qa_pairs:
+                    lines.append(f"**Q: {qa.question}**")
+                    lines.append("")
+                    lines.append(f"A: {qa.answer}")
+                    lines.append(f"*置信度: {qa.confidence_score or 0}%*")
+                    lines.append("")
+            if atom.remark:
+                lines.append(f"> 备注: {atom.remark}")
+                lines.append("")
+            lines.append("---")
+            lines.append("")
+        # 异常清单
+        exc = doc.exception_list
+        exc_items = [(k, v) for k, v in exc.model_dump().items() if isinstance(v, list) and v]
+        if exc_items:
+            lines.append("## 异常清单")
+            lines.append("")
+            exc_labels = {
+                'content_conflicts': '内容冲突', 'missing_info': '缺失信息',
+                'vague_items': '模糊表述', 'expired_items': '过期内容',
+                'chunk_anomalies': '拆分异常', 'truncated_items': '截断位置',
+                'sensitive_items': '敏感数据', 'low_confidence_qa': '低置信 QA',
+                'terminology_pending': '术语待确认',
+            }
+            for k, v in exc_items:
+                label = exc_labels.get(k, k)
+                for item in v:
+                    lines.append(f"- **{label}**: {item}")
+            lines.append("")
+        return "\n".join(lines)
+
+
+# =====================================================================
+# 汇总表格 CSV 导出器
+# =====================================================================
+
+
+class SummaryCsvExporter(BaseExporter):
+    """汇总表格 CSV：知识原子 + QA 对 + 质量指标，一行一条 QA。"""
+
+    name = "summary_csv"
+    extension = ".csv"
+
+    def export(self, doc: "KbDocument") -> str:
+        rows: list[list[str]] = []
+        for atom in doc.knowledge_atoms:
+            for qa in atom.qa_pairs:
+                rows.append([
+                    atom.chunk_id or "",
+                    atom.title or "",
+                    qa.question or "",
+                    qa.answer or "",
+                    str(qa.confidence_score or 0),
+                    atom.doc_type.value if atom.doc_type else "",
+                    ", ".join(qa.keywords or []),
+                ])
+        if not rows:
+            rows.append(["", "", "", "", "", "", ""])
+        return _csv_dump(
+            ["知识原子ID", "标题", "问题", "答案", "置信度(%)", "类型", "关键词"],
+            rows,
+        )
+
+
+# =====================================================================
 # 注册表与入口
 # =====================================================================
 
@@ -207,6 +313,8 @@ _EXPORTERS: dict[str, type[BaseExporter]] = {
     "dify_text": DifyTextExporter,
     "dify_jsonl": DifyJsonlExporter,
     "json": JsonExporter,
+    "md": MarkdownExporter,
+    "summary_csv": SummaryCsvExporter,
 }
 
 # 支持的格式名列表（CLI/SDK/API 用于校验与提示）
@@ -250,6 +358,8 @@ __all__ = [
     "DifyTextExporter",
     "DifyJsonlExporter",
     "JsonExporter",
+    "MarkdownExporter",
+    "SummaryCsvExporter",
     "SUPPORTED_FORMATS",
     "get_exporter",
     "export_all",

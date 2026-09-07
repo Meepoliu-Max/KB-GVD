@@ -1,90 +1,93 @@
 # KBRefiner
 
-RAG 四阶流水线精度优化引擎：**Clean → Chunk → QA → Tag**
+**A four-stage RAG precision-refinement engine: `Clean → Chunk → QA → Tag`**
 
-将原始文档（PDF / Word / TXT / Markdown）转化为结构化知识原子 + QA 对 + 元数据标签，为 RAG 知识库提供高质量入库数据。输出可直接导入扣子 / Dify 等 Agent 平台。
+Turns raw documents (PDF / Word / TXT / Markdown) into structured **knowledge atoms**, **Q&A pairs**, and **metadata tags** that give your RAG knowledge base high-quality, query-ready data. Output can be imported directly into Agent platforms such as Coze and Dify — no manual conversion needed.
 
-## 特性
+> Maintained here on GitHub for the international open-source community. The primary (Chinese) docs and ongoing development live in the Gitee repository ([gitee.com/meeoliu/kb-zhixu](https://gitee.com/meeoliu/kb-zhixu)).
 
-- **四阶 AI 流水线**：清洗 → 分块 → QA 生成 → 标签标注
-- **Agent 友好输出**：支持扣子 / Dify 知识库导入格式，无需手动转换
-- **本地部署**：数据不离本地，隐私安全由你掌控
-- **自带 API Key**：支持所有 OpenAI 兼容的 LLM API（DeepSeek / OpenAI / Ollama 等）
-- **插件化解析**：MinerU（一站式）或轻量解析器（pypdf + python-docx）
-- **三种接入方式**：CLI 命令行 / Python SDK / 本地 Web UI
-- **断点续跑**：中间结果持久化，失败后可从断点继续
+## Features
 
-## 快速开始
+- **Four-stage AI pipeline** — Parse → Clean → Chunk → QA & Tagging
+- **Agent-friendly output** — Native import formats for Coze / Dify knowledge bases
+- **Private by default** — Runs fully on your own machine; your data never leaves it
+- **Bring your own API key** — Works with any OpenAI-compatible LLM (DeepSeek / OpenAI / Ollama)
+- **Pluggable parsing** — MinerU (one-stop: OCR / tables / formulas) or a lightweight `pypdf` + `python-docx` parser
+- **Three ways to use it** — CLI, Python SDK, and a local Web UI
+- **Resumable pipeline** — Intermediate results are persisted; resume from the last checkpoint after a failure
+- **8 export formats** — JSON, Markdown, table CSV, Coze CSV, Dify CSV, Dify JSONL, and more
+- **Quality inspection report** — Atom coverage, average confidence, and an actionable exception list
+- **Built-in Web platform** — Multi-user, role-based access, batch operations, and audit logs
 
-### 1. 安装
+## Quick Start
+
+### 1. Install
 
 ```bash
-git clone https://gitee.com/meeoliu/kb-zhixu.git
-cd kb-zhixu
+git clone https://github.com/Meepoliu-Max/KB-GVD.git
+cd KB-GVD
 pip install -e .
 ```
 
-### 2. 配置
+### 2. Configure
 
 ```bash
 cp .env.example .env
-# 编辑 .env，填入你的 LLM API Key
+# edit .env and fill in your LLM API key
 ```
 
-### 3. 使用
+### 3. Use
 
 ```bash
-# CLI：处理文档
+# CLI — process a document
 kbrefiner process document.pdf -o result.json
 
-# SDK：编程调用
+# SDK — programmatic access
 python -c "
 from kbrefiner import KBRefiner
 result = KBRefiner().process('document.pdf')
 print(result.model_dump_json(indent=2))
 "
 
-# Web UI：启动本地服务
+# Web UI — start a local server
 kbrefiner serve
 ```
 
-### Docker 一键部署
+### Docker one-click deployment
 
 ```bash
 cp .env.example .env
-# 编辑 .env，填入你的 LLM API Key
+# edit .env and fill in your LLM API key
 docker compose up -d
-# 打开 http://localhost:8000
+# open http://localhost:8000
 ```
 
-### 导出格式
-
-处理完成后，可导出为扣子 / Dify 知识库可直接导入的格式：
+### Export formats
 
 ```bash
-# CLI 导出
-kbrefiner process document.pdf --format coze_qa    # 扣子问答 CSV
-kbrefiner process document.pdf --format dify_qa    # Dify Q&A CSV
-kbrefiner process document.pdf --format dify_jsonl  # Dify API 批量导入 JSONL
+# CLI export
+kbrefiner process document.pdf --format coze_qa     # Coze Q&A CSV
+kbrefiner process document.pdf --format dify_qa     # Dify Q&A CSV
+kbrefiner process document.pdf --format dify_jsonl  # Dify batch-import JSONL
 
-# API 导出
+# API export
 curl http://localhost:8000/api/export/{task_id}?format=coze_qa -o qa.csv
 ```
 
-支持的全部格式：`coze_qa` / `coze_text` / `dify_qa` / `dify_text` / `dify_jsonl` / `json` / `md` / `summary_csv`
+Supported formats: `coze_qa` / `coze_text` / `dify_qa` / `dify_text` / `dify_jsonl` / `json` / `md` / `summary_csv`
 
-## CLI 命令
+## CLI Commands
 
 ```
-kbrefiner process <file>          # 处理文档（解析 + 四阶流水线）
-kbrefiner process <file> -o out.json  # 指定输出路径
-kbrefiner process -               # 从 stdin 读取 Markdown（管道模式）
-kbrefiner serve                   # 启动本地 Web UI
-kbrefiner config                  # 显示当前配置
-kbrefiner version                 # 显示版本号
+kbrefiner process <file>            # parse + run the four-stage pipeline
+kbrefiner process <file> -o out.json  # specify output path
+kbrefiner process -                 # read Markdown from stdin (pipe mode)
+kbrefiner serve                     # start the local Web UI
+kbrefiner config                    # show current configuration
+kbrefiner version                   # show the version
 ```
 
-### 管道模式
+### Pipe mode
 
 ```bash
 cat document.md | kbrefiner process - > result.json
@@ -95,19 +98,19 @@ cat document.md | kbrefiner process - > result.json
 ```python
 from kbrefiner import KBRefiner
 
-# 从 .env / 环境变量自动读取配置
+# configuration is auto-loaded from .env / environment variables
 kb = KBRefiner()
 
-# 处理文件
+# process a file
 result = kb.process("policy.pdf")
 
-# 处理 Markdown 文本
+# process Markdown text
 result = kb.process_text(markdown_text, source="manual.md")
 
-# result 是 KbDocument 对象
+# `result` is a KbDocument object
 print(result.model_dump_json(indent=2))
 
-# 自定义 LLM 配置
+# override LLM settings
 kb = KBRefiner(
     api_key="sk-xxx",
     base_url="https://api.deepseek.com",
@@ -115,86 +118,97 @@ kb = KBRefiner(
 )
 ```
 
-## 配置说明
+## Configuration
 
-在 `.env` 文件中配置（参考 `.env.example`）：
+Configure in `.env` (see `.env.example`):
 
-| 变量 | 说明 | 默认值 |
-|------|------|--------|
-| `LLM_API_KEY` | LLM API Key（必填） | - |
-| `LLM_BASE_URL` | LLM API 地址 | `https://api.deepseek.com` |
-| `LLM_MODEL` | 默认模型（四阶流水线） | `deepseek-chat` |
-| `LLM_MODEL_PRO` | Pro 模型（复杂推理） | `deepseek-chat` |
-| `PARSER_BACKEND` | 文档解析后端 | `auto` |
+| Variable          | Description                     | Default                   |
+|-------------------|---------------------------------|---------------------------|
+| `LLM_API_KEY`     | LLM API key (required)          | —                         |
+| `LLM_BASE_URL`    | LLM API endpoint                | `https://api.deepseek.com`|
+| `LLM_MODEL`       | Default model (pipeline)        | `deepseek-chat`           |
+| `LLM_MODEL_PRO`   | Pro model (complex reasoning)   | `deepseek-chat`           |
+| `PARSER_BACKEND`  | Document parser backend         | `auto`                    |
 
-> ⚠️ 模型名必须是服务商真实模型名（如 `deepseek-chat`）。无效模型名不会报错，DeepSeek 会静默返回空 content 引发重试风暴。完整注意事项见 [docs/opensource/README.md](./docs/opensource/README.md)。
+> **Warning**: the model name must be a real model on your provider (e.g. `deepseek-chat`). An invalid name returns empty content silently, causing retry storms.
 
-### 支持的 LLM
+### Supported LLMs
 
-KBRefiner 兼容所有 OpenAI 格式的 API：
+KBRefiner is compatible with any OpenAI-format API:
 
-- **DeepSeek**（默认）：性价比高，中文优化
-- **OpenAI**：GPT-4o / GPT-4o-mini
-- **本地 Ollama**：完全离线，无需外部 API
+- **DeepSeek** (default) — cost-effective, Chinese-optimized
+- **OpenAI** — GPT-4o / GPT-4o-mini
+- **Local Ollama** — fully offline, no external API
 
-### 文档解析后端
+### Document parser backends
 
-- `auto`（默认）：自动检测 MinerU 是否安装
-- `mineru`：一站式解析（OCR / 表格 / 公式），需 `pip install mineru`
-- `simple`：轻量解析（pypdf + python-docx），无额外依赖
+- `auto` (default) — detect whether MinerU is installed
+- `mineru` — one-stop parsing (OCR / tables / formulas), requires `pip install mineru`
+- `simple` — lightweight parsing (`pypdf` + `python-docx`), no extra dependencies
 
-## 四阶流水线
+## The Four-Stage Pipeline
 
 ```
-原始文档 → [Parse] → Markdown
+Raw document → [Parse] → Markdown
          ↓
-    Stage 1: Clean    — 清洗、去噪、结构识别
+    Stage 1: Clean   — clean, denoise, structure recognition
          ↓
-    Stage 2: Chunk    — 语义分块、知识原子提取
+    Stage 2: Chunk   — semantic chunking, knowledge-atom extraction
          ↓
-    ┌─ Stage 3: QA   — QA 对生成（并行）
-    └─ Stage 4: Tag  — 标签标注（并行）
+    ┌─ Stage 3: QA   — Q&A generation (parallel)
+    └─ Stage 4: Tag  — tag annotation (parallel)
          ↓
-    Merge → 最终结果（KbDocument）
+    Merge → final result (KbDocument)
 ```
 
-## 项目结构
+## Web Platform
+
+In addition to the CLI / SDK, KBRefiner ships a full web UI:
+
+- Upload & manage documents, track task progress in real time (WebSocket)
+- Quality inspection report with an actionable exception list
+- Batch cancel / retry / delete of tasks
+- Multi-user with role-based access (super admin / admin / user)
+- Operation audit logs
+- Admin dashboard (usage stats, trends, rankings) and system settings
+
+## Project Structure
 
 ```
 kbrefiner/
-├── kbrefiner/          # Python 包
-│   ├── cli.py          # CLI 命令行工具
+├── kbrefiner/          # Python package
+│   ├── cli.py          # CLI entry
 │   ├── sdk.py          # Python SDK
-│   ├── config.py       # 配置管理
-│   ├── main.py         # FastAPI Web 应用
-│   ├── api/            # REST API 路由
+│   ├── config.py       # configuration
+│   ├── main.py         # FastAPI web app
+│   ├── api/            # REST API routes
 │   ├── core/
-│   │   ├── llm/        # LLM 客户端（通用 OpenAI 兼容）
-│   │   ├── parser/     # 文档解析（MinerU / SimpleParser）
-│   │   ├── pipeline/   # 四阶流水线
-│   │   ├── sensitive/  # 敏感数据检测
-│   │   └── validation/ # 输出校验
-│   ├── models/         # 数据模型
-│   └── static/         # Web UI 静态文件
-├── tests/              # 测试
-├── pyproject.toml      # 包定义
+│   │   ├── llm/        # LLM clients (OpenAI-compatible)
+│   │   ├── parser/     # document parsers (MinerU / SimpleParser)
+│   │   ├── pipeline/   # four-stage pipeline
+│   │   ├── sensitive/  # sensitive-data detection
+│   │   └── validation/ # output validation
+│   ├── models/         # data models
+│   └── static/         # web UI assets
+├── tests/              # tests
+├── pyproject.toml      # package definition
 ├── LICENSE             # GPL-3.0
-└── .env.example        # 配置模板
+└── .env.example        # configuration template
 ```
 
-## 开发
+## Development
 
 ```bash
-# 安装开发依赖
+# install development dependencies
 pip install -e ".[dev]"
 
-# 运行测试
+# run tests
 make test
 
-# 代码检查
+# lint
 make lint
 
-# 启动开发服务器
+# dev server
 make dev
 ```
 

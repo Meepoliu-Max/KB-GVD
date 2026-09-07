@@ -4,13 +4,13 @@
 
 ## 脚本一览
 
-| 脚本 | 作用 |
-|---|---|
-| `install.sh` | 一键安装 Docker + Compose 依赖 |
-| `deploy.sh` | 拉取代码 → 配置 .env → 构建 → 启动 → 健康检查 |
+| 脚本               | 作用                               |
+| ---------------- | -------------------------------- |
+| `install.sh`     | 一键安装 Docker + Compose 依赖         |
+| `deploy.sh`      | 拉取代码 → 配置 .env → 构建 → 启动 → 健康检查  |
 | `setup-nginx.sh` | 配置域名 + HTTPS（Let's Encrypt 免费证书） |
-| `nginx.conf` | Nginx 反向代理模板（HTTPS + WebSocket） |
-| `backup.sh` | SQLite + 数据目录定时备份 |
+| `nginx.conf`     | Nginx 反向代理模板（HTTPS + WebSocket）  |
+| `backup.sh`      | SQLite + 数据目录定时备份                |
 
 ## 快速开始（四步）
 
@@ -61,12 +61,12 @@ sudo bash /opt/deploy/setup-nginx.sh kb.example.com
 
 在腾讯云控制台 > 轻量应用服务器/CVM > 防火墙规则：
 
-| 端口 | 是否开放 | 原因 |
-|---|---|---|
-| 22 | 开放（限制来源） | SSH 管理 |
-| 443 | 开放 | HTTPS |
-| 80 | 开放 | 证书签发 + HTTP 跳转 |
-| 8000 | **不开放** | 仅内网，Nginx 反代即可 |
+| 端口   | 是否开放     | 原因             |
+| ---- | -------- | -------------- |
+| 22   | 开放（限制来源） | SSH 管理         |
+| 443  | 开放       | HTTPS          |
+| 80   | 开放       | 证书签发 + HTTP 跳转 |
+| 8000 | **不开放**  | 仅内网，Nginx 反代即可 |
 
 ## 数据备份
 
@@ -79,3 +79,4 @@ crontab -e
 # 加入下面这行：
 0 3 * * * /opt/deploy/backup.sh
 ```
+

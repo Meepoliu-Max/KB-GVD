@@ -18,7 +18,6 @@
 """
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 from typing import Optional
@@ -216,7 +215,7 @@ def createsuperuser(email: str, username: str, password: str, db: str):
     finally:
         store.close()
     click.echo(f"超级管理员创建成功: {user['email']}（id={user['id']}）")
-    click.echo(f"登录入口: /login（前台） 或 /admin/login（管理后台）")
+    click.echo("登录入口: /login（前台） 或 /admin/login（管理后台）")
 
 
 @cli.command()

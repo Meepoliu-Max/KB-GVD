@@ -26,7 +26,6 @@ from kbrefiner.core.parser.base import (
     FileType,
     Heading,
     Table,
-    Formula,
     ParseFailedError,
     ParsedDocument,
     UnsupportedFileError,

@@ -37,18 +37,19 @@ import json
 import logging
 import os
 import time
+from contextlib import AbstractAsyncContextManager, nullcontext
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
+from typing import Any, Callable
 
 from openai import APIError, APITimeoutError, AsyncOpenAI, OpenAI, RateLimitError
 
 from kbrefiner.core.llm.exceptions import (
+    QuotaExceededError,
     ApiError,
     ConfigurationError,
     EmptyContentError,
     JsonParseError,
-    LlmError,
 )
 
 logger = logging.getLogger(__name__)
@@ -173,6 +174,10 @@ class DeepSeekClient:
         config: LLMConfig | None = None,
     ):
         self._config = _get_config(api_key, config)
+        self.async_request_slot: Callable[[], AbstractAsyncContextManager] = nullcontext
+        self.before_request: Callable[[], None] | None = None
+        self.usage_recorded = 0
+        self.on_usage: Callable[[int], None] | None = None
         self._sync_client: OpenAI | None = None
         self._async_client: AsyncOpenAI | None = None
         # 累计 Token 消耗（实例生命周期内所有成功调用，含重试）
@@ -186,6 +191,10 @@ class DeepSeekClient:
             return
         for key in self.usage_total:
             self.usage_total[key] += int(usage.get(key) or 0)
+        if self.on_usage is not None:
+            tokens = int(usage.get("total_tokens") or 0)
+            self.on_usage(tokens)
+            self.usage_recorded += tokens
 
     @property
     def config(self) -> LLMConfig:
@@ -289,6 +298,7 @@ class DeepSeekClient:
                 api_key=self._config.api_key,
                 base_url=self._config.base_url,
                 timeout=self._config.timeout,
+                **({"max_retries": 0} if self.before_request is not None else {}),
             )
         return self._sync_client
 
@@ -298,6 +308,8 @@ class DeepSeekClient:
                 api_key=self._config.api_key,
                 base_url=self._config.base_url,
                 timeout=self._config.timeout,
+                **({"max_retries": 0} if self.before_request is not None
+                   or self.async_request_slot is not nullcontext else {}),
             )
         return self._async_client
 
@@ -350,14 +362,11 @@ class DeepSeekClient:
                 # 改为普通模式输出，由 _parse_json() 手动解析（容错 markdown 代码块包裹）。
 
                 client = self._get_sync_client()
+                if self.before_request is not None:
+                    self.before_request()
                 response = client.chat.completions.create(**kwargs)
 
                 content = response.choices[0].message.content or ""
-
-                if not content.strip():
-                    raise EmptyContentError(
-                        f"API 返回空 content（attempt {attempt}/{total_attempts}）"
-                    )
 
                 usage = {}
                 if response.usage:
@@ -368,6 +377,11 @@ class DeepSeekClient:
                     }
                 self._accumulate_usage(usage)
 
+                if not content.strip():
+                    raise EmptyContentError(
+                        f"API 返回空 content（attempt {attempt}/{total_attempts}）"
+                    )
+
                 return ChatResult(
                     content=content,
                     model=model_name,
@@ -376,6 +390,8 @@ class DeepSeekClient:
                     attempts=attempt,
                 )
 
+            except QuotaExceededError:
+                raise
             except EmptyContentError as e:
                 last_error = e
                 logger.warning(
@@ -444,14 +460,12 @@ class DeepSeekClient:
                 # 改为普通模式输出，由 _parse_json() 手动解析（容错 markdown 代码块包裹）。
 
                 client = self._get_async_client()
-                response = await client.chat.completions.create(**kwargs)
+                async with self.async_request_slot():
+                    if self.before_request is not None:
+                        self.before_request()
+                    response = await client.chat.completions.create(**kwargs)
 
                 content = response.choices[0].message.content or ""
-
-                if not content.strip():
-                    raise EmptyContentError(
-                        f"API 返回空 content（attempt {attempt}/{total_attempts}）"
-                    )
 
                 usage = {}
                 if response.usage:
@@ -462,6 +476,11 @@ class DeepSeekClient:
                     }
                 self._accumulate_usage(usage)
 
+                if not content.strip():
+                    raise EmptyContentError(
+                        f"API 返回空 content（attempt {attempt}/{total_attempts}）"
+                    )
+
                 return ChatResult(
                     content=content,
                     model=model_name,
@@ -470,6 +489,8 @@ class DeepSeekClient:
                     attempts=attempt,
                 )
 
+            except QuotaExceededError:
+                raise
             except EmptyContentError as e:
                 last_error = e
                 logger.warning(

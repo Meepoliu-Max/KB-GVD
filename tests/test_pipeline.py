@@ -21,7 +21,7 @@ import json
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 from kbrefiner.core.llm import ChatResult, DeepSeekClient, LLMConfig
 from kbrefiner.core.pipeline import (

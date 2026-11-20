@@ -10,15 +10,13 @@ import json
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 from fastapi.testclient import TestClient
 
 from kbrefiner.main import app
 from kbrefiner.api import routes
 from kbrefiner.config import Settings, get_settings
-from kbrefiner.core.llm import DeepSeekClient, LLMConfig
-from kbrefiner.core.pipeline import Pipeline, PipelineConfig
 from kbrefiner.db import TaskStore
 from kbrefiner.models import KbDocument, DocType
 

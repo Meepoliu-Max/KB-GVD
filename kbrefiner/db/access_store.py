@@ -116,7 +116,8 @@ class AccessStore:
         sql = "SELECT * FROM access_rules WHERE 1=1"
         params: list[Any] = []
         if rule_type:
-            sql += " AND type = ?"; params.append(rule_type)
+            sql += " AND type = ?"
+            params.append(rule_type)
         if search:
             sql += " AND (value LIKE ? OR note LIKE ?)"
             kw = f"%{search}%"

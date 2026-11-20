@@ -28,7 +28,6 @@ from openai import APIError, APITimeoutError, RateLimitError
 
 from kbrefiner.core.llm import (
     ApiError,
-    ChatResult,
     ConfigurationError,
     DeepSeekClient,
     EmptyContentError,

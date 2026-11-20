@@ -16,7 +16,7 @@ import json
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 from fastapi.testclient import TestClient
 
@@ -24,10 +24,8 @@ from kbrefiner.main import app
 from kbrefiner.api import deps, routes
 from kbrefiner.api.ws_manager import manager
 from kbrefiner.config import Settings, get_settings
-from kbrefiner.core.llm import DeepSeekClient, LLMConfig
-from kbrefiner.core.pipeline import Pipeline, PipelineConfig
 from kbrefiner.db import AuditStore, PasswordResetStore, SettingsStore, TaskStore, UserStore
-from kbrefiner.models import KbDocument, DocType, Stage1Output, Stage2Output, Stage3Output, Stage4Output
+from kbrefiner.models import KbDocument, DocType
 from kbrefiner import auth as _auth
 
 
@@ -359,7 +357,7 @@ class TestWebSocket(unittest.TestCase):
     def test_websocket_disconnect_cleanup(self):
         """断开连接后，manager 中应移除该连接。"""
         task_id = "cleanup_test"
-        with self.client.websocket_connect(f"/api/ws/{task_id}") as ws:
+        with self.client.websocket_connect(f"/api/ws/{task_id}"):
             self.assertTrue(manager.is_connected(task_id))
         # 退出 with 块后连接已断开
         self.assertFalse(manager.is_connected(task_id))

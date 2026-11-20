@@ -304,7 +304,7 @@ class TestMessageAPI(_ApiTestBase):
         titles = [m["title"] for m in user_client.get("/api/messages").json()["messages"]]
         self.assertEqual(sorted(titles), ["仅 alice", "全体可见"])
         # 其他用户：仅全体
-        bob = self.bundle.user_store.create("bob@x.com", "bob", "pass123")
+        self.bundle.user_store.create("bob@x.com", "bob", "pass123")
         other = _make_client(temp_dir=self.temp.name)
         other.post("/api/auth/login", json={"email": "bob@x.com", "password": "pass123"})
         titles = [m["title"] for m in other.get("/api/messages").json()["messages"]]
@@ -882,19 +882,19 @@ class TestFR6AuditLogs(_ApiTestBase):
         # 改用通过 action 前缀过滤并手动分页：查询全部，然后按 limit/offset 模拟
         all_logs = self.bundle.audit_store.list(limit=100)
         # 只看我们唯一前缀日志，并按时间升序（最早 i=0）再截取
-        filtered = [l for l in all_logs if str(l.get("action", "")).startswith("uniq_page_act_")]
+        filtered = [entry for entry in all_logs if str(entry.get("action", "")).startswith("uniq_page_act_")]
         # 应为 5 条，去重后按 action 排序（唯一）
-        self.assertEqual(len({l["action"] for l in filtered}), 5)
+        self.assertEqual(len({entry["action"] for entry in filtered}), 5)
 
         # 真正测分页：limit/offset 在 5 条里，我们只取 unique 集
         r1 = sup.get("/api/admin/audit-logs", params={"limit": 50, "offset": 0}).json()
-        ids_in_page1 = {l["id"] for l in r1["logs"] if
-                        str(l.get("action", "")).startswith("uniq_page_act_")}
+        ids_in_page1 = {entry["id"] for entry in r1["logs"] if
+                        str(entry.get("action", "")).startswith("uniq_page_act_")}
         self.assertEqual(len(ids_in_page1), 5)
         # 第 2 页：无新的 unique 日志，只是为了验证查询本身可行
         r2 = sup.get("/api/admin/audit-logs", params={"limit": 50, "offset": 50}).json()
-        ids_in_page2 = {l["id"] for l in r2["logs"] if
-                        str(l.get("action", "")).startswith("uniq_page_act_")}
+        ids_in_page2 = {entry["id"] for entry in r2["logs"] if
+                        str(entry.get("action", "")).startswith("uniq_page_act_")}
         self.assertEqual(len(ids_in_page2), 0)
         # 跨页不重复（两页并集大小仍为 5）
         self.assertEqual(len(ids_in_page1 | ids_in_page2), 5)
@@ -914,33 +914,33 @@ class TestFR6AuditLogs(_ApiTestBase):
             "action": "xfilter_user_created", "limit": 50,
         }).json()
         # 过滤后所有返回日志要么符合前缀 action，要么不相关
-        matched = [l for l in r["logs"] if l.get("action") == "xfilter_user_created"]
+        matched = [entry for entry in r["logs"] if entry.get("action") == "xfilter_user_created"]
         # 至少有 1 条符合（我们刚写了 1 条）
         self.assertGreaterEqual(len(matched), 1)
         # 且没有其他 xfilter_msg_sent 混入
-        for l in r["logs"]:
+        for entry in r["logs"]:
             # 如果属于唯一前缀系列，必须是该 action
-            if str(l.get("action", "")).startswith("xfilter_"):
-                self.assertEqual(l["action"], "xfilter_user_created")
+            if str(entry.get("action", "")).startswith("xfilter_"):
+                self.assertEqual(entry["action"], "xfilter_user_created")
 
         # 按 user_id 过滤：只返回该用户的日志
         r = sup.get("/api/admin/audit-logs", params={
             "user_id": self.admin["id"], "limit": 200,
         }).json()
         # 至少有 2 条（xfilter_user_created + xfilter_msg_sent）
-        admin_action_logs = [l for l in r["logs"] if
-                             l.get("user_id") == self.admin["id"] and
-                             str(l.get("action", "")).startswith("xfilter_")]
+        admin_action_logs = [entry for entry in r["logs"] if
+                             entry.get("user_id") == self.admin["id"] and
+                             str(entry.get("action", "")).startswith("xfilter_")]
         self.assertEqual(len(admin_action_logs), 2)
         # 返回日志中所有 user_id 都是 admin（过滤严格）
-        for l in r["logs"]:
-            self.assertEqual(l["user_id"], self.admin["id"])
+        for entry in r["logs"]:
+            self.assertEqual(entry["user_id"], self.admin["id"])
 
     def test_audit_point_on_settings_update(self):
         """修改设置后应产生一条 settings.updated 审计记录。"""
         sup = self._client_as("root@x.com")
         # 先记录现有最新若干条审计
-        before_actions = {l["action"] for l in self.bundle.audit_store.list(limit=50)}
+        before_actions = {entry["action"] for entry in self.bundle.audit_store.list(limit=50)}
         resp = sup.put("/api/admin/settings", json={
             "storage": {"disk_max_gb": 200},
         })
@@ -948,20 +948,20 @@ class TestFR6AuditLogs(_ApiTestBase):
 
         # 最新一条（或在前 5 条）包含 settings.updated
         latest = self.bundle.audit_store.list(limit=5)
-        latest_actions = {l["action"] for l in latest}
+        latest_actions = {entry["action"] for entry in latest}
         self.assertIn("settings.updated", latest_actions)
         # 或至少有新增
         self.assertGreaterEqual(self.bundle.audit_store.count(), len(before_actions) + 0)
 
     def test_audit_point_on_login(self):
         """登录应产生 auth.login.success 审计记录。"""
-        before = {l["action"] for l in self.bundle.audit_store.list(limit=50)}
+        before = {entry["action"] for entry in self.bundle.audit_store.list(limit=50)}
         client = _make_client(temp_dir=self.temp.name)
         r = client.post("/api/auth/login", json={
             "email": "user@x.com", "password": "pass123",
         })
         self.assertEqual(r.status_code, 200, r.text)
-        latest = {l["action"] for l in self.bundle.audit_store.list(limit=10)}
+        latest = {entry["action"] for entry in self.bundle.audit_store.list(limit=10)}
         self.assertIn("auth.login.success", latest - before)
 
 

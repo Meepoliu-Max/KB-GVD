@@ -16,14 +16,16 @@ import json
 import logging
 import time
 import uuid
+from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field
 
 from kbrefiner.config import Settings, get_settings
 from kbrefiner.core.llm import DeepSeekClient
+from kbrefiner.core.llm.exceptions import QuotaExceededError
 from kbrefiner.core.pipeline import Pipeline, PipelineConfig
 from kbrefiner.core.sensitive import SensitiveDetector
 from kbrefiner.db import AuditStore, TaskStore
@@ -52,6 +54,9 @@ _background_tasks: dict[str, asyncio.Task] = {}
 # 任务状态常量
 _TASK_PENDING = "pending"
 _TASK_PROCESSING = "processing"
+_TASK_PAUSING = "pausing"
+_TASK_PAUSED = "paused"
+_PAUSE_STATES = (_TASK_PAUSING, _TASK_PAUSED)
 _TASK_COMPLETED = "completed"
 _TASK_FAILED = "failed"
 _TASK_CANCELLED = "cancelled"
@@ -84,6 +89,57 @@ def _make_task_id() -> str:
     return uuid.uuid4().hex[:12]
 
 
+def _set_task_state(task_id: str, status: str) -> None:
+    _task_store.update_status(task_id, status)
+    if manager.is_connected(task_id):
+        asyncio.create_task(manager.broadcast(task_id, {
+            "type": "task_status_changed", "task_id": task_id, "status": status,
+        }))
+
+
+class _TaskPause:
+    """Control model dispatch for a single background task."""
+
+    def __init__(self, task_id: str):
+        self.task_id = task_id
+        self.ready = asyncio.Event()
+        self.ready.set()
+        self.in_flight = 0
+        self.stopped = False
+
+    def pause(self) -> str:
+        self.ready.clear()
+        status = _TASK_PAUSING if self.in_flight else _TASK_PAUSED
+        _set_task_state(self.task_id, status)
+        return status
+
+    @asynccontextmanager
+    async def request_slot(self):
+        await self.wait_until_ready()
+        self.in_flight += 1
+        try:
+            yield
+        finally:
+            self.in_flight -= 1
+            if not self.ready.is_set() and self.in_flight == 0:
+                task = _task_store.get(self.task_id)
+                if task and task["status"] == _TASK_PAUSING:
+                    _set_task_state(self.task_id, _TASK_PAUSED)
+
+    def stop(self) -> None:
+        self.stopped = True
+        self.ready.set()
+
+    async def wait_until_ready(self) -> None:
+        while not self.ready.is_set():
+            await self.ready.wait()
+        if self.stopped:
+            raise asyncio.CancelledError
+
+
+_task_pauses: dict[str, _TaskPause] = {}
+
+
 def recover_interrupted_tasks() -> None:
     """服务启动时把上次运行遗留的 processing 任务标记为失败。
 
@@ -91,6 +147,10 @@ def recover_interrupted_tasks() -> None:
     （僵尸状态，列表页一直转圈）。断点文件仍在输出目录，
     对同一文件重新发起处理可从断点续跑。
     """
+    for task_id, info in _task_store.items():
+        if info.get("status") == _TASK_PAUSING:
+            _task_store.update_status(task_id, _TASK_PAUSED)
+
     interrupted = [
         task_id for task_id, info in _task_store.items()
         if info.get("status") == _TASK_PROCESSING
@@ -112,6 +172,7 @@ async def _run_pipeline_background(
     settings: Settings,
 ) -> None:
     """在后台运行 Pipeline，通过 WebSocket 推送进度。"""
+    pause = _task_pauses[task_id]
     on_progress, on_stage_complete = make_progress_callback(task_id)
 
     pipeline = Pipeline(
@@ -143,7 +204,9 @@ async def _run_pipeline_background(
             document_source=document_source,
             on_progress=on_progress,
             on_stage_complete=on_stage_complete,
+            before_finalize=pause.wait_until_ready,
         )
+        await pause.wait_until_ready()
         # 运行完成后再次检查是否被取消
         info = _task_store.get(task_id)
         if info and info.get("status") == _TASK_CANCELLED:
@@ -151,23 +214,77 @@ async def _run_pipeline_background(
             return
 
         result = json.loads(doc.model_dump_json(ensure_ascii=False))
-        await push_result(task_id, result)
         _task_store.update_status(task_id, _TASK_COMPLETED)
-        # 回写该任务累计的 LLM Token 消耗（客户端实例生命周期内所有成功调用）
-        _task_store.add_tokens(
-            task_id, int(llm_client.usage_total.get("total_tokens", 0))
-        )
+        await push_result(task_id, result)
         logger.info("后台任务完成: task_id=%s", task_id)
     except asyncio.CancelledError:
         logger.warning("后台任务被取消: task_id=%s", task_id)
-        _task_store.update_status(task_id, _TASK_CANCELLED, error="任务已被取消")
-        await push_error(task_id, "任务已被取消")
+        raise
     except Exception as e:
         logger.error("后台任务失败: task_id=%s, error=%s", task_id, e)
-        await push_error(task_id, str(e))
         _task_store.update_status(task_id, _TASK_FAILED, error=str(e))
+        await push_error(task_id, str(e))
     finally:
-        _background_tasks.pop(task_id, None)
+        _record_pending_tokens(task_id, llm_client)
+
+
+def _check_token_quota(user_id: str | None) -> None:
+    if user_id is None:
+        return
+    limit = int(get_settings_store().get("quota_token_daily") or 0)
+    if _task_store.daily_user_stats(user_id)["token_total"] >= limit:
+        raise QuotaExceededError("已达今日 Token 消耗上限，请明天再试")
+
+
+def _configure_task_client(task_id: str, client: DeepSeekClient) -> None:
+    owner_id = (_task_store.get(task_id) or {}).get("user_id")
+    client.before_request = lambda: _check_token_quota(owner_id)
+    client.on_usage = lambda tokens: _task_store.add_tokens(task_id, tokens)
+
+
+def _record_pending_tokens(task_id: str, client: DeepSeekClient) -> None:
+    # 兼容模拟客户端以及调用方预先累计的 usage。
+    pending = int(client.usage_total.get("total_tokens", 0)) - client.usage_recorded
+    _task_store.add_tokens(task_id, pending)
+    client.usage_recorded += max(pending, 0)
+
+
+def _start_background_task(
+    task_id: str, markdown: str, filename: str, llm_client: DeepSeekClient,
+    output_dir: Path, settings: Settings,
+) -> None:
+    _configure_task_client(task_id, llm_client)
+    pause = _TaskPause(task_id)
+    _task_pauses[task_id] = pause
+    llm_client.async_request_slot = pause.request_slot
+    task = asyncio.create_task(
+        _run_pipeline_background(task_id, markdown, filename, llm_client, output_dir, settings)
+    )
+    _background_tasks[task_id] = task
+
+    def cleanup(_: asyncio.Task) -> None:
+        pause.stop()
+        if _background_tasks.get(task_id) is task:
+            _background_tasks.pop(task_id)
+            _task_pauses.pop(task_id)
+
+    task.add_done_callback(cleanup)
+
+
+def _parse_uploaded_document(file_id: str, settings: Settings) -> tuple[str, str]:
+    from kbrefiner.core.parser import FileType, ParserFactory
+
+    upload_dir = Path(settings.upload_dir)
+    file_path = next((path for path in upload_dir.glob(f"{file_id}.*")
+                      if path.stem == file_id and path.is_file()), None)
+    if file_path is None:
+        raise HTTPException(status_code=404, detail=f"文件 {file_id} 不存在")
+    parser = ParserFactory.get_parser(FileType.from_path(file_path))
+    try:
+        return parser.parse(str(file_path)).markdown, file_path.name
+    except Exception as e:
+        logger.error("文档解析失败: %s", e)
+        raise HTTPException(status_code=500, detail=f"文档解析失败: {e}") from e
 
 
 @router.post("/upload")
@@ -201,7 +318,8 @@ async def upload_file(
         )
 
     # 文件大小：后台配额覆盖 .env
-    max_mb = int(settings_store.get("quota_file_size_mb") or settings.max_upload_size_mb)
+    configured_max_mb = settings_store.get("quota_file_size_mb")
+    max_mb = int(settings.max_upload_size_mb if configured_max_mb is None else configured_max_mb)
     if file.size and file.size > max_mb * 1024 * 1024:
         raise HTTPException(
             status_code=400,
@@ -222,19 +340,30 @@ async def upload_file(
     upload_dir.mkdir(parents=True, exist_ok=True)
     file_path = upload_dir / f"{file_id}{ext}"
 
-    content = await file.read()
-    file_path.write_bytes(content)
+    # 有界读取同样覆盖 size 未提供或不准确的上传。
+    max_bytes = max_mb * 1024 * 1024
+    content = await file.read(max_bytes + 1)
+    if len(content) > max_bytes:
+        raise HTTPException(status_code=400, detail=f"文件大小超过限制（{max_mb}MB）")
+
+    # 写文件到登记任务之间没有 await，最终配额检查在数据库事务中执行。
+    try:
+        file_path.write_bytes(content)
+        exceeded = _task_store.create_with_quota(
+            file_id, file.filename or "", len(content),
+            current_user["id"] if current_user else None,
+            int(settings_store.get("quota_task_daily") or 0),
+            int(settings_store.get("quota_upload_daily") or 0),
+        )
+    except Exception:
+        file_path.unlink(missing_ok=True)
+        raise
+    if exceeded:
+        file_path.unlink(missing_ok=True)
+        label = "任务数" if exceeded == "task" else "上传文档数"
+        raise HTTPException(status_code=429, detail=f"已达今日{label}上限，请明天再试")
 
     logger.info("文件上传成功: %s (%s, %d bytes)", file_path, file.filename, len(content))
-
-    # 记录任务初始状态（关联上传用户，管理后台按用户聚合统计）
-    _task_store[file_id] = {
-        "status": _TASK_PENDING,
-        "filename": file.filename,
-        "user_id": current_user["id"] if current_user else None,
-        "created_at": time.time(),
-        "file_size": len(content),
-    }
 
     return {
         "file_id": file_id,
@@ -274,66 +403,43 @@ async def process_document(
     # IP 白名单（启用时；回环始终放行）
     check_ip_allowed(request)
 
-    # Token 日配额：已消耗达到上限则拒绝发起新任务（匿名开放模式不限制）
-    if current_user:
-        settings_store = get_settings_store()
-        stats = _task_store.daily_user_stats(current_user["id"])
-        if stats["token_total"] >= int(settings_store.get("quota_token_daily") or 0):
-            raise HTTPException(status_code=429, detail="已达今日 Token 消耗上限，请明天再试")
-
-    # 查找文件
-    upload_dir = Path(settings.upload_dir)
-    candidates = list(upload_dir.glob(f"{file_id}.*"))
-    if not candidates:
-        raise HTTPException(status_code=404, detail=f"文件 {file_id} 不存在")
-
-    file_path = candidates[0]
-    # 文件名优先级：显式参数 > 任务存储的上传原始文件名 > 磁盘文件名
-    # （磁盘文件以上传时生成的 file_id 重命名存储，直接用会导致列表页显示一堆数字）
-    stored_info = _task_store.get(file_id) or {}
-    doc_name = filename or stored_info.get("filename") or file_path.name
-    # 保留上传时关联的用户（后续写入不覆盖丢失）
-    owner_id = stored_info.get("user_id")
-
-    # MinerU 解析（同步和 async_mode 都需要）
-    from kbrefiner.core.parser import ParserFactory, FileType
-
-    file_type = FileType.from_path(file_path)
-    parser = ParserFactory.get_parser(file_type)
     try:
-        parsed = parser.parse(str(file_path))
-    except Exception as e:
-        logger.error("MinerU 解析失败: %s", e)
-        raise HTTPException(status_code=500, detail=f"文档解析失败: {e}")
+        _check_token_quota(current_user["id"] if current_user else None)
+    except QuotaExceededError as e:
+        raise HTTPException(status_code=429, detail=str(e)) from e
+    stored_info = _task_store.get(file_id) or {}
+    if stored_info:
+        _task_for_control(file_id, current_user)
+    try:
+        _check_token_quota(stored_info.get("user_id"))
+    except QuotaExceededError as e:
+        raise HTTPException(status_code=429, detail=str(e)) from e
 
-    markdown = parsed.markdown
+    if stored_info.get("status") in (_TASK_PROCESSING, *_PAUSE_STATES) or file_id in _background_tasks:
+        raise HTTPException(status_code=409, detail="任务正在处理或已暂停")
+
+    markdown, uploaded_name = _parse_uploaded_document(file_id, settings)
+    doc_name = filename or stored_info.get("filename") or uploaded_name
+    owner_id = stored_info.get("user_id")
     output_dir = Path(settings.output_dir) / file_id
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # async_mode：asyncio 后台任务 + WebSocket 进度
     if async_mode:
-        # 更新任务状态
         _task_store[file_id] = {
-            "status": _TASK_PROCESSING,
+            **stored_info,
             "filename": doc_name,
-            "user_id": owner_id,
-            "created_at": stored_info.get("created_at", time.time()),
-            "file_size": stored_info.get("file_size", 0),
+            "status": _TASK_PROCESSING,
+            "error": None,
+            "result": None,
         }
-        task = asyncio.create_task(
-            _run_pipeline_background(
-                task_id=file_id,
-                markdown=markdown,
-                document_source=doc_name,
-                llm_client=llm_client,
-                output_dir=output_dir,
-                settings=settings,
-            )
-        )
-        _background_tasks[file_id] = task
+        _start_background_task(file_id, markdown, doc_name, llm_client, output_dir, settings)
         return {"task_id": file_id, "status": _TASK_PROCESSING}
 
-    # 同步模式：等待结果
+    # 同步模式也先登记运行状态，避免同一任务被重复提交。
+    _task_store[file_id] = {
+        **stored_info, "status": _TASK_PROCESSING, "filename": doc_name, "error": None,
+    }
+    _configure_task_client(file_id, llm_client)
     pipeline = Pipeline(
         llm_client=llm_client,
         config=PipelineConfig(
@@ -357,6 +463,7 @@ async def process_document(
     except Exception as e:
         logger.error("流水线处理失败: %s", e)
         _task_store[file_id] = {
+            **(_task_store.get(file_id) or stored_info),
             "status": _TASK_FAILED,
             "error": str(e),
             "filename": doc_name,
@@ -364,11 +471,14 @@ async def process_document(
             "created_at": stored_info.get("created_at", time.time()),
             "file_size": stored_info.get("file_size", 0),
         }
-        raise HTTPException(status_code=500, detail=f"处理失败: {e}")
+        _record_pending_tokens(file_id, llm_client)
+        code = 429 if isinstance(e, QuotaExceededError) else 500
+        raise HTTPException(status_code=code, detail=f"处理失败: {e}")
 
     result = json.loads(doc.model_dump_json(ensure_ascii=False))
     # 更新任务状态（同步模式也写入 _task_store，供后续 status/result 查询）
     _task_store[file_id] = {
+        **(_task_store.get(file_id) or stored_info),
         "status": _TASK_COMPLETED,
         "result": result,
         "filename": doc_name,
@@ -377,9 +487,7 @@ async def process_document(
         "file_size": stored_info.get("file_size", 0),
     }
     # 回写该任务累计的 LLM Token 消耗（与后台任务口径一致）
-    _task_store.add_tokens(
-        file_id, int(llm_client.usage_total.get("total_tokens", 0))
-    )
+    _record_pending_tokens(file_id, llm_client)
 
     # 保存最终结果到 checkpoint（与后台任务一致）
     final_path = output_dir / "final.json"
@@ -409,13 +517,14 @@ async def get_status(task_id: str, settings: Settings = Depends(get_settings)):
         progress = 0.0
         if status == _TASK_COMPLETED:
             progress = 1.0
-        elif status == _TASK_PROCESSING:
+        elif status in (_TASK_PROCESSING, *_PAUSE_STATES):
             # 结合输出目录已落盘的阶段文件估算真实进度
             progress = _estimate_progress(Path(settings.output_dir), task_id)
         return {
             "task_id": task_id,
             "filename": stored.get("filename", "未知文件"),
             "status": status,
+            "can_pause": status == _TASK_PROCESSING and task_id in _task_pauses,
             "progress": progress,
             "error": stored.get("error"),
             "created_at": stored.get("created_at"),
@@ -555,7 +664,7 @@ async def list_tasks(
         status = info.get("status", _TASK_PENDING)
         if status == _TASK_COMPLETED:
             progress = 1.0
-        elif status == _TASK_PROCESSING:
+        elif status in (_TASK_PROCESSING, *_PAUSE_STATES):
             # 按落盘阶段文件估算真实进度（与 /status 口径一致）
             progress = _estimate_progress(output_base, task_id)
         else:
@@ -614,6 +723,76 @@ async def list_tasks(
     return {"tasks": tasks, "total": len(tasks)}
 
 
+def _task_for_control(task_id: str, user: dict | None) -> dict:
+    task = _task_store.get(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail=f"任务 {task_id} 不存在")
+    if user and user.get("role") in ("admin", "super_admin"):
+        return task
+    if task.get("user_id") != (user["id"] if user else None):
+        raise HTTPException(status_code=403, detail="无权操作此任务")
+    return task
+
+
+def _audit_task_control(
+    audit_store: AuditStore, request: Request, user: dict | None, task_id: str, action: str,
+) -> None:
+    try:
+        audit_store.record(user=user, action=action, target_type="task",
+                           target_id=task_id, request=request)
+    except Exception:
+        logger.exception("记录任务操作失败: task_id=%s, action=%s", task_id, action)
+
+
+@router.post("/task/{task_id}/pause")
+async def pause_task(
+    task_id: str, request: Request,
+    user: Optional[dict] = Depends(get_current_user),
+    audit_store: AuditStore = Depends(get_audit_store),
+):
+    check_ip_allowed(request)
+    task = _task_for_control(task_id, user)
+    status = task["status"]
+    if status in _PAUSE_STATES:
+        return {"task_id": task_id, "status": status}
+    pause = _task_pauses.get(task_id)
+    if status != _TASK_PROCESSING or pause is None:
+        raise HTTPException(status_code=409, detail="当前任务无法暂停")
+    status = pause.pause()
+    _audit_task_control(audit_store, request, user, task_id, "task.pause_requested")
+    return {"task_id": task_id, "status": status}
+
+
+@router.post("/task/{task_id}/resume")
+async def resume_task(
+    task_id: str, request: Request,
+    user: Optional[dict] = Depends(get_current_user),
+    audit_store: AuditStore = Depends(get_audit_store),
+    settings: Settings = Depends(get_settings),
+):
+    check_ip_allowed(request)
+    task = _task_for_control(task_id, user)
+    if task["status"] != _TASK_PAUSED:
+        raise HTTPException(status_code=409, detail="当前任务无法继续")
+    try:
+        _check_token_quota(task.get("user_id"))
+    except QuotaExceededError as e:
+        raise HTTPException(status_code=429, detail=str(e)) from e
+    pause = _task_pauses.get(task_id)
+    if pause is None:
+        markdown, uploaded_name = _parse_uploaded_document(task_id, settings)
+        output_dir = Path(settings.output_dir) / task_id
+        client = get_llm_client(settings)
+        _start_background_task(
+            task_id, markdown, task["filename"] or uploaded_name, client, output_dir, settings,
+        )
+    else:
+        pause.ready.set()
+    _set_task_state(task_id, _TASK_PROCESSING)
+    _audit_task_control(audit_store, request, user, task_id, "task.resumed")
+    return {"task_id": task_id, "status": _TASK_PROCESSING}
+
+
 @router.post("/task/{task_id}/cancel")
 async def cancel_task(
     task_id: str,
@@ -626,9 +805,7 @@ async def cancel_task(
     仅对 async_mode 的后台任务有效。
     取消后任务状态更新为 cancelled，不再继续执行流水线。
     """
-    task_info = _task_store.get(task_id)
-    if not task_info:
-        raise HTTPException(status_code=404, detail=f"任务 {task_id} 不存在")
+    task_info = _task_for_control(task_id, user)
 
     current_status = task_info.get("status")
     if current_status == _TASK_COMPLETED:

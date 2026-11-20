@@ -127,15 +127,19 @@ class MessageStore:
 
         sets, params = [], []
         if title is not None:
-            sets.append("title = ?"); params.append(title)
+            sets.append("title = ?")
+            params.append(title)
         if content is not None:
-            sets.append("content = ?"); params.append(content)
+            sets.append("content = ?")
+            params.append(content)
         if msg_type is not None:
-            sets.append("type = ?"); params.append(msg_type)
+            sets.append("type = ?")
+            params.append(msg_type)
         if target_users is not None:
             tv = target_users if isinstance(target_users, str) else json.dumps(
                 list(target_users), ensure_ascii=False)
-            sets.append("target_users = ?"); params.append(tv)
+            sets.append("target_users = ?")
+            params.append(tv)
         if not sets:
             return
         params.append(message_id)
@@ -193,11 +197,14 @@ class MessageStore:
         sql = "SELECT * FROM messages WHERE 1=1"
         params: list[Any] = []
         if msg_type:
-            sql += " AND type = ?"; params.append(msg_type)
+            sql += " AND type = ?"
+            params.append(msg_type)
         if status:
-            sql += " AND status = ?"; params.append(status)
+            sql += " AND status = ?"
+            params.append(status)
         if search:
-            sql += " AND title LIKE ?"; params.append(f"%{search}%")
+            sql += " AND title LIKE ?"
+            params.append(f"%{search}%")
         sql += " ORDER BY created_at DESC"
         with self._lock:
             rows = self._conn.execute(sql, params).fetchall()
@@ -208,7 +215,6 @@ class MessageStore:
 
         已撤回（revoked）不展示（PRD 9.5.4 撤回语义）。
         """
-        import json
 
         self._promote_due()
         with self._lock:

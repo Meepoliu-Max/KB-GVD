@@ -37,9 +37,10 @@ import json
 import logging
 import os
 import time
+from contextlib import AbstractAsyncContextManager, nullcontext
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
+from typing import Any, Callable
 
 from openai import APIError, APITimeoutError, AsyncOpenAI, OpenAI, RateLimitError
 
@@ -173,6 +174,7 @@ class DeepSeekClient:
         config: LLMConfig | None = None,
     ):
         self._config = _get_config(api_key, config)
+        self.async_request_slot: Callable[[], AbstractAsyncContextManager] = nullcontext
         self._sync_client: OpenAI | None = None
         self._async_client: AsyncOpenAI | None = None
         # 累计 Token 消耗（实例生命周期内所有成功调用，含重试）
@@ -298,6 +300,7 @@ class DeepSeekClient:
                 api_key=self._config.api_key,
                 base_url=self._config.base_url,
                 timeout=self._config.timeout,
+                **({"max_retries": 0} if self.async_request_slot is not nullcontext else {}),
             )
         return self._async_client
 
@@ -444,7 +447,8 @@ class DeepSeekClient:
                 # 改为普通模式输出，由 _parse_json() 手动解析（容错 markdown 代码块包裹）。
 
                 client = self._get_async_client()
-                response = await client.chat.completions.create(**kwargs)
+                async with self.async_request_slot():
+                    response = await client.chat.completions.create(**kwargs)
 
                 content = response.choices[0].message.content or ""
 

@@ -70,6 +70,15 @@ const KBRefiner = (() => {
       return resp.json();
     },
 
+    /** 暂停或继续后台任务 */
+    async setTaskPaused(taskId, paused) {
+      const action = paused ? 'pause' : 'resume';
+      const resp = await fetch(`/api/task/${encodeURIComponent(taskId)}/${action}`, { method: 'POST' });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.detail || '任务操作失败');
+      return data;
+    },
+
     /** 导出下载地址（浏览器直接访问即触发下载） */
     exportUrl(taskId, format) {
       return `/api/export/${taskId}?format=${encodeURIComponent(format)}`;
@@ -317,6 +326,9 @@ const KBRefiner = (() => {
           switch (msg.type) {
             case 'progress':
               this._callbacks.onProgress?.(msg);
+              break;
+            case 'task_status_changed':
+              this._callbacks.onTaskStatus?.(msg);
               break;
             case 'result':
               this._callbacks.onResult?.(msg.result);

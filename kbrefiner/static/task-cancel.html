@@ -547,167 +547,10 @@ a:hover {
         <div class="kb-content">
           <div class="kb-task-header">
             <div class="kb-task-title-wrap">
-              <h2 class="kb-task-name">KBRefiner_产品手册_v3.pdf</h2>
-              <div class="kb-task-meta-row">
-                <span class="kb-text-sm kb-text-secondary">创建时间：2026-08-10 12:30</span>
-                <span class="kb-dot-separator"></span>
-                <span class="kb-text-sm kb-text-secondary">共 12 个文档</span>
-              </div>
+              <h2 class="kb-task-name">任务信息加载中</h2>
+              <p class="kb-text-sm kb-text-secondary" data-dom-id="task-meta"></p>
             </div>
-            <span class="kb-status kb-status-running">处理中</span>
-          </div>
-
-          <div class="kb-stepper" role="list" aria-label="任务处理阶段">
-            <div class="kb-step completed" data-dom-id="step-upload" role="listitem" aria-current="false">
-              <div class="kb-step-marker">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg>
-              </div>
-              <div class="kb-step-label">上传</div>
-            </div>
-            <div class="kb-step current" data-dom-id="step-processing" role="listitem" aria-current="step">
-              <div class="kb-step-marker">2</div>
-              <div class="kb-step-label">处理中</div>
-            </div>
-            <div class="kb-step pending" data-dom-id="step-review" role="listitem" aria-current="false">
-              <div class="kb-step-marker">3</div>
-              <div class="kb-step-label">审阅中</div>
-            </div>
-            <div class="kb-step pending" data-dom-id="step-results" role="listitem" aria-current="false">
-              <div class="kb-step-marker">4</div>
-              <div class="kb-step-label">导出完成</div>
-            </div>
-          </div>
-
-          <div class="kb-detail-layout">
-            <div class="kb-detail-main">
-              <div class="kb-card kb-stage-panel">
-                <div class="kb-card-header">
-                  <div>
-                    <h3 class="kb-stage-panel-title">Stage 2 · 处理中</h3>
-                    <p class="kb-stage-panel-desc">MinerU 解析 + 语义级智能分块 + 向量索引</p>
-                  </div>
-                  <span class="kb-tag kb-tag-info">运行中</span>
-                </div>
-                <div class="kb-card-body">
-                  <div class="kb-stage-progress-wrap">
-                    <div class="kb-stage-progress-header">
-                      <span class="kb-font-semibold">本阶段总体进度</span>
-                      <span class="kb-font-bold kb-text-primary">68%</span>
-                    </div>
-                    <div class="kb-progress" style="margin-top:8px">
-                      <div class="kb-progress-bar" style="width:68%"></div>
-                    </div>
-                  </div>
-
-                  <div class="kb-substage-list">
-                    <div class="kb-substage completed">
-                      <div class="kb-substage-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg>
-                      </div>
-                      <div class="kb-substage-body">
-                        <div class="kb-substage-title">文档解析与清洗</div>
-                        <div class="kb-substage-meta">MinerU 解析完成，版式与表格识别就绪</div>
-                      </div>
-                    </div>
-                    <div class="kb-substage completed">
-                      <div class="kb-substage-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg>
-                      </div>
-                      <div class="kb-substage-body">
-                        <div class="kb-substage-title">语义分块</div>
-                        <div class="kb-substage-meta">8 个知识原子已生成，边界校验通过</div>
-                      </div>
-                    </div>
-                    <div class="kb-substage running">
-                      <div class="kb-substage-icon kb-substage-spinner"></div>
-                      <div class="kb-substage-body">
-                        <div class="kb-substage-title">生成向量嵌入</div>
-                        <div class="kb-substage-meta">正在生成向量索引…</div>
-                      </div>
-                    </div>
-                    <div class="kb-substage pending">
-                      <div class="kb-substage-icon"></div>
-                      <div class="kb-substage-body">
-                        <div class="kb-substage-title">构建索引</div>
-                        <div class="kb-substage-meta">等待嵌入完成后写入向量库</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="kb-live-status">
-                    <span class="kb-status kb-status-running">运行中</span>
-                    <span class="kb-live-text">正在生成向量索引…</span>
-                    <span class="kb-estimate">预计剩余 01:36</span>
-                  </div>
-                </div>
-                <div class="kb-card-footer kb-stage-actions">
-                  <div class="kb-stage-actions-left">
-                    <button class="kb-btn kb-btn-secondary" data-dom-id="btn-pause-task" type="button">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-                      暂停处理
-                    </button>
-                    <button class="kb-btn kb-btn-secondary kb-btn-danger" data-dom-id="btn-cancel-task" type="button">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                      取消任务
-                    </button>
-                  </div>
-                  <button class="kb-btn kb-btn-ghost" data-dom-id="btn-view-logs" type="button">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-                    查看日志
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div class="kb-detail-side">
-              <div class="kb-card kb-meta-card">
-                <div class="kb-card-header">
-                  <h3>任务信息</h3>
-                </div>
-                <div class="kb-card-body">
-                  <dl class="kb-meta-list">
-                    <div class="kb-meta-item">
-                      <dt>创建时间</dt>
-                      <dd>2026-08-10 12:30</dd>
-                    </div>
-                    <div class="kb-meta-item">
-                      <dt>文档数量</dt>
-                      <dd>12</dd>
-                    </div>
-                    <div class="kb-meta-item">
-                      <dt>总大小</dt>
-                      <dd>128.5 MB</dd>
-                    </div>
-                    <div class="kb-meta-item">
-                      <dt>知识库名称</dt>
-                      <dd>产品手册知识库</dd>
-                    </div>
-                  </dl>
-                </div>
-              </div>
-
-              <div class="kb-card kb-upcoming-card">
-                <div class="kb-card-header">
-                  <h3>后续阶段</h3>
-                </div>
-                <div class="kb-card-body">
-                  <div class="kb-upcoming-item">
-                    <div class="kb-upcoming-marker pending">3</div>
-                    <div class="kb-upcoming-body">
-                      <div class="kb-upcoming-title">审阅中</div>
-                      <div class="kb-upcoming-desc">QA 生成、术语一致性校验、人工复核入口</div>
-                    </div>
-                  </div>
-                  <div class="kb-upcoming-item">
-                    <div class="kb-upcoming-marker pending">4</div>
-                    <div class="kb-upcoming-body">
-                      <div class="kb-upcoming-title">导出完成</div>
-                      <div class="kb-upcoming-desc">生成 RAG 可用索引与质检报告</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <span class="kb-status kb-status-pending" data-dom-id="task-status">等待状态</span>
           </div>
         </div>
       </main>
@@ -738,6 +581,26 @@ a:hover {
       // 获取 task_id 参数
       const taskId = KBRefiner.getQueryParam('task_id');
       const taskName = KBRefiner.getQueryParam('name') || '未命名任务';
+
+      const confirmButton = document.querySelector('[data-dom-id="btn-confirm-cancel-task"]');
+      const description = document.querySelector('.kb-confirm-desc');
+      document.querySelector('.kb-task-name').textContent = taskName;
+      confirmButton.disabled = true;
+      if (taskId) {
+        KBRefiner.API.getStatus(taskId).then(task => {
+          const name = task.filename || taskName;
+          document.querySelector('.kb-task-name').textContent = name;
+          description.textContent = `确认取消「${name}」？已保存的阶段结果将保留，任务停止继续处理。`;
+          const labels = {pending: '等待中', processing: '运行中', pausing: '正在暂停',
+            paused: '已暂停', completed: '已完成', failed: '失败', cancelled: '已取消'};
+          document.querySelector('[data-dom-id="task-status"]').textContent = labels[task.status] || task.status;
+          const created = task.created_at ? new Date(task.created_at * 1000).toLocaleString('zh-CN') : '未知';
+          document.querySelector('[data-dom-id="task-meta"]').textContent = '创建时间：' + created + ' · 共 1 个文档';
+          confirmButton.disabled = !['pending', 'processing', 'pausing', 'paused'].includes(task.status);
+        }).catch(error => { description.textContent = error.message; });
+      } else {
+        description.textContent = '缺少任务编号，请返回任务列表选择任务。';
+      }
 
       // 保留任务 → 返回任务详情
       document.querySelector('[data-dom-id="btn-keep-task"]')?.addEventListener('click', () => {

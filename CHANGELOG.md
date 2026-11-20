@@ -1,5 +1,16 @@
 # Changelog
 
+## [Unreleased]
+
+### 新增
+- Web 异步任务支持暂停与继续，暂停期间阻止新模型请求及重试。
+- 已暂停任务在服务重启后保留状态，手动继续时复用阶段断点。
+
+### 修复
+- 暂停、继续和取消校验任务归属，管理员可管理任务。
+- 任务详情与取消确认页展示当前任务信息及暂停状态。
+
+
 本项目的所有重要变更记录在此文件中。
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [SemVer](https://semver.org/lang/zh-CN/)。
 

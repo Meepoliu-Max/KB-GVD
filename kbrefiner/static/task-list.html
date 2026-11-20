@@ -448,6 +448,8 @@ a:hover { color: var(--kb-primary-700); }
                   <select class="kb-select kb-filter-select" aria-label="按状态筛选">
                     <option value="all">全部状态</option>
                     <option value="processing">运行中</option>
+                    <option value="pausing">正在暂停</option>
+                    <option value="paused">已暂停</option>
                     <option value="pending">排队中</option>
                     <option value="completed">已完成</option>
                     <option value="failed">失败</option>
@@ -700,6 +702,8 @@ a:hover { color: var(--kb-primary-700); }
       const STATUS_MAP = {
         pending: { label: '排队中', tag: 'kb-tag-muted', tagText: '等待处理', statusClass: 'kb-status-pending' },
         processing: { label: '运行中', tag: 'kb-tag-info', tagText: '处理中', statusClass: 'kb-status-running' },
+        pausing: { label: '正在暂停', tag: 'kb-tag-muted', tagText: '正在暂停', statusClass: 'kb-status-pending' },
+        paused: { label: '已暂停', tag: 'kb-tag-muted', tagText: '已暂停', statusClass: 'kb-status-pending' },
         completed: { label: '已完成', tag: 'kb-tag-success', tagText: '导出完成', statusClass: 'kb-status-success' },
         failed: { label: '失败', tag: 'kb-tag-error', tagText: '处理失败', statusClass: 'kb-status-error' },
         cancelled: { label: '已取消', tag: 'kb-tag-muted', tagText: '已取消', statusClass: 'kb-status-pending' },
@@ -725,7 +729,7 @@ a:hover { color: var(--kb-primary-700); }
 
       function syncLiveConnections() {
         const activeIds = _tasks
-          .filter(t => t.status === 'processing' || t.status === 'pending')
+          .filter(t => ['processing', 'pending', 'pausing', 'paused'].includes(t.status))
           .map(t => t.task_id);
 
         // 关闭已不在活动集的连接
@@ -742,6 +746,7 @@ a:hover { color: var(--kb-primary-700); }
           _wsMap.set(tid, client);
           client.connect({
             onProgress: msg => updateRowFromProgress(msg),
+            onTaskStatus: () => scheduleTaskRefresh(),
             onResult: () => { client.close(); _wsMap.delete(tid); scheduleTaskRefresh(); },
             onError: () => { client.close(); _wsMap.delete(tid); scheduleTaskRefresh(); },
             onClose: () => { _wsMap.delete(tid); },
@@ -853,7 +858,7 @@ a:hover { color: var(--kb-primary-700); }
         if (_wsMap.size > 0) return; // 已有实时连接，无需轮询
         const filtering = (searchInput?.value) || (statusFilter?.value && statusFilter.value !== 'all');
         if (filtering) return;
-        if (_tasks.some(t => t.status === 'processing' || t.status === 'pending')) {
+        if (_tasks.some(t => ['processing', 'pending', 'pausing', 'paused'].includes(t.status))) {
           loadTasks();
         }
       }, 5000);

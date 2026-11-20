@@ -35,7 +35,7 @@ import json
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Awaitable, Callable
 
 from kbrefiner.core.llm import DeepSeekClient, Model
 from kbrefiner.core.parser import ParsedDocument
@@ -135,6 +135,7 @@ class Pipeline:
         doc_title: str | None = None,
         on_progress: ProgressCallback | None = None,
         on_stage_complete: StageCompleteCallback | None = None,
+        before_finalize: Callable[[], Awaitable[None]] | None = None,
     ) -> KbDocument:
         """执行完整流水线。
 
@@ -144,6 +145,7 @@ class Pipeline:
             doc_title: 文档标题（可选，默认用 document_source）
             on_progress: 进度回调
             on_stage_complete: 每个 Stage 完成回调
+            before_finalize: 合并与落盘前的可选异步检查点
 
         Returns:
             最终 KbDocument
@@ -164,6 +166,9 @@ class Pipeline:
         stage3_output, stage4_output = await self._exec_stage3_and_4_parallel(
             stage1_output, stage2_output, on_progress, on_stage_complete
         )
+
+        if before_finalize is not None:
+            await before_finalize()
 
         # Postprocess: merge 4 阶段输出
         logger.info("开始后处理 merge")

@@ -25,6 +25,7 @@ from pydantic import BaseModel, Field
 
 from kbrefiner.config import Settings, get_settings
 from kbrefiner.core.llm import DeepSeekClient
+from kbrefiner.core.llm.exceptions import QuotaExceededError
 from kbrefiner.core.pipeline import Pipeline, PipelineConfig
 from kbrefiner.core.sensitive import SensitiveDetector
 from kbrefiner.db import AuditStore, TaskStore
@@ -224,13 +225,35 @@ async def _run_pipeline_background(
         _task_store.update_status(task_id, _TASK_FAILED, error=str(e))
         await push_error(task_id, str(e))
     finally:
-        _task_store.add_tokens(task_id, int(llm_client.usage_total.get("total_tokens", 0)))
+        _record_pending_tokens(task_id, llm_client)
+
+
+def _check_token_quota(user_id: str | None) -> None:
+    if user_id is None:
+        return
+    limit = int(get_settings_store().get("quota_token_daily") or 0)
+    if _task_store.daily_user_stats(user_id)["token_total"] >= limit:
+        raise QuotaExceededError("已达今日 Token 消耗上限，请明天再试")
+
+
+def _configure_task_client(task_id: str, client: DeepSeekClient) -> None:
+    owner_id = (_task_store.get(task_id) or {}).get("user_id")
+    client.before_request = lambda: _check_token_quota(owner_id)
+    client.on_usage = lambda tokens: _task_store.add_tokens(task_id, tokens)
+
+
+def _record_pending_tokens(task_id: str, client: DeepSeekClient) -> None:
+    # 兼容模拟客户端以及调用方预先累计的 usage。
+    pending = int(client.usage_total.get("total_tokens", 0)) - client.usage_recorded
+    _task_store.add_tokens(task_id, pending)
+    client.usage_recorded += max(pending, 0)
 
 
 def _start_background_task(
     task_id: str, markdown: str, filename: str, llm_client: DeepSeekClient,
     output_dir: Path, settings: Settings,
 ) -> None:
+    _configure_task_client(task_id, llm_client)
     pause = _TaskPause(task_id)
     _task_pauses[task_id] = pause
     llm_client.async_request_slot = pause.request_slot
@@ -295,7 +318,8 @@ async def upload_file(
         )
 
     # 文件大小：后台配额覆盖 .env
-    max_mb = int(settings_store.get("quota_file_size_mb") or settings.max_upload_size_mb)
+    configured_max_mb = settings_store.get("quota_file_size_mb")
+    max_mb = int(settings.max_upload_size_mb if configured_max_mb is None else configured_max_mb)
     if file.size and file.size > max_mb * 1024 * 1024:
         raise HTTPException(
             status_code=400,
@@ -316,19 +340,30 @@ async def upload_file(
     upload_dir.mkdir(parents=True, exist_ok=True)
     file_path = upload_dir / f"{file_id}{ext}"
 
-    content = await file.read()
-    file_path.write_bytes(content)
+    # 有界读取同样覆盖 size 未提供或不准确的上传。
+    max_bytes = max_mb * 1024 * 1024
+    content = await file.read(max_bytes + 1)
+    if len(content) > max_bytes:
+        raise HTTPException(status_code=400, detail=f"文件大小超过限制（{max_mb}MB）")
+
+    # 写文件到登记任务之间没有 await，最终配额检查在数据库事务中执行。
+    try:
+        file_path.write_bytes(content)
+        exceeded = _task_store.create_with_quota(
+            file_id, file.filename or "", len(content),
+            current_user["id"] if current_user else None,
+            int(settings_store.get("quota_task_daily") or 0),
+            int(settings_store.get("quota_upload_daily") or 0),
+        )
+    except Exception:
+        file_path.unlink(missing_ok=True)
+        raise
+    if exceeded:
+        file_path.unlink(missing_ok=True)
+        label = "任务数" if exceeded == "task" else "上传文档数"
+        raise HTTPException(status_code=429, detail=f"已达今日{label}上限，请明天再试")
 
     logger.info("文件上传成功: %s (%s, %d bytes)", file_path, file.filename, len(content))
-
-    # 记录任务初始状态（关联上传用户，管理后台按用户聚合统计）
-    _task_store[file_id] = {
-        "status": _TASK_PENDING,
-        "filename": file.filename,
-        "user_id": current_user["id"] if current_user else None,
-        "created_at": time.time(),
-        "file_size": len(content),
-    }
 
     return {
         "file_id": file_id,
@@ -368,15 +403,19 @@ async def process_document(
     # IP 白名单（启用时；回环始终放行）
     check_ip_allowed(request)
 
-    # Token 日配额：已消耗达到上限则拒绝发起新任务（匿名开放模式不限制）
-    if current_user:
-        settings_store = get_settings_store()
-        stats = _task_store.daily_user_stats(current_user["id"])
-        if stats["token_total"] >= int(settings_store.get("quota_token_daily") or 0):
-            raise HTTPException(status_code=429, detail="已达今日 Token 消耗上限，请明天再试")
-
+    try:
+        _check_token_quota(current_user["id"] if current_user else None)
+    except QuotaExceededError as e:
+        raise HTTPException(status_code=429, detail=str(e)) from e
     stored_info = _task_store.get(file_id) or {}
-    if stored_info.get("status") in _PAUSE_STATES or file_id in _background_tasks:
+    if stored_info:
+        _task_for_control(file_id, current_user)
+    try:
+        _check_token_quota(stored_info.get("user_id"))
+    except QuotaExceededError as e:
+        raise HTTPException(status_code=429, detail=str(e)) from e
+
+    if stored_info.get("status") in (_TASK_PROCESSING, *_PAUSE_STATES) or file_id in _background_tasks:
         raise HTTPException(status_code=409, detail="任务正在处理或已暂停")
 
     markdown, uploaded_name = _parse_uploaded_document(file_id, settings)
@@ -396,7 +435,11 @@ async def process_document(
         _start_background_task(file_id, markdown, doc_name, llm_client, output_dir, settings)
         return {"task_id": file_id, "status": _TASK_PROCESSING}
 
-    # 同步模式：等待结果
+    # 同步模式也先登记运行状态，避免同一任务被重复提交。
+    _task_store[file_id] = {
+        **stored_info, "status": _TASK_PROCESSING, "filename": doc_name, "error": None,
+    }
+    _configure_task_client(file_id, llm_client)
     pipeline = Pipeline(
         llm_client=llm_client,
         config=PipelineConfig(
@@ -420,6 +463,7 @@ async def process_document(
     except Exception as e:
         logger.error("流水线处理失败: %s", e)
         _task_store[file_id] = {
+            **(_task_store.get(file_id) or stored_info),
             "status": _TASK_FAILED,
             "error": str(e),
             "filename": doc_name,
@@ -427,11 +471,14 @@ async def process_document(
             "created_at": stored_info.get("created_at", time.time()),
             "file_size": stored_info.get("file_size", 0),
         }
-        raise HTTPException(status_code=500, detail=f"处理失败: {e}")
+        _record_pending_tokens(file_id, llm_client)
+        code = 429 if isinstance(e, QuotaExceededError) else 500
+        raise HTTPException(status_code=code, detail=f"处理失败: {e}")
 
     result = json.loads(doc.model_dump_json(ensure_ascii=False))
     # 更新任务状态（同步模式也写入 _task_store，供后续 status/result 查询）
     _task_store[file_id] = {
+        **(_task_store.get(file_id) or stored_info),
         "status": _TASK_COMPLETED,
         "result": result,
         "filename": doc_name,
@@ -440,9 +487,7 @@ async def process_document(
         "file_size": stored_info.get("file_size", 0),
     }
     # 回写该任务累计的 LLM Token 消耗（与后台任务口径一致）
-    _task_store.add_tokens(
-        file_id, int(llm_client.usage_total.get("total_tokens", 0))
-    )
+    _record_pending_tokens(file_id, llm_client)
 
     # 保存最终结果到 checkpoint（与后台任务一致）
     final_path = output_dir / "final.json"
@@ -729,6 +774,10 @@ async def resume_task(
     task = _task_for_control(task_id, user)
     if task["status"] != _TASK_PAUSED:
         raise HTTPException(status_code=409, detail="当前任务无法继续")
+    try:
+        _check_token_quota(task.get("user_id"))
+    except QuotaExceededError as e:
+        raise HTTPException(status_code=429, detail=str(e)) from e
     pause = _task_pauses.get(task_id)
     if pause is None:
         markdown, uploaded_name = _parse_uploaded_document(task_id, settings)

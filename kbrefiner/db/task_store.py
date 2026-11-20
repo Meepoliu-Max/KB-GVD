@@ -82,7 +82,51 @@ class TaskStore:
             self._conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_tasks_user ON tasks(user_id)"
             )
+            self._conn.execute("""
+                CREATE TABLE IF NOT EXISTS token_usage (
+                    task_id TEXT NOT NULL,
+                    user_id TEXT,
+                    consumed_at REAL NOT NULL,
+                    tokens INTEGER NOT NULL
+                )
+            """)
+            self._conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_token_usage_user_time "
+                "ON token_usage(user_id, consumed_at)"
+            )
+            self._conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_token_usage_task ON token_usage(task_id)"
+            )
             self._conn.commit()
+
+    def create_with_quota(
+        self, task_id: str, filename: str, file_size: int, user_id: str | None,
+        task_limit: int, upload_limit: int,
+    ) -> str | None:
+        """原子校验上传配额并创建任务，返回超限类型。"""
+        now = time.time()
+        today = time.localtime(now)
+        start = time.mktime((today.tm_year, today.tm_mon, today.tm_mday, 0, 0, 0, 0, 0, -1))
+        with self._lock, self._conn:
+            self._conn.execute("BEGIN IMMEDIATE")
+            if user_id is not None:
+                counts = self._conn.execute(
+                    "SELECT COUNT(*) AS tasks, "
+                    "SUM(CASE WHEN file_size > 0 THEN 1 ELSE 0 END) AS uploads "
+                    "FROM tasks WHERE user_id = ? AND created_at >= ?",
+                    (user_id, start),
+                ).fetchone()
+                if counts["tasks"] >= task_limit:
+                    return "task"
+                if int(counts["uploads"] or 0) >= upload_limit:
+                    return "upload"
+            self._conn.execute(
+                "INSERT INTO tasks "
+                "(task_id, filename, file_size, user_id, status, created_at, updated_at) "
+                "VALUES (?, ?, ?, ?, 'pending', ?, ?)",
+                (task_id, filename, file_size, user_id, now, now),
+            )
+        return None
 
     def create(self, task_id: str, filename: str = "", file_size: int = 0,
                status: str = "pending") -> None:
@@ -142,13 +186,18 @@ class TaskStore:
         """累加任务的 Token 消耗（LLM 调用后回写）。"""
         if tokens <= 0:
             return
-        with self._lock:
+        now = time.time()
+        with self._lock, self._conn:
+            self._conn.execute(
+                "INSERT INTO token_usage (task_id, user_id, consumed_at, tokens) "
+                "SELECT task_id, user_id, ?, ? FROM tasks WHERE task_id = ?",
+                (now, int(tokens), task_id),
+            )
             self._conn.execute(
                 "UPDATE tasks SET token_consumed = COALESCE(token_consumed, 0) + ?, "
                 "updated_at = ? WHERE task_id = ?",
-                (int(tokens), time.time(), task_id),
+                (int(tokens), now, task_id),
             )
-            self._conn.commit()
 
     def stats_by_user(self) -> dict[str, dict[str, int]]:
         """按用户聚合任务统计（管理后台用户列表/详情用）。
@@ -264,10 +313,22 @@ class TaskStore:
                 "FROM tasks WHERE user_id = ? AND created_at >= ?",
                 (user_id, today_start),
             ).fetchone()
+            # 新调用按实际消耗日期记账，旧任务的未记账 Token 兼容原统计口径。
+            usage = self._conn.execute(
+                "SELECT COALESCE(SUM(tokens), 0) FROM token_usage "
+                "WHERE user_id = ? AND consumed_at >= ?", (user_id, today_start),
+            ).fetchone()[0]
+            legacy = self._conn.execute(
+                "SELECT COALESCE(SUM(MAX(0, COALESCE(token_consumed, 0) - "
+                "(SELECT COALESCE(SUM(tokens), 0) FROM token_usage u "
+                "WHERE u.task_id = tasks.task_id))), 0) "
+                "FROM tasks WHERE user_id = ? AND created_at >= ?",
+                (user_id, today_start),
+            ).fetchone()[0]
         return {
             "task_count": int(row["task_count"] or 0),
             "upload_count": int(row["upload_count"] or 0),
-            "token_total": int(row["token_total"] or 0),
+            "token_total": int(usage + legacy),
         }
 
     # ===== Mapping 兼容接口（供路由层 dict 式调用） =====

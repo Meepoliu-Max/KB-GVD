@@ -27,6 +27,10 @@ class ApiError(LlmError):
         self.retryable = retryable
 
 
+class QuotaExceededError(LlmError):
+    """用户当日 Token 已达上限，停止后续模型请求。"""
+
+
 class EmptyContentError(LlmError):
     """JSON Output 模式下 API 返回空 content。
 

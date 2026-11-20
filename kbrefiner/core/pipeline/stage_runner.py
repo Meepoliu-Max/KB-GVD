@@ -22,6 +22,7 @@ from typing import Any, Type, TypeVar
 
 from pydantic import BaseModel, ValidationError
 
+from kbrefiner.core.llm.exceptions import QuotaExceededError
 from kbrefiner.core.llm import DeepSeekClient, Model
 from kbrefiner.core.pipeline.prompts import (
     render_stage1,
@@ -124,6 +125,8 @@ async def _run_stage_with_retry(
                 user_prompt=user_prompt,
                 model=model,
             )
+        except QuotaExceededError:
+            raise
         except Exception as e:
             logger.error("%s LLM 调用失败 (attempt %d): %s", stage_name, attempt, e)
             if attempt < total_attempts:

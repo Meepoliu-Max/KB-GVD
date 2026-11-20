@@ -7,7 +7,6 @@
 """
 from __future__ import annotations
 
-import copy
 import unittest
 
 from kbrefiner.core.validation import calc, check, generate_review, run, validate

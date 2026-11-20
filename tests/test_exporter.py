@@ -221,14 +221,12 @@ class TestApiExportEndpoint(unittest.TestCase):
 
         os.environ["OUTPUT_DIR"] = tmpdir
         from fastapi.testclient import TestClient
-        from kbrefiner.api.routes import router
         from kbrefiner.main import app
 
         client = TestClient(app)
         return client
 
     def test_export_invalid_format_400(self):
-        import os
         import tempfile
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -237,7 +235,6 @@ class TestApiExportEndpoint(unittest.TestCase):
             self.assertEqual(resp.status_code, 400)
 
     def test_export_not_found_404(self):
-        import os
         import tempfile
 
         with tempfile.TemporaryDirectory() as tmp:

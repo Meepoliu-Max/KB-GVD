@@ -19,11 +19,9 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Iterable
 
 from kbrefiner.core.sensitive.rules import (
     Action,
-    DEFAULT_RULES,
     EXISTING_MARKER_RE,
     FLAG_PLACEHOLDER,
     MASK_PLACEHOLDER,

@@ -20,7 +20,6 @@ from datetime import date
 
 from kbrefiner.core.validation import run as run_validation
 from kbrefiner.models import (
-    DocType,
     DocumentInfo,
     ExceptionList,
     KbDocument,

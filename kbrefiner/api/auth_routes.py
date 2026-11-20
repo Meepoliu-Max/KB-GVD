@@ -26,7 +26,6 @@
 """
 from __future__ import annotations
 
-import json
 import sqlite3
 import time
 from typing import Any, Optional
@@ -199,7 +198,6 @@ def _user_daily_trend_simple(task_store: TaskStore, user_id: str, days: int = 7)
     # 生成 days 天稠密数组（日期升序，D-days+1 到今日）
     result: list[dict[str, Any]] = []
     now_local = time.localtime()
-    today_str = time.strftime("%Y-%m-%d", now_local)
     # 从 days-1 天前到今天
     import datetime as _dt
     today_dt = _dt.date.fromtimestamp(time.mktime(now_local))
@@ -797,7 +795,7 @@ async def list_audit_logs(
     if user_id == "" and user_keyword and single_user_id is None:
         matched_users = user_store.list_all(search=user_keyword)
         id_set = {u["id"] for u in matched_users}
-        logs = [l for l in logs if l.get("user_id") in id_set]
+        logs = [entry for entry in logs if entry.get("user_id") in id_set]
 
     total = audit_store.count(
         user_id=single_user_id,

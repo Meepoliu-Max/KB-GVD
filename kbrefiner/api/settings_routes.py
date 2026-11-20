@@ -15,16 +15,14 @@ import os
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from kbrefiner.config import Settings, get_settings
-from kbrefiner.db import AuditStore, SettingsStore, TaskStore, UserStore
+from kbrefiner.db import AuditStore, SettingsStore
 
 from .deps import (
     get_audit_store,
     get_settings_store,
-    get_task_store,
-    get_user_store,
     require_admin,
 )
 from kbrefiner.db.settings_store import decrypt_value, encrypt_value
@@ -63,7 +61,6 @@ async def get_settings_(
 ):
     """全量设置（分组）。llm_api_key 脱敏，llm_key_set 指示是否已配置。"""
     _ = settings_store
-    db = _admin  # 占位避免未使用告警；实际读取走 deps 单例（见下）
     from .deps import _settings_store
 
     all_cfg = _settings_store.get_all()

@@ -12,7 +12,7 @@ Turns raw documents (PDF / Word / TXT / Markdown) into structured **knowledge at
 
 - **Agent-friendly output** — Native import formats for Coze / Dify knowledge bases
 
-- **Private by default** — Runs fully on your own machine; your data never leaves it
+- **Local storage** — Uploads and results stay on your machine. With a hosted LLM, document text is sent to your configured provider. Use a local LLM for offline processing.
 
 - **Bring your own API key** — Works with any OpenAI-compatible LLM (DeepSeek / OpenAI / Ollama)
 
@@ -20,7 +20,11 @@ Turns raw documents (PDF / Word / TXT / Markdown) into structured **knowledge at
 
 - **Three ways to use it** — CLI, Python SDK, and a local Web UI
 
-- **Resumable pipeline** — Intermediate results are persisted; resume from the last checkpoint after a failure
+- **Pipeline checkpoints** — Saved stage results can be reused after a failure.
+
+- **Resumable web tasks** — Pause, resume, or cancel background processing. Paused tasks stay paused after a server restart and can resume from saved stage results.
+
+- **Web quotas** — Set per-user daily task, upload, and token limits. New model requests stop once reported usage reaches the token limit. Requests already in flight may take usage over the limit.
 
 - **8 export formats** — JSON, Markdown, table CSV, Coze CSV, Dify CSV, Dify JSONL, and more
 

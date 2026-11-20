@@ -27,7 +27,6 @@ from kbrefiner.core.parser import (
     UnsupportedFileError,
     parse_document,
 )
-from kbrefiner.core.parser.base import Formula, Heading, Table
 
 
 class TestFileType(unittest.TestCase):

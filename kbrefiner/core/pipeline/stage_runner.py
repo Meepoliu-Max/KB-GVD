@@ -15,8 +15,6 @@
 """
 from __future__ import annotations
 
-import asyncio
-import json
 import logging
 from typing import Any, Type, TypeVar
 
@@ -31,7 +29,6 @@ from kbrefiner.core.pipeline.prompts import (
     render_stage4,
 )
 from kbrefiner.models import (
-    DocType,
     Stage1Input,
     Stage1Output,
     Stage2Input,

@@ -38,18 +38,15 @@ from pathlib import Path
 from typing import Any, Awaitable, Callable
 
 from kbrefiner.core.llm import DeepSeekClient, Model
-from kbrefiner.core.parser import ParsedDocument
 from kbrefiner.core.pipeline.postprocess import merge_stages_to_document
 from kbrefiner.core.pipeline.stage_runner import (
     DEFAULT_STAGE_RETRIES,
-    StageValidationError,
     run_stage1,
     run_stage2,
     run_stage3,
     run_stage4,
 )
 from kbrefiner.models import (
-    DocType,
     KbDocument,
     Stage1Input,
     Stage1Output,

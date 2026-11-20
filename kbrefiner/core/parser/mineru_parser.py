@@ -40,6 +40,7 @@ from kbrefiner.core.parser.base import (
     Heading,
     ParseFailedError,
     ParsedDocument,
+    Table,
     UnsupportedFileError,
 )
 
@@ -231,11 +232,8 @@ class MineruParser(BaseParser):
     @staticmethod
     def _extract_tables(markdown: str) -> list[Table]:
         """提取 HTML 表格块及其位置。"""
-        from kbrefiner.core.parser.base import Table
-
         tables: list[Table] = []
         # 按行定位表格起始位置
-        lines = markdown.splitlines()
         flat = markdown
         for m in _TABLE_RE.finditer(flat):
             # 计算表格块在原文中的起始行号
@@ -254,7 +252,6 @@ class MineruParser(BaseParser):
     def _extract_formulas(markdown: str) -> list[Formula]:
         """提取 LaTeX 公式（块级 + 行内）。"""
         formulas: list[Formula] = []
-        lines = markdown.splitlines()
         flat = markdown
 
         # 块级公式 $$...$$

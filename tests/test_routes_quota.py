@@ -11,7 +11,7 @@ from fastapi import HTTPException, UploadFile
 from kbrefiner.api import routes
 from kbrefiner.core.llm.exceptions import EmptyContentError, QuotaExceededError
 from kbrefiner.db import TaskStore
-from tests.test_task_pause import task_api, _upload  # noqa: F401
+from tests.test_task_pause import _upload, task_api as task_api
 
 
 @pytest.fixture

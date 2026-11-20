@@ -50,7 +50,6 @@ from kbrefiner.core.llm.exceptions import (
     ConfigurationError,
     EmptyContentError,
     JsonParseError,
-    LlmError,
 )
 
 logger = logging.getLogger(__name__)

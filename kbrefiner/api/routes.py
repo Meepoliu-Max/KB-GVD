@@ -30,6 +30,8 @@ from kbrefiner.core.pipeline import Pipeline, PipelineConfig
 from kbrefiner.core.sensitive import SensitiveDetector
 from kbrefiner.db import AuditStore, TaskStore
 
+from kbrefiner.auth import TOKEN_COOKIE, decode_token
+
 from .deps import (
     check_ip_allowed,
     get_audit_store,
@@ -38,7 +40,9 @@ from .deps import (
     get_sensitive_detector,
     get_settings_store,
     get_task_store,
+    get_user_store,
     require_admin,
+    require_login_enabled,
 )
 from .ws_manager import make_progress_callback, manager, push_error, push_result
 
@@ -504,12 +508,17 @@ async def process_document(
 
 
 @router.get("/status/{task_id}")
-async def get_status(task_id: str, settings: Settings = Depends(get_settings)):
+async def get_status(
+    task_id: str,
+    settings: Settings = Depends(get_settings),
+    current_user: Optional[dict] = Depends(get_current_user),
+):
     """查询任务处理状态。
 
     Returns:
         {"task_id": "...", "status": "completed|processing|failed|pending", "progress": 0.75, "filename": "..."}
     """
+    _authorize_task_read(task_id, current_user, settings)
     # 优先检查持久化任务存储（异步任务）
     stored = _task_store.get(task_id)
     if stored:
@@ -564,8 +573,13 @@ async def get_status(task_id: str, settings: Settings = Depends(get_settings)):
 
 
 @router.get("/result/{task_id}")
-async def get_result(task_id: str, settings: Settings = Depends(get_settings)):
+async def get_result(
+    task_id: str,
+    settings: Settings = Depends(get_settings),
+    current_user: Optional[dict] = Depends(get_current_user),
+):
     """获取最终处理结果 JSON。"""
+    _authorize_task_read(task_id, current_user, settings)
     output_dir = Path(settings.output_dir) / task_id
     final_path = output_dir / "final.json"
 
@@ -581,6 +595,7 @@ async def export_result(
     task_id: str,
     format: str = "json",
     settings: Settings = Depends(get_settings),
+    current_user: Optional[dict] = Depends(get_current_user),
 ):
     """按指定格式导出任务结果（扣子/Dify 可直接导入）。
 
@@ -589,6 +604,8 @@ async def export_result(
     """
     from kbrefiner.core.exporter import SUPPORTED_FORMATS, get_exporter
     from kbrefiner.models import KbDocument
+
+    _authorize_task_read(task_id, current_user, settings)
 
     if format not in SUPPORTED_FORMATS:
         raise HTTPException(
@@ -732,6 +749,45 @@ def _task_for_control(task_id: str, user: dict | None) -> dict:
     if task.get("user_id") != (user["id"] if user else None):
         raise HTTPException(status_code=403, detail="无权操作此任务")
     return task
+
+
+def _is_admin(user: dict | None) -> bool:
+    return bool(user and user.get("role") in ("admin", "super_admin"))
+
+
+def _authorize_task_read(task_id: str, user: dict | None, settings: Settings) -> None:
+    """状态、结果和导出的任务归属校验。
+
+    - 管理员：全部可读
+    - 任务记录存在：仅归属用户可读，开放模式匿名读取他人任务返回 401
+    - 仅存在于输出目录的历史任务没有归属：开放模式匿名与管理员可读
+    """
+    task = _task_store.get(task_id)
+    if task is None:
+        if _is_admin(user) or user is None:
+            return
+        if (Path(settings.output_dir) / task_id).exists():
+            raise HTTPException(status_code=403, detail="无权访问此任务")
+        return
+    if _is_admin(user) or task.get("user_id") == (user["id"] if user else None):
+        return
+    if user is None:
+        raise HTTPException(status_code=401, detail="未登录")
+    raise HTTPException(status_code=403, detail="无权访问此任务")
+
+
+def _user_from_websocket(ws: WebSocket) -> Optional[dict]:
+    """从 WebSocket 握手的 Cookie 解析登录用户，失败视为匿名。"""
+    token = ws.cookies.get(TOKEN_COOKIE)
+    if not token:
+        return None
+    payload = decode_token(token)
+    if not payload:
+        return None
+    user = get_user_store().get(payload.get("sub", ""))
+    if not user or user.get("status") != "active":
+        return None
+    return user
 
 
 def _audit_task_control(
@@ -935,6 +991,17 @@ async def websocket_endpoint(ws: WebSocket, task_id: str):
     - {"type": "result", "task_id": "...", "result": {...}}
     - {"type": "error", "task_id": "...", "error": "..."}
     """
+    # 订阅推送前核对身份与归属：强制登录模式匿名拒绝，普通用户只看自己的任务
+    user = _user_from_websocket(ws)
+    if user is None and require_login_enabled():
+        await ws.close(code=1008)
+        return
+    if not _is_admin(user):
+        task = _task_store.get(task_id)
+        if task and task.get("user_id") != (user["id"] if user else None):
+            await ws.close(code=1008)
+            return
+
     await manager.connect(task_id, ws)
     try:
         # 保持连接，直到客户端断开

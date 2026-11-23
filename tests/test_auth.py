@@ -11,6 +11,7 @@
 """
 from __future__ import annotations
 
+import json
 import os
 import time
 import unittest
@@ -18,6 +19,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from fastapi.testclient import TestClient
+from starlette.websockets import WebSocketDisconnect
 
 from kbrefiner import auth as auth_mod
 from kbrefiner.api import deps, routes
@@ -568,6 +570,71 @@ class TestTaskIsolation(_AuthApiTestBase):
         self.assertEqual(resp.status_code, 200, resp.text)
         info = self.bundle.task_store.get(resp.json()["file_id"])
         self.assertIsNone(info["user_id"])
+
+
+class TestTaskReadIsolation(_AuthApiTestBase):
+    """状态、结果、导出与 WebSocket 的任务归属校验。"""
+
+    def _seed(self):
+        store = self.bundle.task_store
+        store["mine"] = {"status": "completed", "filename": "mine.pdf",
+                         "user_id": self.users["user"]["id"], "file_size": 1}
+        store["others"] = {"status": "completed", "filename": "others.pdf",
+                           "user_id": self.users["admin"]["id"], "file_size": 1}
+        task_dir = Path(self.temp.name) / "outputs" / "others"
+        task_dir.mkdir(parents=True, exist_ok=True)
+        (task_dir / "final.json").write_text('{"document_info": {}}', encoding="utf-8")
+
+    def test_owner_reads_own_task(self):
+        self._seed()
+        client = self._client_as("user")
+        self.assertEqual(client.get("/api/status/mine").status_code, 200)
+        self.assertEqual(client.get("/api/result/mine").status_code, 404)  # 无产物
+
+    def test_other_user_denied(self):
+        self._seed()
+        client = self._client_as("user")
+        for url in ("/api/status/others", "/api/result/others",
+                    "/api/export/others?format=json"):
+            self.assertEqual(client.get(url).status_code, 403, url)
+
+    def test_admin_reads_any_task(self):
+        self._seed()
+        client = self._client_as("admin")
+        self.assertEqual(client.get("/api/status/mine").status_code, 200)
+        self.assertEqual(client.get("/api/status/others").status_code, 200)
+        self.assertEqual(client.get("/api/result/others").status_code, 200)
+
+    def test_anonymous_denied_on_owned_task(self):
+        self._seed()
+        client = _make_client(temp_dir=self.temp.name)  # 开放模式匿名
+        for url in ("/api/status/mine", "/api/result/others",
+                    "/api/export/others?format=json"):
+            self.assertEqual(client.get(url).status_code, 401, url)
+
+    def test_historical_disk_task_readable_by_anonymous_only(self):
+        task_dir = Path(self.temp.name) / "outputs" / "legacy"
+        task_dir.mkdir(parents=True, exist_ok=True)
+        (task_dir / "final.json").write_text('{"document_info": {"source": "old.pdf"}}',
+                                             encoding="utf-8")
+        anonymous = _make_client(temp_dir=self.temp.name)
+        self.assertEqual(anonymous.get("/api/status/legacy").status_code, 200)
+        self.assertEqual(anonymous.get("/api/result/legacy").status_code, 200)
+        # 登录的普通用户看不到无归属历史任务，与列表口径一致
+        self.assertEqual(self._client_as("user").get("/api/status/legacy").status_code, 403)
+
+    def test_websocket_denies_other_user(self):
+        self._seed()
+        with self.assertRaises(WebSocketDisconnect):
+            with self._client_as("user").websocket_connect("/api/ws/others"):
+                pass
+
+    def test_websocket_allows_owner_and_admin(self):
+        self._seed()
+        for role, task_id in (("user", "mine"), ("admin", "others")):
+            with self._client_as(role).websocket_connect(f"/api/ws/{task_id}") as ws:
+                ws.send_text("ping")
+                self.assertEqual(json.loads(ws.receive_text())["type"], "pong")
 
 
 class TestRequireLoginMode(_AuthApiTestBase):

@@ -504,14 +504,18 @@ async def process_document(
 
 
 @router.get("/status/{task_id}")
-async def get_status(task_id: str, settings: Settings = Depends(get_settings)):
+async def get_status(
+    task_id: str,
+    settings: Settings = Depends(get_settings),
+    user: Optional[dict] = Depends(get_current_user),
+):
     """查询任务处理状态。
 
     Returns:
         {"task_id": "...", "status": "completed|processing|failed|pending", "progress": 0.75, "filename": "..."}
     """
     # 优先检查持久化任务存储（异步任务）
-    stored = _task_store.get(task_id)
+    stored = _task_for_read(task_id, user)
     if stored:
         status = stored.get("status", _TASK_PROCESSING)
         progress = 0.0
@@ -564,8 +568,13 @@ async def get_status(task_id: str, settings: Settings = Depends(get_settings)):
 
 
 @router.get("/result/{task_id}")
-async def get_result(task_id: str, settings: Settings = Depends(get_settings)):
+async def get_result(
+    task_id: str,
+    settings: Settings = Depends(get_settings),
+    user: Optional[dict] = Depends(get_current_user),
+):
     """获取最终处理结果 JSON。"""
+    _task_for_read(task_id, user)
     output_dir = Path(settings.output_dir) / task_id
     final_path = output_dir / "final.json"
 
@@ -581,6 +590,7 @@ async def export_result(
     task_id: str,
     format: str = "json",
     settings: Settings = Depends(get_settings),
+    user: Optional[dict] = Depends(get_current_user),
 ):
     """按指定格式导出任务结果（扣子/Dify 可直接导入）。
 
@@ -590,6 +600,7 @@ async def export_result(
     from kbrefiner.core.exporter import SUPPORTED_FORMATS, get_exporter
     from kbrefiner.models import KbDocument
 
+    info = _task_for_read(task_id, user) or {}
     if format not in SUPPORTED_FORMATS:
         raise HTTPException(
             status_code=400,
@@ -606,7 +617,6 @@ async def export_result(
     # 下载文件名跟随用户上传的原文件名（如 产品手册_qa.csv），
     # 取不到时回退任务 ID。原始名含中文，Content-Disposition 采用
     # RFC 5987 双写：filename= ASCII 兜底 + filename*= UTF-8 主值。
-    info = _task_store.get(task_id) or {}
     raw_name = str(info.get("filename") or "").strip()
     stem = Path(raw_name).stem if raw_name else ""
     stem = stem.replace('"', "").replace("\r", "").replace("\n", "").strip()
@@ -721,6 +731,13 @@ async def list_tasks(
     # 按创建时间倒序
     tasks.sort(key=lambda t: t["created_at"], reverse=True)
     return {"tasks": tasks, "total": len(tasks)}
+
+
+def _task_for_read(task_id: str, user: dict | None) -> dict | None:
+    """管理员和开放模式保留查看历史输出目录的权限。"""
+    if user is None or user.get("role") in ("admin", "super_admin"):
+        return _task_store.get(task_id)
+    return _task_for_control(task_id, user)
 
 
 def _task_for_control(task_id: str, user: dict | None) -> dict:
@@ -924,7 +941,11 @@ async def batch_tasks(
 
 
 @router.websocket("/ws/{task_id}")
-async def websocket_endpoint(ws: WebSocket, task_id: str):
+async def websocket_endpoint(
+    ws: WebSocket,
+    task_id: str,
+    settings: Settings = Depends(get_settings),
+):
     """WebSocket 实时进度推送。
 
     客户端连接后自动开始接收进度推送。
@@ -935,6 +956,11 @@ async def websocket_endpoint(ws: WebSocket, task_id: str):
     - {"type": "result", "task_id": "...", "result": {...}}
     - {"type": "error", "task_id": "...", "error": "..."}
     """
+    try:
+        _task_for_read(task_id, get_current_user(ws, settings))
+    except HTTPException:
+        await ws.close(code=1008)
+        return
     await manager.connect(task_id, ws)
     try:
         # 保持连接，直到客户端断开

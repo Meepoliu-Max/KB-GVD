@@ -19,8 +19,9 @@ import time
 from pathlib import Path
 from typing import Any, Optional
 
-from fastapi import Depends, HTTPException, Request
+from fastapi import Depends, HTTPException
 from fastapi.security.utils import get_authorization_scheme_param
+from starlette.requests import HTTPConnection
 
 # Cookie / Header 中的令牌键名
 TOKEN_COOKIE = "kb_token"
@@ -146,7 +147,7 @@ def decode_token(token: str) -> Optional[dict[str, Any]]:
 # FastAPI 依赖
 # =====================================================================
 
-def _extract_token(request: Request) -> Optional[str]:
+def _extract_token(request: HTTPConnection) -> Optional[str]:
     """从 Authorization Bearer 或 Cookie 提取令牌（浏览器页面走 Cookie）。"""
     authz = request.headers.get("Authorization", "")
     if authz:
@@ -164,7 +165,7 @@ def make_user_dependency(user_store, *, require_login: bool):
         开放模式（require_login=False）返回 None（匿名可用）。
     """
 
-    def current_user(request: Request) -> Optional[dict[str, Any]]:
+    def current_user(request: HTTPConnection) -> Optional[dict[str, Any]]:
         token = _extract_token(request)
         if not token:
             if require_login:

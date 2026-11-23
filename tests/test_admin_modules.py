@@ -467,6 +467,7 @@ class TestAccessEnforcement(_ApiTestBase):
 
     def test_domain_whitelist_blocks_register(self):
         sup = self._client_as("root@x.com")
+        sup.put("/api/admin/settings", json={"access": {"access_allow_register": True}})
         sup.post("/api/admin/access/rules", json={"type": "domain_whitelist", "value": "corp.com"})
         sup.put("/api/admin/access/toggle", json={"type": "domain_whitelist", "enabled": True})
         client = _make_client(temp_dir=self.temp.name)
@@ -483,16 +484,36 @@ class TestAccessEnforcement(_ApiTestBase):
 
     def test_register_switch(self):
         sup = self._client_as("root@x.com")
-        resp = sup.put("/api/admin/settings",
-                       json={"access": {"access_allow_register": False}})
-        self.assertEqual(resp.status_code, 200)
         client = _make_client(temp_dir=self.temp.name)
-        resp = client.post("/api/auth/register", json={
+        account = {
             "username": "newbie", "email": "a@corp.com", "password": "pass123",
-        })
-        self.assertEqual(resp.status_code, 403)
+        }
+        contact = "暂未开放注册，请联系管理员申请账号，邮箱地址：meepoliu@qq.com"
+
+        def assert_closed():
+            page = client.get("/login")
+            self.assertIn(contact, page.text)
+            self.assertIn('id="link-register" aria-haspopup="dialog"', page.text)
+            page = client.get("/register", follow_redirects=False)
+            self.assertEqual(page.status_code, 302)
+            self.assertEqual(page.headers["location"], "/login?registration-closed")
+            response = client.post("/api/auth/register", json=account)
+            self.assertEqual(response.status_code, 403)
+            self.assertEqual(response.json()["detail"], contact)
+
+        assert_closed()
+        response = sup.put("/api/admin/settings", json={"access": {"access_allow_register": True}})
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('id="link-register" aria-haspopup="dialog"', client.get("/login").text)
+        self.assertEqual(client.get("/register").status_code, 200)
+        self.assertEqual(client.post("/api/auth/register", json=account).status_code, 201)
+
+        response = sup.put("/api/admin/settings", json={"access": {"access_allow_register": False}})
+        self.assertEqual(response.status_code, 200)
+        assert_closed()
 
     def test_register_duplicate_email(self):
+        self.bundle.settings_store.set("access_allow_register", True)
         client = _make_client(temp_dir=self.temp.name)
         resp = client.post("/api/auth/register", json={
             "username": "dup", "email": "user@x.com", "password": "pass123",

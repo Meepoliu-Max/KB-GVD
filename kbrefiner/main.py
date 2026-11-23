@@ -7,6 +7,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
 from kbrefiner.api import (
     access_routes,
@@ -71,6 +72,7 @@ app.include_router(settings_routes.router)
 static_dir = Path(__file__).resolve().parent / "static"
 static_dir.mkdir(exist_ok=True)
 app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+templates = Jinja2Templates(directory=static_dir)
 
 
 # 设计系统页面路由
@@ -127,14 +129,23 @@ async def health():
 
 
 @app.get("/login")
-async def login_page():
+async def login_page(request: Request):
     """前台登录页（无需鉴权）。"""
-    return FileResponse(static_dir / "login.html")
+    return templates.TemplateResponse(
+        request=request,
+        name="login.html",
+        context={
+            "registration_enabled": deps.get_settings_store().get("access_allow_register"),
+            "registration_closed_notice": deps.REGISTRATION_CLOSED_NOTICE,
+        },
+    )
 
 
 @app.get("/register")
 async def register_page():
-    """前台注册页（无需鉴权，是否开放由后端注册开关控制）。"""
+    """仅在已开放自助注册时提供表单。"""
+    if not deps.get_settings_store().get("access_allow_register"):
+        return RedirectResponse(url="/login?registration-closed", status_code=302)
     return FileResponse(static_dir / "register.html")
 
 

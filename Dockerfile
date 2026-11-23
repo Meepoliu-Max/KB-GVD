@@ -28,6 +28,7 @@ COPY kbrefiner/__init__.py kbrefiner/__init__.py
 
 # 安装依赖（仅核心依赖，不含 MinerU / dev）
 COPY kbrefiner kbrefiner
+COPY scripts/render_review.py scripts/render_review.py
 RUN pip install --no-cache-dir .
 
 # 创建数据目录并授权（SQLite / 上传文件 / 输出结果）

@@ -46,7 +46,7 @@ class SettingsStore:
         # ===== 前台访问控制 =====
         # None 表示跟随 .env REQUIRE_LOGIN；true/false 为后台显式覆盖
         "access_require_login": None,
-        "access_allow_register": True,
+        "access_allow_register": False,
         # ===== 访问控制开关（黑白名单页） =====
         "access_ip_whitelist_enabled": False,
         "access_domain_whitelist_enabled": False,

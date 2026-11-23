@@ -501,7 +501,7 @@ a:hover { color: var(--kb-primary-700); }
             </div>
 
             <!-- 飞书登录按钮 -->
-            <button class="kb-btn kb-btn-secondary kb-login-feishu" type="button" data-dom-id="btn-feishu-login" id="btn-feishu-login">
+            <button class="kb-btn kb-btn-secondary kb-login-feishu" type="button" data-dom-id="btn-feishu-login" id="btn-feishu-login" aria-haspopup="dialog">
               <i data-lucide="message-square" class="kb-login-feishu-icon"></i>
               <span>使用飞书登录</span>
             </button>
@@ -509,7 +509,7 @@ a:hover { color: var(--kb-primary-700); }
 
           <!-- 注册引导 -->
           <p class="kb-login-register">
-            还没有账号？<a href="/register" class="kb-login-register-link" id="link-register">立即注册</a>
+            还没有账号？<a href="/register" class="kb-login-register-link" id="link-register"{% if not registration_enabled %} aria-haspopup="dialog"{% endif %}>立即注册</a>
           </p>
 
           <!-- 版权声明 -->
@@ -518,9 +518,17 @@ a:hover { color: var(--kb-primary-700); }
       </main>
     </div>
 
+    <dialog class="kb-login-notice" id="registration-notice" aria-labelledby="registration-notice-title" aria-describedby="registration-notice-text">
+      <h2 id="registration-notice-title">申请账号</h2>
+      <p id="registration-notice-text">{{ registration_closed_notice }}</p>
+      <form method="dialog">
+        <button type="submit" class="kb-btn kb-btn-primary">确定</button>
+      </form>
+    </dialog>
+
     <script src="/static/js/kbrefiner.js"></script>
     <script>
-      lucide.createIcons();
+      window.lucide?.createIcons();
 
       const errBox = document.getElementById('login-error');
       const errText = document.getElementById('login-error-text');
@@ -530,14 +538,21 @@ a:hover { color: var(--kb-primary-700); }
         errBox.style.display = 'flex';
       }
 
-      function soon(e, msg) {
-        e.preventDefault();
-        showError(msg || '该功能暂未开放，请联系管理员创建账号');
+      const notice = document.getElementById('registration-notice');
+      function showRegistrationNotice(event) {
+        event?.preventDefault();
+        notice.showModal();
+      }
+      document.getElementById('btn-feishu-login').addEventListener('click', showRegistrationNotice);
+      const registerLink = document.getElementById('link-register');
+      if (registerLink.hasAttribute('aria-haspopup')) {
+        registerLink.addEventListener('click', showRegistrationNotice);
+        if (new URLSearchParams(window.location.search).has('registration-closed')) {
+          showRegistrationNotice();
+        }
       }
       document.getElementById('link-forgot').addEventListener('click',
         e => { e.preventDefault(); location.href = '/forgot'; });
-      document.getElementById('btn-feishu-login').addEventListener('click',
-        e => soon(e, '飞书登录暂未开通，请使用邮箱登录'));
 
       const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
       const emailInput = document.getElementById('login-email');
@@ -914,6 +929,32 @@ a:hover { color: var(--kb-primary-700); }
     }
     .kb-login-register-link:hover {
       color: var(--kb-primary-700);
+    }
+
+    .kb-login-notice {
+      width: min(440px, calc(100% - 32px));
+      margin: auto;
+      padding: 24px;
+      border: 1px solid var(--kb-border);
+      border-radius: 12px;
+      background: var(--kb-neutral-0);
+      color: var(--kb-neutral-700);
+      box-shadow: 0 16px 48px rgb(15 23 42 / 18%);
+    }
+    .kb-login-notice::backdrop {
+      background: rgb(15 23 42 / 40%);
+    }
+    .kb-login-notice h2 {
+      color: var(--kb-neutral-900);
+      font-size: 1.125rem;
+      font-weight: 700;
+    }
+    .kb-login-notice p {
+      margin: 12px 0 20px;
+      overflow-wrap: anywhere;
+    }
+    .kb-login-notice form {
+      text-align: right;
     }
 
     .kb-login-copyright {

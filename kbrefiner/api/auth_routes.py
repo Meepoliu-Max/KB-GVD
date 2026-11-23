@@ -44,6 +44,7 @@ from kbrefiner.db import (
 )
 
 from .deps import (
+    REGISTRATION_CLOSED_NOTICE,
     get_access_store,
     get_audit_store,
     get_current_user,
@@ -295,8 +296,8 @@ async def register(
     - 用户黑名单始终拒绝
     """
     settings_store = get_settings_store()
-    if not settings_store.get("access_allow_register", True):
-        raise HTTPException(status_code=403, detail="当前未开放自助注册，请联系管理员")
+    if not settings_store.get("access_allow_register"):
+        raise HTTPException(status_code=403, detail=REGISTRATION_CLOSED_NOTICE)
 
     email = _validate_email(body.email)
     _check_email_access(email, check_domain=True)

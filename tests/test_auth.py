@@ -11,6 +11,7 @@
 """
 from __future__ import annotations
 
+import json
 import os
 import time
 import unittest
@@ -18,6 +19,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from fastapi.testclient import TestClient
+from starlette.websockets import WebSocketDisconnect
 
 from kbrefiner import auth as auth_mod
 from kbrefiner.api import deps, routes
@@ -549,6 +551,52 @@ class TestTaskIsolation(_AuthApiTestBase):
         resp = client.get("/api/tasks")
         names = {t["filename"] for t in resp.json()["tasks"]}
         self.assertEqual(names, {"mine.pdf", "others.pdf"})
+
+    def test_signed_in_task_detail_permissions(self):
+        self.bundle.settings_store.set("access_require_login", True)
+        other_user = self.bundle.user_store.create("other@x.com", "另一用户", "other123")
+        self.bundle.task_store["private"] = {
+            "status": "completed", "filename": "private.md", "user_id": other_user["id"],
+        }
+        final = Path(self.temp.name) / "outputs" / "private" / "final.json"
+        final.parent.mkdir(parents=True)
+        final.write_text(json.dumps({
+            "document_info": {
+                "source": "private.md", "doc_type": "技术运维",
+                "total_chunks": 0, "total_qa_pairs": 0,
+            },
+            "knowledge_atoms": [],
+            "exception_list": {},
+            "quality_summary": {
+                "avg_confidence": 0, "low_confidence_count": 0,
+                "exception_count": 0, "needs_review": False,
+            },
+        }), encoding="utf-8")
+
+        owner = _make_client(temp_dir=self.temp.name)
+        login = owner.post("/api/auth/login", json={"email": "other@x.com", "password": "other123"})
+        self.assertEqual(login.status_code, 200)
+        peer = self._client_as("user")
+        admin = self._client_as("admin")
+        anonymous = _make_client(temp_dir=self.temp.name)
+
+        for kind in ("status", "result", "export"):
+            path = f"/api/{kind}/private"
+            with self.subTest(path=path):
+                self.assertEqual(owner.get(path).status_code, 200)
+                self.assertEqual(admin.get(path).status_code, 200)
+                self.assertEqual(peer.get(path).status_code, 403)
+                self.assertEqual(anonymous.get(path).status_code, 401)
+
+        for authorized in (owner, admin):
+            with authorized.websocket_connect("/api/ws/private") as ws:
+                ws.send_text("ping")
+                self.assertEqual(ws.receive_json(), {"type": "pong"})
+        for unauthorized in (peer, anonymous):
+            with self.assertRaises(WebSocketDisconnect) as rejected:
+                with unauthorized.websocket_connect("/api/ws/private"):
+                    pass
+            self.assertEqual(rejected.exception.code, 1008)
 
     def test_upload_associates_user(self):
         client = self._client_as("user")

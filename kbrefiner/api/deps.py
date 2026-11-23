@@ -11,6 +11,7 @@ from __future__ import annotations
 from typing import Optional
 
 from fastapi import Depends, HTTPException, Request
+from starlette.requests import HTTPConnection
 
 from kbrefiner.auth import make_user_dependency
 from kbrefiner.config import Settings, get_settings
@@ -27,6 +28,8 @@ from kbrefiner.db import (
     client_ip,
 )
 from kbrefiner.db.settings_store import decrypt_value
+
+REGISTRATION_CLOSED_NOTICE = "暂未开放注册，请联系管理员申请账号，邮箱地址：meepoliu@qq.com"
 
 # 与任务库同库不同表（data/tasks.db）
 _user_store = UserStore("./data/tasks.db")
@@ -114,7 +117,7 @@ def check_ip_allowed(request: Request) -> None:
 
 
 def get_current_user(
-    request: Request,
+    request: HTTPConnection,
     settings: Settings = Depends(get_settings),
 ) -> Optional[dict]:
     """解析当前登录用户。

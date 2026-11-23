@@ -1,6 +1,18 @@
-"""Start an isolated Render review service with a single ordinary login."""
+"""Start an isolated Render review service with dedicated reviewer logins."""
 
 import os
+
+
+def ensure_account(users, *, email: str, password: str, name: str, role: str) -> None:
+    if "@" not in email or len(password) < 16:
+        raise SystemExit("Configure a review login and a password of at least 16 characters")
+
+    account = users.get_by_email(email)
+    if account is None:
+        users.create(email=email, username=name, password=password, role=role)
+    elif account["role"] != role or users.verify_login(email, password) is None:
+        raise SystemExit("An existing review account does not match its configured login")
+
 
 def main() -> None:
     if os.environ.get("RENDER") != "true":
@@ -18,15 +30,17 @@ def main() -> None:
 
     email = os.environ.get("KBREFINER_REVIEW_EMAIL", "kbrefiner-review@example.com").strip().lower()
     password = os.environ.get("KBREFINER_REVIEW_PASSWORD", "")
-    if "@" not in email or len(password) < 16:
-        raise SystemExit("Configure a review account and a password of at least 16 characters")
-
     users = get_user_store()
-    account = users.get_by_email(email)
-    if account is None:
-        users.create(email=email, username="评审体验", password=password)
-    elif account["role"] != "user" or users.verify_login(email, password) is None:
-        raise SystemExit("Review account does not match the configured ordinary login")
+    ensure_account(users, email=email, password=password, name="评审体验", role="user")
+
+    admin_password = os.environ.get("KBREFINER_REVIEW_ADMIN_PASSWORD", "")
+    if admin_password:
+        admin_email = os.environ.get(
+            "KBREFINER_REVIEW_ADMIN_EMAIL", "kbrefiner-review-admin@example.com",
+        ).strip().lower()
+        ensure_account(
+            users, email=admin_email, password=admin_password, name="后台评审", role="admin",
+        )
 
     for key, limit in {
         "quota_task_daily": 10,

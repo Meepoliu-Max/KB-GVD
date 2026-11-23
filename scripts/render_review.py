@@ -43,12 +43,12 @@ def main() -> None:
         )
 
     for key, limit in {
-        "quota_task_daily": 10,
-        "quota_upload_daily": 10,
-        "quota_token_daily": 100_000,
-        "quota_file_size_mb": 5,
+        "quota_task_daily": 20,
+        "quota_upload_daily": 20,
+        "quota_token_daily": 1_000_000,
+        "quota_file_size_mb": 15,
     }.items():
-        if settings_store.meta(key) is None:
+        if settings_store.get(key) != limit:
             settings_store.set(key, limit, updated_by="render-review")
 
     port = os.environ.get("PORT", str(get_settings().app_port))

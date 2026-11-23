@@ -268,4 +268,14 @@ async def static_page(request: Request, page: str):
     if filename is None:
         from fastapi.responses import JSONResponse
         return JSONResponse(status_code=404, content={"detail": f"Page '{page}' not found"})
+    if page == "task-new":
+        return templates.TemplateResponse(
+            request=request,
+            name=filename,
+            context={
+                "upload_limit_mb": int(deps.runtime_setting(
+                    "quota_file_size_mb", settings.max_upload_size_mb,
+                )),
+            },
+        )
     return FileResponse(static_dir / filename)

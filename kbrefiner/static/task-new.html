@@ -620,12 +620,12 @@ a:hover { color: var(--kb-primary-700); }
         <div class="kb-modal-body">
           <div class="kb-form-group">
             <label class="kb-label" for="task-upload">上传文档</label>
-            <div class="kb-upload-zone" id="task-upload">
+            <div class="kb-upload-zone" id="task-upload" data-max-file-mb="{{ upload_limit_mb }}">
               <div class="kb-upload-icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="32" height="32"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
               </div>
               <div class="kb-upload-text">点击或拖拽文件到此处上传</div>
-              <div class="kb-upload-hint">支持 PDF / Word / Markdown，单个文件不超过 50MB</div>
+              <div class="kb-upload-hint">支持 PDF / Word / Markdown / TXT</div>
             </div>
             <span class="kb-text-error kb-text-sm" id="err-file" style="display:block;margin-top:8px;min-height:18px;"></span>
           </div>
@@ -650,10 +650,14 @@ a:hover { color: var(--kb-primary-700); }
       let _selectedFile = null;
       let _fileId = null;
 
-      const MAX_FILE_BYTES = 50 * 1024 * 1024;
       const ALLOWED_EXT = new Set(['pdf', 'docx', 'md', 'txt', 'markdown']);
 
       const uploadZone = document.getElementById('task-upload');
+      const maxFileMb = Number(uploadZone.dataset.maxFileMb);
+      const uploadHint = uploadZone.querySelector('.kb-upload-hint');
+      if (Number.isFinite(maxFileMb)) {
+        uploadHint.textContent += `，单个文件不超过 ${maxFileMb} MB`;
+      }
       const fileInput = document.createElement('input');
       fileInput.type = 'file';
       fileInput.accept = '.pdf,.docx,.md,.markdown,.txt';
@@ -677,8 +681,8 @@ a:hover { color: var(--kb-primary-700); }
           const ext = dot >= 0 ? f.name.slice(dot + 1).toLowerCase() : '';
           if (!ALLOWED_EXT.has(ext)) {
             errors.push({ field: 'file', msg: '不支持的文件类型，仅允许 PDF/DOCX/MD/TXT' });
-          } else if (f.size > MAX_FILE_BYTES) {
-            errors.push({ field: 'file', msg: '文件大小超过限制：50MB' });
+          } else if (Number.isFinite(maxFileMb) && f.size > maxFileMb * 1024 * 1024) {
+            errors.push({ field: 'file', msg: `文件大小超过限制：${maxFileMb} MB` });
           }
         }
         if (!nameInput.value.trim()) {
@@ -730,8 +734,7 @@ a:hover { color: var(--kb-primary-700); }
 
         // 更新上传区显示
         uploadZone.querySelector('.kb-upload-text').textContent = file.name;
-        uploadZone.querySelector('.kb-upload-hint').textContent =
-          `${KBRefiner.formatBytes(file.size)} · 已选择`;
+        uploadHint.textContent = `${KBRefiner.formatBytes(file.size)} · 已选择`;
 
         // 自动填充任务名
         if (!taskNameInput.value) {

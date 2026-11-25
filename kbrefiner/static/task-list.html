@@ -759,8 +759,11 @@ a:hover { color: var(--kb-primary-700); }
 
       // 就地更新某任务行的进度条与进度文字（不重排列表）
       function updateRowFromProgress(msg) {
-        const pct = Math.round((msg.progress || 0) * 100);
         const tid = msg.task_id;
+        const task = _tasks.find(task => task.task_id === tid);
+        if (!task || !Number.isFinite(msg.progress) || msg.progress <= task.progress) return;
+        task.progress = msg.progress;
+        const pct = Math.round(task.progress * 100);
         document.querySelectorAll(`.kb-task-row[data-task-id="${tid}"]`).forEach(row => {
           const bar = row.querySelector('.kb-progress-bar');
           if (bar) bar.style.width = pct + '%';

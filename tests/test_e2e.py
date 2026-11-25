@@ -268,6 +268,7 @@ class TestE2E(unittest.TestCase):
         该项聚焦于「进度事件 → 广播消息」这一实时推送核心路径，
         mock 掉 manager.broadcast 以捕获推送的 JSON 内容（不依赖真实 WS 传输）。
         """
+        from kbrefiner.api.task_progress import TaskProgress
         from kbrefiner.api.ws_manager import make_progress_callback
 
         msg_queue = []
@@ -275,24 +276,34 @@ class TestE2E(unittest.TestCase):
         async def fake_broadcast(task_id, message):
             msg_queue.append((task_id, message))
 
-        # 模拟 stage_runner 在 Stage1 完成时调用 on_progress("success")
-        with patch("kbrefiner.api.routes.manager.broadcast", new=fake_broadcast):
-            on_progress, _ = make_progress_callback("task_realtime", total_stages=5)
+        with (
+            TemporaryDirectory() as temp,
+            patch("kbrefiner.api.routes.manager.broadcast", new=fake_broadcast),
+        ):
+            output = Path(temp)
+            on_progress, on_stage_complete = make_progress_callback(
+                "task_realtime", TaskProgress(output),
+            )
 
             async def _run():
-                on_progress("Stage1-Clean", attempt=1, status="success")
-                # 让 ensure_future 调度的 fake_broadcast 协程执行完毕
-                await asyncio.sleep(0.02)
+                on_progress("Stage4-Tag", attempt=1, status="success")
+                on_progress("Stage4-Tag", attempt=2, status="retrying")
+                (output / "stage1.json").write_text("{}")
+                on_stage_complete("Stage1-Clean", None)
+                on_progress("Stage3-QA", attempt=1, status="calling_llm")
+                await asyncio.sleep(0)
 
             asyncio.run(_run())
 
         self.assertTrue(msg_queue, "on_progress 应触发一次广播")
-        task_id, message = msg_queue[0]
+        assert [message["progress"] for _, message in msg_queue] == [0, 0.2, 0.2]
+        task_id, message = msg_queue[1]
         self.assertEqual(task_id, "task_realtime")
         self.assertEqual(message["type"], "progress")
         self.assertEqual(message["stage"], "Stage1-Clean")
         self.assertEqual(message["status"], "completed")
-        self.assertAlmostEqual(message["progress"], 0.2)  # (0+1)/5
+        self.assertEqual(message["completed_stages"], ["stage1"])
+        self.assertEqual(msg_queue[-1][1]["active_stages"], ["stage3", "stage4"])
 
 
 if __name__ == "__main__":

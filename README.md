@@ -66,6 +66,8 @@ print(result.model_dump_json(indent=2))
 kbrefiner serve
 ```
 
+The Web UI warns above 10 MB and defaults to a 15 MB per-file limit. After extracting text, it offers OCR and replacement guidance for unreadable PDFs and asks for confirmation before processing partial PDFs or apparent fiction. [Upload and document checks](docs/opensource/README.md#文档上传与检查)
+
 ### Docker one-click deployment
 
 ```bash

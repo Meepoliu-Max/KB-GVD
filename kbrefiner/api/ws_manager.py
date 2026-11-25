@@ -9,6 +9,8 @@ from typing import Any
 
 from fastapi import WebSocket
 
+from .task_progress import STAGES, TaskProgress
+
 logger = logging.getLogger(__name__)
 
 
@@ -50,15 +52,13 @@ class ConnectionManager:
             return
         text = json.dumps(message, ensure_ascii=False)
         dead: set[WebSocket] = set()
-        for ws in conns:
+        for ws in tuple(conns):
             try:
                 await ws.send_text(text)
             except Exception:
                 dead.add(ws)
         for ws in dead:
-            conns.discard(ws)
-        if not conns:
-            del self._connections[task_id]
+            self.disconnect(task_id, ws)
 
     def is_connected(self, task_id: str) -> bool:
         """检查是否有连接监听指定 task_id。"""
@@ -73,7 +73,11 @@ manager = ConnectionManager()
 # 进度推送工具函数
 # =====================================================================
 
-async def push_progress(task_id: str, *, stage: str, progress: float, status: str, message: str = "") -> None:
+async def push_progress(
+    task_id: str, *, stage: str, progress: float, status: str, message: str = "",
+    completed_stages: list[str] | None = None, active_stages: list[str] | None = None,
+    remaining_seconds: int | None = None,
+) -> None:
     """向指定 task_id 的所有 WS 连接推送进度。
 
     Args:
@@ -90,6 +94,9 @@ async def push_progress(task_id: str, *, stage: str, progress: float, status: st
         "progress": progress,
         "status": status,
         "message": message,
+        "completed_stages": completed_stages,
+        "active_stages": active_stages,
+        "remaining_seconds": remaining_seconds,
     })
 
 
@@ -115,73 +122,42 @@ async def push_result(task_id: str, result: dict[str, Any]) -> None:
 # 创建 Pipeline 进度回调
 # =====================================================================
 
-def make_progress_callback(task_id: str, total_stages: int = 5):
-    """创建 Pipeline 的 on_progress 回调，自动推送进度到 WebSocket。
-
-    stage_runner 中的 on_progress(stage_name, attempt, status) 格式：
-    - stage_name: "Stage1-Clean" 等
-    - attempt: 当前尝试次数（1-based）
-    - status: "calling_llm" | "validating" | "success" | "retrying"
-
-    返回的回调为同步函数（匹配 stage_runner 的 ProgressCallback 签名），
-    内部通过 asyncio.ensure_future 调度异步推送（stage_runner 在事件循环中运行）。
-
-    Returns:
-        on_progress callable, on_stage_complete callable
-    """
-    stage_order = ["Stage1-Clean", "Stage2-Chunk", "Stage3-QA", "Stage4-Tag", "Postprocess"]
-    completed_count = 0
-
-    def _schedule(coro) -> None:
-        """调度协程执行；无事件循环时（同步 CLI 场景）静默关闭跳过。"""
+def make_progress_callback(task_id: str, progress: TaskProgress):
+    """Report activity immediately, with completion based on saved checkpoints."""
+    def publish(stage_name: str, status: str, message: str) -> None:
         try:
-            asyncio.ensure_future(coro)
+            loop = asyncio.get_running_loop()
         except RuntimeError:
-            coro.close()
+            return
 
-    def _on_progress(stage_name: str, attempt: int, status: str) -> None:
-        nonlocal completed_count
+        loop.create_task(push_progress(
+            task_id, stage=stage_name, status=status, message=message, **progress.snapshot(),
+        ))
 
-        stage_idx = stage_order.index(stage_name) if stage_name in stage_order else -1
-        base = stage_idx if stage_idx >= 0 else 0
+    def on_progress(stage_name: str, attempt: int, status: str) -> None:
+        stage = STAGES.get(stage_name)
+        if stage is None or status == "success":
+            # A successful batch may still have siblings running in the same stage.
+            return
 
-        if status == "calling_llm":
-            msg = f"{stage_name} 正在调用 LLM 生成..."
-            _schedule(push_progress(task_id, stage=stage_name,
-                                    progress=(base + 0.2) / total_stages,
-                                    status="processing", message=msg))
-        elif status == "validating":
-            msg = f"{stage_name} 结果校验中..."
-            _schedule(push_progress(task_id, stage=stage_name,
-                                    progress=(base + 0.6) / total_stages,
-                                    status="processing", message=msg))
-        elif status == "success":
-            completed_count += 1
-            msg = f"{stage_name} 完成"
-            _schedule(push_progress(task_id, stage=stage_name,
-                                    progress=(base + 1) / total_stages,
-                                    status="completed", message=msg))
-        elif status == "retrying":
-            msg = f"{stage_name} 第 {attempt} 次重试..."
-            _schedule(push_progress(task_id, stage=stage_name,
-                                    progress=(base + 0.1) / total_stages,
-                                    status="processing", message=msg))
-        elif status == "started":
-            msg = f"{stage_name} 开始处理..."
-            _schedule(push_progress(task_id, stage=stage_name,
-                                    progress=base / total_stages,
-                                    status="processing", message=msg))
-        elif status == "failed":
-            msg = f"{stage_name} 处理失败"
-            _schedule(push_progress(task_id, stage=stage_name,
-                                    progress=completed_count / total_stages,
-                                    status="failed", message=msg))
+        messages = {
+            "calling_llm": "正在处理",
+            "validating": "正在校验结果",
+            "retrying": f"正在重试（第 {attempt} 次）",
+            "started": "开始处理",
+            "failed": "处理失败",
+        }
+        if status not in messages:
+            return
+        progress.active_stages.add(stage)
+        publish(stage_name, "processing", f"{stage_name} {messages[status]}")
 
-    def _on_stage_complete(stage_name: str, output: Any) -> None:
-        # stage_runner 已完成推送，这里仅做额外日志
-        logger.info("Stage 完成回调: %s (task_id=%s)", stage_name, task_id)
+    def on_stage_complete(stage_name: str, output: Any) -> None:
+        progress.active_stages.discard(STAGES[stage_name])
+        if stage_name != "Postprocess":
+            publish(stage_name, "completed", f"{stage_name} 完成")
 
-    return _on_progress, _on_stage_complete
+    return on_progress, on_stage_complete
 
 
 __all__ = [

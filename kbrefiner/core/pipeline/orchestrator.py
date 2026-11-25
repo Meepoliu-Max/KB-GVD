@@ -66,6 +66,7 @@ logger = logging.getLogger(__name__)
 ProgressCallback = Callable[[str, int, str], None]
 # Stage 完成回调类型：(stage_name, output) -> None
 StageCompleteCallback = Callable[[str, Any], None]
+BatchProgressCallback = Callable[[str, int, int], None]
 
 
 @dataclass
@@ -133,6 +134,7 @@ class Pipeline:
         on_progress: ProgressCallback | None = None,
         on_stage_complete: StageCompleteCallback | None = None,
         before_finalize: Callable[[], Awaitable[None]] | None = None,
+        on_batch_progress: BatchProgressCallback | None = None,
     ) -> KbDocument:
         """执行完整流水线。
 
@@ -143,6 +145,7 @@ class Pipeline:
             on_progress: 进度回调
             on_stage_complete: 每个 Stage 完成回调
             before_finalize: 合并与落盘前的可选异步检查点
+            on_batch_progress: QA / 打标每阶段已完成和总批次数
 
         Returns:
             最终 KbDocument
@@ -161,13 +164,15 @@ class Pipeline:
 
         # Stage 3 + Stage 4 并行
         stage3_output, stage4_output = await self._exec_stage3_and_4_parallel(
-            stage1_output, stage2_output, on_progress, on_stage_complete
+            stage1_output, stage2_output, on_progress, on_stage_complete, on_batch_progress
         )
 
         if before_finalize is not None:
             await before_finalize()
 
         # Postprocess: merge 4 阶段输出
+        if on_progress:
+            on_progress("Postprocess", 1, "started")
         logger.info("开始后处理 merge")
         doc = merge_stages_to_document(
             stage1=stage1_output,
@@ -318,6 +323,7 @@ class Pipeline:
         stage2_output: Stage2Output,
         on_progress: ProgressCallback | None,
         on_stage_complete: StageCompleteCallback | None,
+        on_batch_progress: BatchProgressCallback | None = None,
     ) -> tuple[Stage3Output, Stage4Output]:
         """Stage 3 和 Stage 4 并行执行（输入相同）。
 
@@ -366,6 +372,7 @@ class Pipeline:
                     exception_list=self._merge_exception_lists(p.exception_list for p in parts),
                 ),
                 stage_name="Stage3-QA",
+                on_batch_progress=on_batch_progress,
             )
             self._save_checkpoint("stage3", outputs)
             if on_stage_complete:
@@ -399,6 +406,7 @@ class Pipeline:
                     exception_list=self._merge_exception_lists(p.exception_list for p in parts),
                 ),
                 stage_name="Stage4-Tag",
+                on_batch_progress=on_batch_progress,
             )
             self._save_checkpoint("stage4", outputs)
             if on_stage_complete:
@@ -538,15 +546,28 @@ class Pipeline:
         run_batch,
         merge,
         stage_name: str,
+        on_batch_progress: BatchProgressCallback | None = None,
     ):
         """并行执行各批次并合并结果。单批失败则整阶段失败（与不分批行为一致）。"""
-        if len(batches) == 1:
-            return await run_batch(batches[0])
+        total = len(batches)
+        completed = 0
+        if on_batch_progress:
+            on_batch_progress(stage_name, completed, total)
+        if total == 1:
+            result = await run_batch(batches[0])
+            if on_batch_progress:
+                on_batch_progress(stage_name, 1, total)
+            return result
         semaphore = asyncio.Semaphore(max(1, self._config.stage34_concurrency))
 
         async def _guarded(batch):
+            nonlocal completed
             async with semaphore:
-                return await run_batch(batch)
+                result = await run_batch(batch)
+                completed += 1
+                if on_batch_progress:
+                    on_batch_progress(stage_name, completed, total)
+                return result
 
         parts = await asyncio.gather(*[_guarded(b) for b in batches])
         merged = merge(parts)

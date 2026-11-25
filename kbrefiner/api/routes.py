@@ -53,6 +53,7 @@ from .deps import (
     require_admin,
     require_login_enabled,
 )
+from .task_progress import STAGES, TaskProgress, completed_stages
 from .ws_manager import make_progress_callback, manager, push_error, push_result
 
 logger = logging.getLogger(__name__)
@@ -63,6 +64,7 @@ router = APIRouter(prefix="/api", tags=["文档处理"])
 _task_store = TaskStore("./data/tasks.db")
 # 后台任务引用，防止 GC
 _background_tasks: dict[str, asyncio.Task] = {}
+_task_progress: dict[str, TaskProgress] = {}
 _preflight_tasks: set[str] = set()
 
 # 任务状态常量
@@ -83,21 +85,8 @@ class _BatchTasksRequest(BaseModel):
     action: str = Field(..., description="批量操作：cancel / delete / retry")
     ids: list[str] = Field(..., min_length=1, description="任务 ID 列表（最多 200）")
 
-# 阶段落盘文件（用于估算真实进度）
-_STAGE_FILES = ("stage1", "stage2", "stage3", "stage4", "final")
-
-
 def _estimate_progress(output_base: Path, task_id: str) -> float:
-    """按输出目录已落盘的文件估算进度（0.0~1.0）。
-
-    final.json 是流水线最后落盘的文件，存在即视为已完成（兼容
-    关闭 checkpoint、只有 final.json 的场景）；否则按阶段文件数估算。
-    """
-    task_dir = output_base / task_id
-    if (task_dir / "final.json").exists():
-        return 1.0
-    done = sum(1 for s in _STAGE_FILES if (task_dir / f"{s}.json").exists())
-    return done / len(_STAGE_FILES)
+    return len(completed_stages(output_base / task_id)) / len(STAGES)
 
 
 def _make_task_id() -> str:
@@ -188,7 +177,8 @@ async def _run_pipeline_background(
 ) -> None:
     """在后台运行 Pipeline，通过 WebSocket 推送进度。"""
     pause = _task_pauses[task_id]
-    on_progress, on_stage_complete = make_progress_callback(task_id)
+    progress = _task_progress[task_id]
+    on_progress, on_stage_complete = make_progress_callback(task_id, progress)
 
     pipeline = Pipeline(
         llm_client=llm_client,
@@ -220,6 +210,7 @@ async def _run_pipeline_background(
             on_progress=on_progress,
             on_stage_complete=on_stage_complete,
             before_finalize=pause.wait_until_ready,
+            on_batch_progress=progress.batch_finished,
         )
         await pause.wait_until_ready()
         # 运行完成后再次检查是否被取消
@@ -271,6 +262,7 @@ def _start_background_task(
     _configure_task_client(task_id, llm_client)
     pause = _TaskPause(task_id)
     _task_pauses[task_id] = pause
+    _task_progress[task_id] = TaskProgress(output_dir)
     llm_client.async_request_slot = pause.request_slot
     task = asyncio.create_task(
         _run_pipeline_background(task_id, markdown, filename, llm_client, output_dir, settings)
@@ -282,6 +274,7 @@ def _start_background_task(
         if _background_tasks.get(task_id) is task:
             _background_tasks.pop(task_id)
             _task_pauses.pop(task_id)
+            _task_progress.pop(task_id)
 
     task.add_done_callback(cleanup)
 
@@ -584,18 +577,18 @@ async def get_status(
     stored = _task_store.get(task_id)
     if stored:
         status = stored.get("status", _TASK_PROCESSING)
-        progress = 0.0
+        runtime = _task_progress.get(task_id)
+        snapshot = (runtime or TaskProgress(Path(settings.output_dir) / task_id)).snapshot()
         if status == _TASK_COMPLETED:
-            progress = 1.0
-        elif status in (_TASK_PROCESSING, *_PAUSE_STATES):
-            # 结合输出目录已落盘的阶段文件估算真实进度
-            progress = _estimate_progress(Path(settings.output_dir), task_id)
+            snapshot.update(progress=1.0, completed_stages=list(STAGES.values()))
+        if status != _TASK_PROCESSING:
+            snapshot.update(active_stages=[], remaining_seconds=None)
         return {
             "task_id": task_id,
             "filename": stored.get("filename", "未知文件"),
             "status": status,
             "can_pause": status == _TASK_PROCESSING and task_id in _task_pauses,
-            "progress": progress,
+            **snapshot,
             "error": stored.get("error"),
             "created_at": stored.get("created_at"),
             "updated_at": stored.get("updated_at"),
@@ -608,18 +601,14 @@ async def get_status(
         raise HTTPException(status_code=404, detail=f"任务 {task_id} 不存在")
 
     # 检查各阶段完成情况
-    stages = ["stage1", "stage2", "stage3", "stage4", "final"]
-    completed = []
-    for s in stages:
-        if (output_dir / f"{s}.json").exists():
-            completed.append(s)
+    completed = completed_stages(output_dir)
 
     if "final" in completed:
         status = _TASK_COMPLETED
         progress = 1.0
     elif completed:
         status = _TASK_PROCESSING
-        progress = len(completed) / len(stages)
+        progress = len(completed) / len(STAGES)
     else:
         status = _TASK_PENDING
         progress = 0.0
@@ -742,9 +731,8 @@ async def list_tasks(
         status = info.get("status", _TASK_PENDING)
         if status == _TASK_COMPLETED:
             progress = 1.0
-        elif status in (_TASK_PROCESSING, *_PAUSE_STATES):
-            # 按落盘阶段文件估算真实进度（与 /status 口径一致）
-            progress = _estimate_progress(output_base, task_id)
+        elif status in (_TASK_PROCESSING, *_PAUSE_STATES, _TASK_FAILED, _TASK_CANCELLED):
+            progress = min(_estimate_progress(output_base, task_id), (len(STAGES) - 1) / len(STAGES))
         else:
             progress = 0.0
         tasks.append({
@@ -904,6 +892,7 @@ async def resume_task(
             task_id, document.markdown, task["filename"] or uploaded_name, client, output_dir, settings,
         )
     else:
+        _task_progress[task_id].reset_eta()
         pause.ready.set()
     _set_task_state(task_id, _TASK_PROCESSING)
     _audit_task_control(audit_store, request, user, task_id, "task.resumed")

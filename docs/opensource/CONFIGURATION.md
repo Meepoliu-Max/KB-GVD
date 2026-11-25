@@ -46,7 +46,7 @@
 | `LOG_LEVEL` | `INFO` | 日志级别，排障时可调 `DEBUG` |
 | `UPLOAD_DIR` | `./data/uploads` | 上传原件目录 |
 | `OUTPUT_DIR` | `./data/outputs` | 任务输出目录（断点文件也在此） |
-| `MAX_UPLOAD_SIZE_MB` | `50` | 上传大小上限，超限返回 400 |
+| `MAX_UPLOAD_SIZE_MB` | `15` | Web 单文件大小的环境回退值。后台 `quota_file_size_mb` 优先，默认 15 MB。超过 10 MB 显示提醒，超过生效上限返回 400 |
 | `DATABASE_URL` | （见注） | ⚠️ **遗留死配置，当前未生效**。任务库实际固定 `./data/tasks.db`；改数据位置请调整 `data/` 目录挂载 |
 
 ---

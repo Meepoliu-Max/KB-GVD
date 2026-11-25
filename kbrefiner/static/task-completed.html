@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>知序 KBRefiner - 任务已完成</title>
+    <link rel="stylesheet" href="/static/css/task-layout.css">
     <style id="theme-vars">
 /* 知序 KBRefiner — 产品前端设计系统 */
 
@@ -901,7 +902,6 @@ a:hover {
     </script>
 
     <style id="critical-layout">
-    .kb-app { display: flex; flex-direction: column; min-height: 100vh; }
     .kb-top-header {
       height: var(--kb-header-height);
       background: var(--kb-neutral-0);
@@ -943,8 +943,6 @@ a:hover {
       display: flex; align-items: center; justify-content: center;
       font-weight: 700; font-size: 0.875rem;
     }
-    .kb-main { flex: 1; min-height: 100vh; }
-    .kb-content { padding: 32px; max-width: 1440px; margin: 0 auto; }
 
     .kb-task-header {
       display: flex; align-items: flex-start; justify-content: space-between;
@@ -1148,7 +1146,6 @@ a:hover {
       .kb-top-header-left { gap: 12px; }
       .kb-top-back { display: none; }
       .kb-top-brand-text { display: none; }
-      .kb-content { padding: 16px; }
       .kb-task-header { flex-direction: column; }
       .kb-stepper {
         flex-direction: column;

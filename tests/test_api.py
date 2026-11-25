@@ -24,6 +24,7 @@ from kbrefiner.main import app
 from kbrefiner.api import deps, routes
 from kbrefiner.api.ws_manager import manager
 from kbrefiner.config import Settings, get_settings
+from kbrefiner.core.parser import FileType, ParsedDocument
 from kbrefiner.db import AuditStore, PasswordResetStore, SettingsStore, TaskStore, UserStore
 from kbrefiner.models import KbDocument, DocType
 from kbrefiner import auth as _auth
@@ -183,7 +184,7 @@ class TestProcess(unittest.TestCase):
         """处理文档成功。"""
         # 模拟 MinerU 解析
         mock_parser = MagicMock()
-        mock_parser.parse.return_value = MagicMock(markdown="# 测试文档\n正文")
+        mock_parser.parse.return_value = ParsedDocument("test.pdf", FileType.PDF, "# 测试文档\n正文")
         mock_get_parser.return_value = mock_parser
 
         # 模拟 Pipeline 输出

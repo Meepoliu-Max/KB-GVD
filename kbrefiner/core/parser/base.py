@@ -90,6 +90,7 @@ class ParsedDocument:
     formulas: list[Formula] = field(default_factory=list)
     page_count: int = 0  # PDF 页数，非 PDF 为 0
     char_count: int = 0  # markdown 字符数
+    pages_without_text: tuple[int, ...] = ()  # PDF 中未提取到文字的页码（从 1 开始）
 
     def __post_init__(self):
         if not self.char_count:

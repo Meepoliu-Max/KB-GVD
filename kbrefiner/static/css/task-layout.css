@@ -1,0 +1,30 @@
+html {
+  scrollbar-gutter: stable;
+}
+
+@supports not (scrollbar-gutter: stable) {
+  html { overflow-y: scroll; }
+}
+
+.kb-app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.kb-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.kb-content {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1440px;
+  margin-inline: auto;
+  padding: 32px;
+}
+
+@media (max-width: 768px) {
+  .kb-content { padding: 16px; }
+}

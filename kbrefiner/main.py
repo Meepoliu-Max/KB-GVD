@@ -7,6 +7,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
 from kbrefiner.api import (
     access_routes,
@@ -71,6 +72,7 @@ app.include_router(settings_routes.router)
 static_dir = Path(__file__).resolve().parent / "static"
 static_dir.mkdir(exist_ok=True)
 app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+templates = Jinja2Templates(directory=static_dir)
 
 
 # 设计系统页面路由
@@ -257,4 +259,14 @@ async def static_page(request: Request, page: str):
     if filename is None:
         from fastapi.responses import JSONResponse
         return JSONResponse(status_code=404, content={"detail": f"Page '{page}' not found"})
+    if page == "task-new":
+        return templates.TemplateResponse(
+            request=request,
+            name=filename,
+            context={
+                "upload_limit_mb": int(deps.runtime_setting(
+                    "quota_file_size_mb", settings.max_upload_size_mb,
+                )),
+            },
+        )
     return FileResponse(static_dir / filename)

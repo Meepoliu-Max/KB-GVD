@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>知序 KBRefiner - 质检报告</title>
+    <link rel="stylesheet" href="/static/css/task-layout.css">
     <style id="theme-vars">
 /* 知序 KBRefiner — 产品前端设计系统 */
 :root {
@@ -314,7 +315,6 @@ a:hover { color: var(--kb-primary-700); }
     </script>
 
     <style id="critical-layout">
-    .kb-app { display: flex; flex-direction: column; min-height: 100vh; }
     .kb-top-header {
       height: var(--kb-header-height);
       background: var(--kb-neutral-0);
@@ -338,8 +338,6 @@ a:hover { color: var(--kb-primary-700); }
       color: var(--kb-neutral-600); padding-left: 24px; border-left: 1px solid var(--kb-border);
     }
     .kb-top-back:hover { color: var(--kb-primary); }
-    .kb-main { flex: 1; min-height: 100vh; }
-    .kb-content { padding: 32px; max-width: 1440px; margin: 0 auto; }
 
     .kb-report-header {
       display: flex; align-items: flex-start; justify-content: space-between;
@@ -363,7 +361,6 @@ a:hover { color: var(--kb-primary-700); }
       .kb-top-header-left { gap: 12px; }
       .kb-top-back { display: none; }
       .kb-top-brand-text { display: none; }
-      .kb-content { padding: 16px; }
       .kb-report-header { flex-direction: column; }
     }
     </style>

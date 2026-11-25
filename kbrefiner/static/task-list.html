@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>知序 KBRefiner - 任务列表</title>
+    <link rel="stylesheet" href="/static/css/task-layout.css">
     <style id="theme-vars">
 /* 知序 KBRefiner — 产品前端设计系统 */
 
@@ -451,6 +452,7 @@ a:hover { color: var(--kb-primary-700); }
                     <option value="pausing">正在暂停</option>
                     <option value="paused">已暂停</option>
                     <option value="pending">排队中</option>
+                    <option value="awaiting_confirmation">待确认</option>
                     <option value="completed">已完成</option>
                     <option value="failed">失败</option>
                     <option value="cancelled">已取消</option>
@@ -700,6 +702,7 @@ a:hover { color: var(--kb-primary-700); }
 
       // ===== 状态映射 =====
       const STATUS_MAP = {
+        awaiting_confirmation: { label: '待确认', tag: 'kb-tag-muted', tagText: '文档检查', statusClass: 'kb-status-pending' },
         pending: { label: '排队中', tag: 'kb-tag-muted', tagText: '等待处理', statusClass: 'kb-status-pending' },
         processing: { label: '运行中', tag: 'kb-tag-info', tagText: '处理中', statusClass: 'kb-status-running' },
         pausing: { label: '正在暂停', tag: 'kb-tag-muted', tagText: '正在暂停', statusClass: 'kb-status-pending' },
@@ -781,6 +784,15 @@ a:hover { color: var(--kb-primary-700); }
         }, 400);
       }
 
+      function taskLink(task) {
+        if (task.status === 'awaiting_confirmation') {
+          return `/task-new?file_id=${encodeURIComponent(task.task_id)}`;
+        }
+        const page = task.status === 'completed' ? 'task-completed' : 'task-detail';
+        const query = new URLSearchParams({ task_id: task.task_id, name: task.filename || '' });
+        return `/${page}?${query}`;
+      }
+
       function renderTasks() {
         if (!taskTbody || !taskCardsContainer) return;
 
@@ -788,9 +800,7 @@ a:hover { color: var(--kb-primary-700); }
           const s = STATUS_MAP[t.status] || STATUS_MAP.pending;
           const pct = Math.round((t.progress || 0) * 100);
           // 已完成任务直达完成页（含导出入口），其余进入详情页跟踪进度
-          const detailHref = t.status === 'completed'
-            ? `/task-completed?task_id=${t.task_id}&name=${encodeURIComponent(t.filename || '')}`
-            : `/task-detail?task_id=${t.task_id}&name=${encodeURIComponent(t.filename || '')}`;
+          const detailHref = taskLink(t);
           return `<tr class="kb-task-row" data-task-id="${t.task_id}">
             <td style="width:40px;"><input type="checkbox" class="batch-row-check" value="${t.task_id}"></td>
             <td>
@@ -815,9 +825,7 @@ a:hover { color: var(--kb-primary-700); }
         taskCardsContainer.innerHTML = _tasks.map(t => {
           const s = STATUS_MAP[t.status] || STATUS_MAP.pending;
           const pct = Math.round((t.progress || 0) * 100);
-          const detailCardHref = t.status === 'completed'
-            ? `/task-completed?task_id=${t.task_id}&name=${encodeURIComponent(t.filename || '')}`
-            : `/task-detail?task_id=${t.task_id}&name=${encodeURIComponent(t.filename || '')}`;
+          const detailCardHref = taskLink(t);
           return `<article class="kb-task-card" data-task-id="${t.task_id}">
             <div class="kb-task-card-head">
               <div class="kb-task-name">
@@ -841,7 +849,7 @@ a:hover { color: var(--kb-primary-700); }
       function renderStats() {
         const total = _tasks.length;
         const running = _tasks.filter(t => t.status === 'processing').length;
-        const review = _tasks.filter(t => t.status === 'pending').length;
+        const review = _tasks.filter(t => t.status === 'awaiting_confirmation').length;
         const done = _tasks.filter(t => t.status === 'completed').length;
         if (statCards.total) statCards.total.textContent = total;
         if (statCards.running) statCards.running.textContent = running;
@@ -1002,7 +1010,6 @@ a:hover { color: var(--kb-primary-700); }
     </script>
 
     <style id="critical-layout">
-    .kb-app { display: flex; flex-direction: column; min-height: 100vh; }
     .kb-top-header {
       height: var(--kb-header-height);
       background: var(--kb-neutral-0);
@@ -1036,8 +1043,6 @@ a:hover { color: var(--kb-primary-700); }
       display: flex; align-items: center; justify-content: center;
       font-weight: 700; font-size: 0.875rem;
     }
-    .kb-main { flex: 1; min-height: 100vh; }
-    .kb-content { padding: 32px; max-width: 1440px; margin: 0 auto; }
 
     /* Hero */
     .kb-hero {
@@ -1230,7 +1235,6 @@ a:hover { color: var(--kb-primary-700); }
     @media (max-width: 768px) {
       .kb-top-header { padding: 0 16px; }
       .kb-top-brand-text { display: none; }
-      .kb-content { padding: 16px; }
       .kb-hero { margin-bottom: var(--kb-space-5); }
       .kb-hero-body { padding: var(--kb-space-6) var(--kb-space-5); }
       .kb-hero h1 { font-size: 1.5rem; }

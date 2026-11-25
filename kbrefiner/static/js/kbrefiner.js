@@ -5,6 +5,15 @@
 const KBRefiner = (() => {
   'use strict';
 
+  async function documentRequestError(response, fallback) {
+    const { detail } = await response.json().catch(() => ({}));
+    const message = typeof detail === 'string' ? detail : detail?.message;
+    const error = new Error(message || `${fallback} (${response.status})`);
+    error.status = response.status;
+    error.code = detail?.code;
+    return error;
+  }
+
   // ===== API 客户端 =====
   const API = {
     /** 上传文件 */
@@ -12,36 +21,30 @@ const KBRefiner = (() => {
       const form = new FormData();
       form.append('file', file);
       const resp = await fetch('/api/upload', { method: 'POST', body: form });
-      if (!resp.ok) {
-        const err = await resp.json();
-        throw new Error(err.detail || `上传失败 (${resp.status})`);
-      }
+      if (!resp.ok) throw await documentRequestError(resp, '上传失败');
       return resp.json();
     },
 
     /** 发起处理（同步模式） */
     async processSync(fileId) {
       const resp = await fetch(`/api/process?file_id=${fileId}`, { method: 'POST' });
-      if (!resp.ok) {
-        const err = await resp.json();
-        throw new Error(err.detail || `处理失败 (${resp.status})`);
-      }
+      if (!resp.ok) throw await documentRequestError(resp, '处理失败');
       return resp.json();
     },
 
     /** 发起处理（异步模式，配合 WebSocket） */
-    async processAsync(fileId) {
-      const resp = await fetch(`/api/process?file_id=${fileId}&async_mode=true`, { method: 'POST' });
-      if (!resp.ok) {
-        const err = await resp.json();
-        throw new Error(err.detail || `启动失败 (${resp.status})`);
-      }
+    async processAsync(fileId, { filename, acceptDocumentWarnings = false } = {}) {
+      const params = new URLSearchParams({ file_id: fileId, async_mode: 'true' });
+      if (filename) params.set('filename', filename);
+      if (acceptDocumentWarnings) params.set('accept_document_warnings', 'true');
+      const resp = await fetch(`/api/process?${params}`, { method: 'POST' });
+      if (!resp.ok) throw await documentRequestError(resp, '启动失败');
       return resp.json();
     },
 
     /** 查询任务状态 */
     async getStatus(taskId) {
-      const resp = await fetch(`/api/status/${taskId}`);
+      const resp = await fetch(`/api/status/${encodeURIComponent(taskId)}`);
       if (!resp.ok) throw new Error(`查询状态失败 (${resp.status})`);
       return resp.json();
     },
@@ -62,7 +65,7 @@ const KBRefiner = (() => {
 
     /** 取消任务 */
     async cancelTask(taskId) {
-      const resp = await fetch(`/api/task/${taskId}/cancel`, { method: 'POST' });
+      const resp = await fetch(`/api/task/${encodeURIComponent(taskId)}/cancel`, { method: 'POST' });
       if (!resp.ok) {
         const err = await resp.json();
         throw new Error(err.detail || `取消任务失败 (${resp.status})`);

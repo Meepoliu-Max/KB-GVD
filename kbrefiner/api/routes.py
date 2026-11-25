@@ -22,10 +22,19 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field
+from starlette.concurrency import run_in_threadpool
 
 from kbrefiner.config import Settings, get_settings
 from kbrefiner.core.llm import DeepSeekClient
 from kbrefiner.core.llm.exceptions import QuotaExceededError
+from kbrefiner.core.parser import (
+    EmptyDocumentError,
+    FileType,
+    ParsedDocument,
+    ParserError,
+    ParserFactory,
+)
+from kbrefiner.core.parser.review import pdf_has_usable_text, review_document
 from kbrefiner.core.pipeline import Pipeline, PipelineConfig
 from kbrefiner.core.sensitive import SensitiveDetector
 from kbrefiner.db import AuditStore, TaskStore
@@ -54,9 +63,11 @@ router = APIRouter(prefix="/api", tags=["文档处理"])
 _task_store = TaskStore("./data/tasks.db")
 # 后台任务引用，防止 GC
 _background_tasks: dict[str, asyncio.Task] = {}
+_preflight_tasks: set[str] = set()
 
 # 任务状态常量
 _TASK_PENDING = "pending"
+_TASK_AWAITING_CONFIRMATION = "awaiting_confirmation"
 _TASK_PROCESSING = "processing"
 _TASK_PAUSING = "pausing"
 _TASK_PAUSED = "paused"
@@ -275,20 +286,35 @@ def _start_background_task(
     task.add_done_callback(cleanup)
 
 
-def _parse_uploaded_document(file_id: str, settings: Settings) -> tuple[str, str]:
-    from kbrefiner.core.parser import FileType, ParserFactory
-
+def _parse_uploaded_document(file_id: str, settings: Settings) -> tuple[ParsedDocument, str]:
     upload_dir = Path(settings.upload_dir)
     file_path = next((path for path in upload_dir.glob(f"{file_id}.*")
                       if path.stem == file_id and path.is_file()), None)
     if file_path is None:
         raise HTTPException(status_code=404, detail=f"文件 {file_id} 不存在")
-    parser = ParserFactory.get_parser(FileType.from_path(file_path))
+    file_type = FileType.from_path(file_path)
     try:
-        return parser.parse(str(file_path)).markdown, file_path.name
+        parser = ParserFactory.get_parser(file_type, backend=settings.parser_backend)
+        document = parser.parse(str(file_path))
+        if file_type == FileType.PDF and not pdf_has_usable_text(document.markdown):
+            raise EmptyDocumentError("PDF text layer is empty")
+        return document, file_path.name
+    except EmptyDocumentError as e:
+        detail = "未提取到可用文字。请确认文件包含正文，再重新上传。"
+        if file_type == FileType.PDF:
+            detail = (
+                "该 PDF 未提取到可用文字，可能是扫描件或纯图片。"
+                "请先用 OCR 识别后重新上传，或上传原始 Word／文本版。"
+            )
+        raise HTTPException(status_code=422, detail=detail) from e
+    except ParserError as e:
+        logger.warning("无法解析文档 %s: %s", file_id, e)
+        raise HTTPException(
+            status_code=422, detail="无法读取此文件。请确认文件可以正常打开，或重新导出后上传。",
+        ) from e
     except Exception as e:
-        logger.error("文档解析失败: %s", e)
-        raise HTTPException(status_code=500, detail=f"文档解析失败: {e}") from e
+        logger.exception("解析文档 %s 时发生异常", file_id)
+        raise HTTPException(status_code=500, detail="文档解析暂时失败，请重试。") from e
 
 
 @router.post("/upload")
@@ -324,10 +350,12 @@ async def upload_file(
     # 文件大小：后台配额覆盖 .env
     configured_max_mb = settings_store.get("quota_file_size_mb")
     max_mb = int(settings.max_upload_size_mb if configured_max_mb is None else configured_max_mb)
-    if file.size and file.size > max_mb * 1024 * 1024:
+    max_bytes = max_mb * 1024 * 1024
+    size_guidance = f"单文件上限为 {max_mb} MB，请按章节拆分或重新导出较小的文件。"
+    if file.size and file.size > max_bytes:
         raise HTTPException(
             status_code=400,
-            detail=f"文件大小超过限制（{max_mb}MB）",
+            detail=f"文件大小超过限制（当前 {file.size:,} 字节）。{size_guidance}",
         )
 
     # 用户配额（仅登录用户；匿名开放模式不限制）
@@ -345,10 +373,9 @@ async def upload_file(
     file_path = upload_dir / f"{file_id}{ext}"
 
     # 有界读取同样覆盖 size 未提供或不准确的上传。
-    max_bytes = max_mb * 1024 * 1024
     content = await file.read(max_bytes + 1)
     if len(content) > max_bytes:
-        raise HTTPException(status_code=400, detail=f"文件大小超过限制（{max_mb}MB）")
+        raise HTTPException(status_code=400, detail=f"文件大小超过限制。{size_guidance}")
 
     # 写文件到登记任务之间没有 await，最终配额检查在数据库事务中执行。
     try:
@@ -383,6 +410,7 @@ async def process_document(
     request: Request,
     async_mode: bool = False,
     filename: Optional[str] = None,
+    accept_document_warnings: bool = False,
     settings: Settings = Depends(get_settings),
     llm_client: DeepSeekClient = Depends(get_llm_client),
     detector: SensitiveDetector = Depends(get_sensitive_detector),
@@ -399,6 +427,7 @@ async def process_document(
         file_id: 上传时返回的文件 ID
         async_mode: 是否 asyncio 后台处理
         filename: 可选，原始文件名
+        accept_document_warnings: 明确继续处理已触发文档检查提醒的文件
 
     Returns:
         同步: {"task_id": "...", "status": "completed", "result": {...}}
@@ -421,9 +450,41 @@ async def process_document(
 
     if stored_info.get("status") in (_TASK_PROCESSING, *_PAUSE_STATES) or file_id in _background_tasks:
         raise HTTPException(status_code=409, detail="任务正在处理或已暂停")
+    if file_id in _preflight_tasks:
+        raise HTTPException(status_code=409, detail="正在检查此文件，请稍候")
 
-    markdown, uploaded_name = _parse_uploaded_document(file_id, settings)
+    _preflight_tasks.add(file_id)
+    try:
+        document, uploaded_name = await run_in_threadpool(_parse_uploaded_document, file_id, settings)
+    except HTTPException as e:
+        if e.status_code == 422 and stored_info.get("status") in (
+            _TASK_PENDING, _TASK_AWAITING_CONFIRMATION,
+        ):
+            latest = _task_store.get(file_id)
+            if latest and latest["status"] == stored_info["status"]:
+                _task_store.update_status(file_id, _TASK_FAILED, error=e.detail)
+        raise
+    finally:
+        _preflight_tasks.discard(file_id)
+    if stored_info:
+        latest = _task_for_control(file_id, current_user)
+        if latest["status"] != stored_info["status"]:
+            raise HTTPException(status_code=409, detail="任务状态已变更，请刷新后重试")
+        stored_info = latest
     doc_name = filename or stored_info.get("filename") or uploaded_name
+    warnings = (
+        review_document(document, stored_info.get("filename") or uploaded_name)
+        if not accept_document_warnings else []
+    )
+    if warnings:
+        message = "\n".join(warnings)
+        if stored_info.get("status") in (_TASK_PENDING, _TASK_AWAITING_CONFIRMATION):
+            _task_store.update_status(file_id, _TASK_AWAITING_CONFIRMATION, error=message)
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "document_review_required", "message": message},
+        )
+    markdown = document.markdown
     owner_id = stored_info.get("user_id")
     output_dir = Path(settings.output_dir) / file_id
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -836,11 +897,11 @@ async def resume_task(
         raise HTTPException(status_code=429, detail=str(e)) from e
     pause = _task_pauses.get(task_id)
     if pause is None:
-        markdown, uploaded_name = _parse_uploaded_document(task_id, settings)
+        document, uploaded_name = _parse_uploaded_document(task_id, settings)
         output_dir = Path(settings.output_dir) / task_id
         client = get_llm_client(settings)
         _start_background_task(
-            task_id, markdown, task["filename"] or uploaded_name, client, output_dir, settings,
+            task_id, document.markdown, task["filename"] or uploaded_name, client, output_dir, settings,
         )
     else:
         pause.ready.set()

@@ -17,6 +17,7 @@ from fastapi.testclient import TestClient
 from kbrefiner.main import app
 from kbrefiner.api import routes
 from kbrefiner.config import Settings, get_settings
+from kbrefiner.core.parser import FileType, ParsedDocument
 from kbrefiner.db import TaskStore
 from kbrefiner.models import KbDocument, DocType
 
@@ -168,7 +169,7 @@ class TestE2E(unittest.TestCase):
         # ---- Step 2: Process (sync) ----
         # Mock MinerU parser
         mock_parser = MagicMock()
-        mock_parser.parse.return_value = MagicMock(markdown="# 模拟文档\n正文内容")
+        mock_parser.parse.return_value = ParsedDocument("test.pdf", FileType.PDF, "# 模拟文档\n正文内容")
         mock_get_parser.return_value = mock_parser
         # Mock Pipeline output
         mock_pipeline_run.return_value = _make_mock_pipeline_output()
@@ -216,7 +217,7 @@ class TestE2E(unittest.TestCase):
 
         # Mock MinerU parser
         mock_parser = MagicMock()
-        mock_parser.parse.return_value = MagicMock(markdown="# 模拟文档\n正文内容")
+        mock_parser.parse.return_value = ParsedDocument("test.pdf", FileType.PDF, "# 模拟文档\n正文内容")
         mock_get_parser.return_value = mock_parser
 
         # Mock Pipeline 输出（不设置的话后台任务拿到 MagicMock，

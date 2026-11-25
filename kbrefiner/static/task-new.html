@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>知序 KBRefiner - 新建任务</title>
+    <link rel="stylesheet" href="/static/css/task-layout.css">
     <style id="theme-vars">
 /* 知序 KBRefiner — 产品前端设计系统 */
 
@@ -619,16 +620,22 @@ a:hover { color: var(--kb-primary-700); }
         </div>
         <div class="kb-modal-body">
           <div class="kb-form-group">
-            <label class="kb-label" for="task-upload">上传文档</label>
-            <div class="kb-upload-zone" id="task-upload" data-max-file-mb="{{ upload_limit_mb }}">
+            <div class="kb-label" id="task-upload-label">上传文档</div>
+            <div class="kb-upload-zone" id="task-upload" data-max-file-mb="{{ upload_limit_mb }}"
+                 role="button" tabindex="0" aria-labelledby="task-upload-label"
+                 aria-describedby="task-upload-hint err-file upload-warning">
               <div class="kb-upload-icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="32" height="32"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
               </div>
               <div class="kb-upload-text">点击或拖拽文件到此处上传</div>
-              <div class="kb-upload-hint">支持 PDF / Word / Markdown / TXT</div>
+              <div class="kb-upload-hint" id="task-upload-hint">支持 PDF / Word / Markdown / TXT</div>
             </div>
             <span class="kb-text-error kb-text-sm" id="err-file" style="display:block;margin-top:8px;min-height:18px;"></span>
+            <p class="kb-upload-notice" id="upload-warning" role="status" hidden></p>
           </div>
+          <p class="kb-text-sm" id="upload-progress" role="status" hidden></p>
+          <p class="kb-upload-notice" id="document-review" role="status" hidden></p>
+          <p class="kb-text-error kb-text-sm" id="document-error" role="alert" hidden></p>
           <div class="kb-form-group">
             <label class="kb-label" for="task-name">任务名称</label>
             <input type="text" class="kb-input" id="task-name" placeholder="例如：产品手册_2024_Q3">
@@ -637,162 +644,16 @@ a:hover { color: var(--kb-primary-700); }
         </div>
         <div class="kb-modal-footer">
           <button class="kb-btn kb-btn-secondary" type="button" data-dom-id="btn-cancel-new-task">取消</button>
+          <button class="kb-btn kb-btn-secondary" type="button" id="replace-document" hidden>更换文件</button>
           <button class="kb-btn kb-btn-primary" type="button" data-dom-id="btn-confirm-new-task">确认创建</button>
         </div>
       </div>
     </div>
 
     <script src="/static/js/kbrefiner.js"></script>
-    <script>
-      lucide.createIcons();
-
-      // ===== 状态 =====
-      let _selectedFile = null;
-      let _fileId = null;
-
-      const ALLOWED_EXT = new Set(['pdf', 'docx', 'md', 'txt', 'markdown']);
-
-      const uploadZone = document.getElementById('task-upload');
-      const maxFileMb = Number(uploadZone.dataset.maxFileMb);
-      const uploadHint = uploadZone.querySelector('.kb-upload-hint');
-      if (Number.isFinite(maxFileMb)) {
-        uploadHint.textContent += `，单个文件不超过 ${maxFileMb} MB`;
-      }
-      const fileInput = document.createElement('input');
-      fileInput.type = 'file';
-      fileInput.accept = '.pdf,.docx,.md,.markdown,.txt';
-      fileInput.style.display = 'none';
-      uploadZone.appendChild(fileInput);
-
-      const taskNameInput = document.getElementById('task-name');
-      const btnConfirm = document.querySelector('[data-dom-id="btn-confirm-new-task"]');
-      const btnCancel = document.querySelector('[data-dom-id="btn-cancel-new-task"]');
-      const errFile = document.getElementById('err-file');
-      const errName = document.getElementById('err-name');
-
-      function validateTaskNew(fInput, nameInput) {
-        const errors = [];
-        const files = fInput ? fInput.files : (_selectedFile ? [_selectedFile] : []);
-        if (!files || files.length === 0) {
-          errors.push({ field: 'file', msg: '请先选择要上传的文件' });
-        } else {
-          const f = files[0];
-          const dot = f.name.lastIndexOf('.');
-          const ext = dot >= 0 ? f.name.slice(dot + 1).toLowerCase() : '';
-          if (!ALLOWED_EXT.has(ext)) {
-            errors.push({ field: 'file', msg: '不支持的文件类型，仅允许 PDF/DOCX/MD/TXT' });
-          } else if (Number.isFinite(maxFileMb) && f.size > maxFileMb * 1024 * 1024) {
-            errors.push({ field: 'file', msg: `文件大小超过限制：${maxFileMb} MB` });
-          }
-        }
-        if (!nameInput.value.trim()) {
-          errors.push({ field: 'name', msg: '请输入任务名称' });
-        }
-        return { ok: errors.length === 0, errors };
-      }
-
-      function applyValidation() {
-        const { ok, errors } = validateTaskNew(fileInput, taskNameInput);
-        const fileErr = errors.find(e => e.field === 'file');
-        const nameErr = errors.find(e => e.field === 'name');
-        errFile.textContent = fileErr ? fileErr.msg : '';
-        errName.textContent = nameErr ? nameErr.msg : '';
-        btnConfirm.disabled = !ok;
-        return { ok, errors };
-      }
-
-      // ===== 上传区域交互 =====
-      uploadZone.addEventListener('click', () => fileInput.click());
-
-      uploadZone.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        uploadZone.style.borderColor = 'var(--kb-primary-400)';
-        uploadZone.style.background = 'var(--kb-primary-50)';
-      });
-      uploadZone.addEventListener('dragleave', () => {
-        uploadZone.style.borderColor = '';
-        uploadZone.style.background = '';
-      });
-      uploadZone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        uploadZone.style.borderColor = '';
-        uploadZone.style.background = '';
-        if (e.dataTransfer.files.length) {
-          // DataTransfer.files 是 FileList 只读对象，直接用第一个即可
-          const dt = new DataTransfer();
-          dt.items.add(e.dataTransfer.files[0]);
-          fileInput.files = dt.files;
-          onFileSelected();
-        }
-      });
-      fileInput.addEventListener('change', onFileSelected);
-
-      function onFileSelected() {
-        const file = fileInput.files[0];
-        if (!file) return;
-        _selectedFile = file;
-
-        // 更新上传区显示
-        uploadZone.querySelector('.kb-upload-text').textContent = file.name;
-        uploadHint.textContent = `${KBRefiner.formatBytes(file.size)} · 已选择`;
-
-        // 自动填充任务名
-        if (!taskNameInput.value) {
-          taskNameInput.value = file.name.replace(/\.[^.]+$/, '');
-        }
-        applyValidation();
-      }
-
-      taskNameInput.addEventListener('input', applyValidation);
-
-      // 初始校验按钮禁用
-      applyValidation();
-
-      // ===== 确认创建 =====
-      btnConfirm.addEventListener('click', async () => {
-        const { ok } = applyValidation();
-        if (!ok) {
-          if (errFile.textContent) uploadZone.focus?.();
-          else if (errName.textContent) taskNameInput.focus();
-          return;
-        }
-        if (!_selectedFile) {
-          errFile.textContent = '请先选择要上传的文件';
-          btnConfirm.disabled = true;
-          return;
-        }
-        const taskName = taskNameInput.value.trim();
-        btnConfirm.disabled = true;
-        btnConfirm.textContent = '上传中...';
-
-        try {
-          // 1. 上传文件
-          const uploadData = await KBRefiner.API.upload(_selectedFile);
-          _fileId = uploadData.file_id;
-
-          btnConfirm.textContent = '处理中...';
-
-          // 2. 发起异步处理
-          const processData = await KBRefiner.API.processAsync(_fileId);
-          const taskId = processData.task_id;
-
-          // 3. 跳转到任务详情页
-          window.location.href = `/task-detail?task_id=${taskId}&name=${encodeURIComponent(taskName)}`;
-        } catch (e) {
-          alert('操作失败: ' + e.message);
-          btnConfirm.disabled = false;
-          btnConfirm.textContent = '确认创建';
-        }
-      });
-
-      // ===== 取消 =====
-      btnCancel.addEventListener('click', () => {
-        window.location.href = '/task-list';
-      });
-    </script>
+    <script src="/static/js/task-new.js"></script>
 
     <style id="critical-layout">
-    .kb-app { display: flex; flex-direction: column; min-height: 100vh; }
     .kb-top-header {
       height: var(--kb-header-height);
       background: var(--kb-neutral-0);
@@ -826,8 +687,6 @@ a:hover { color: var(--kb-primary-700); }
       display: flex; align-items: center; justify-content: center;
       font-weight: 700; font-size: 0.875rem;
     }
-    .kb-main { flex: 1; min-height: 100vh; }
-    .kb-content { padding: 32px; max-width: 1440px; margin: 0 auto; }
 
     /* Hero */
     .kb-hero {
@@ -1049,10 +908,20 @@ a:hover { color: var(--kb-primary-700); }
       border-radius: 0 0 var(--kb-radius-large) var(--kb-radius-large);
       display: flex;
       justify-content: flex-end;
+      flex-wrap: wrap;
       gap: var(--kb-space-3);
     }
     .kb-form-group { margin-bottom: var(--kb-space-5); }
     .kb-form-group:last-child { margin-bottom: 0; }
+    #upload-warning, #document-review, #document-error, #upload-progress { white-space: pre-line; }
+    .kb-upload-notice {
+      padding: 10px 12px;
+      border-radius: var(--kb-radius-small);
+      background: var(--kb-state-warning-bg);
+      color: var(--kb-neutral-800);
+      font-size: 0.875rem;
+    }
+    #replace-document[hidden] { display: none; }
     .kb-label {
       display: block;
       font-size: 0.875rem;
@@ -1099,7 +968,6 @@ a:hover { color: var(--kb-primary-700); }
     @media (max-width: 768px) {
       .kb-top-header { padding: 0 16px; }
       .kb-top-brand-text { display: none; }
-      .kb-content { padding: 16px; }
       .kb-hero { margin-bottom: var(--kb-space-5); }
       .kb-hero-body { padding: var(--kb-space-6) var(--kb-space-5); }
       .kb-hero h1 { font-size: 1.5rem; }

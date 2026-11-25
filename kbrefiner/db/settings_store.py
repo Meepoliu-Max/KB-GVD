@@ -27,7 +27,7 @@ class SettingsStore:
         "quota_task_daily": 100,        # 单用户每日任务数上限
         "quota_token_daily": 1_000_000,  # 单用户每日 Token 消耗上限
         "quota_upload_daily": 500,      # 单用户每日上传文档数上限
-        "quota_file_size_mb": 50,       # 单文件大小上限（MB）
+        "quota_file_size_mb": 15,       # 单文件大小上限（MB）
         "quota_batch_count": 20,        # 单次批量上传文件数上限（预留）
         # ===== 文件与格式 =====
         # 允许的文件类型（不含点，小写）。doc 旧格式解析器不支持，不开放

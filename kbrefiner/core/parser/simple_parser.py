@@ -52,8 +52,10 @@ class SimpleParser(BaseParser):
         if not path.exists():
             raise ParseFailedError(f"文件不存在: {path}")
 
+        page_count = 0
+        pages_without_text: tuple[int, ...] = ()
         if file_type == FileType.PDF:
-            markdown = self._parse_pdf(path)
+            markdown, page_count, pages_without_text = self._parse_pdf(path)
         elif file_type == FileType.DOCX:
             markdown = self._parse_docx(path)
         elif file_type == FileType.MARKDOWN:
@@ -73,7 +75,8 @@ class SimpleParser(BaseParser):
             markdown=markdown,
             headings=headings,
             tables=tables,
-            page_count=self._detect_page_count(markdown),
+            page_count=page_count,
+            pages_without_text=pages_without_text,
         )
 
     def _read_text(self, path: Path) -> str:
@@ -87,7 +90,7 @@ class SimpleParser(BaseParser):
             except Exception as e:
                 raise ParseFailedError(f"文本文件读取失败: {e}") from e
 
-    def _parse_pdf(self, path: Path) -> str:
+    def _parse_pdf(self, path: Path) -> tuple[str, int, tuple[int, ...]]:
         """使用 pypdf 解析 PDF。"""
         try:
             from pypdf import PdfReader
@@ -99,11 +102,14 @@ class SimpleParser(BaseParser):
         try:
             reader = PdfReader(str(path))
             parts: list[str] = []
-            for i, page in enumerate(reader.pages):
+            pages_without_text = []
+            for number, page in enumerate(reader.pages, start=1):
                 text = page.extract_text() or ""
                 if text.strip():
-                    parts.append(f"<!-- page {i + 1} -->\n{text}")
-            return "\n\n".join(parts)
+                    parts.append(f"<!-- page {number} -->\n{text}")
+                else:
+                    pages_without_text.append(number)
+            return "\n\n".join(parts), len(reader.pages), tuple(pages_without_text)
         except Exception as e:
             raise ParseFailedError(f"PDF 解析失败: {e}") from e
 
@@ -205,13 +211,5 @@ class SimpleParser(BaseParser):
             else:
                 i += 1
         return tables
-
-    @staticmethod
-    def _detect_page_count(markdown: str) -> int:
-        """从 page 标记检测页数。"""
-        import re
-        markers = re.findall(r"<!--\s*page\s*(\d+)\s*-->", markdown, re.IGNORECASE)
-        return len(set(markers)) if markers else 0
-
 
 __all__ = ["SimpleParser"]

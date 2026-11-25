@@ -49,7 +49,7 @@ class Settings(BaseSettings):
     # ===== 文件存储 =====
     upload_dir: str = "./data/uploads"
     output_dir: str = "./data/outputs"
-    max_upload_size_mb: int = 50
+    max_upload_size_mb: int = 15
 
     # ===== 模型切换 =====
     def get_model(self, task: Literal["default", "complex"] = "default") -> str:
